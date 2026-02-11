@@ -1,5 +1,5 @@
 import socket
-import userDBController as db
+
 import secrets
 import string
 import sqlite3
@@ -79,7 +79,7 @@ def handleSignup(loginData):
                        (username, password, token))
 
         # This is magic: it gets the 'ID' number SQLite just created for this user
-        #last_id = cursor.lastrowid
+        last_id = cursor.lastrowid
 
         # 2. Use that SAME ID to create a 'save file' in the PlayerData table
         # This 'links' the two tables together!
