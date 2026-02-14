@@ -66,7 +66,7 @@ def main_menu():
             draw_text(f"Password: {'*' * len(password)} {'|' if active_field == 'password' else ''}", 100, 200)
             draw_text("Press TAB to switch, ENTER to submit", 100, 300)
             draw_text("the key: "+status_msg[1], 100, 400, color=(255, 0, 0))
-            draw_text("the loadbalancer: "+status_msg[2], 100, 450, color=(255, 0, 0))
+            draw_text("the next server: "+status_msg[2], 100, 460, color=(255, 0, 0))
         pygame.display.flip()
 
 

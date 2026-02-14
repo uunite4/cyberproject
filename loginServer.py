@@ -82,7 +82,7 @@ def main():
                 print("login")
                 userToken = handleLogin(username, password)
                 if userToken == 404:
-                    response_packet = "ERROR=ERROR: NO USER FOUND"
+                    response_packet = "ERROR=ERROR: with login=NO USER FOUND"
                 else:
                     gameServerIP = sendTokenToLB(userToken)
                     response_packet = f"OK={userToken}={gameServerIP}"
@@ -91,7 +91,7 @@ def main():
                 print("signup")
                 userToken = handleSignup(username, password)
                 if userToken == "ALREADY FOUND":
-                    response_packet = "ERROR=ERROR: USER ALREADY FOUND"
+                    response_packet = f"ERROR=ERROR: with sign up=USER ALREADY FOUND"
                 else:
                     gameServerIP = sendTokenToLB(userToken)
                     response_packet = f"OK={userToken}={gameServerIP}"
