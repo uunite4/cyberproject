@@ -23,6 +23,7 @@ def main_menu():
     password = ""
     active_field = "username"  # Toggle between username and password
     mode = "START"  # START, LOGIN_INPUT, SIGNUP_INPUT
+    status_msg = "Waiting for input..."  # This is our 'waiting room'
 
     running = True
     while running:
@@ -41,7 +42,7 @@ def main_menu():
                     if event.key == pygame.K_TAB:  # Switch fields
                         active_field = "password" if active_field == "username" else "username"
                     elif event.key == pygame.K_RETURN:  # SEND TO SERVER
-                        send_to_server(username, password, "LOGIN" if mode == "LOGIN_INPUT" else "SIGNUP")
+                        status_msg = send_to_server(username, password, "LOGIN" if mode == "LOGIN_INPUT" else "SIGNUP")
                     elif event.key == pygame.K_BACKSPACE:
                         if active_field == "username":
                             username = username[:-1]
@@ -61,25 +62,29 @@ def main_menu():
 
         elif "INPUT" in mode:
             draw_text(f"Mode: {mode}", 50, 50)
-            draw_text(f"Username: {username} {'<--' if active_field == 'username' else ''}", 100, 150)
-            draw_text(f"Password: {'*' * len(password)} {'<--' if active_field == 'password' else ''}", 100, 200)
+            draw_text(f"Username: {username} {'|' if active_field == 'username' else ''}", 100, 150)
+            draw_text(f"Password: {'*' * len(password)} {'|' if active_field == 'password' else ''}", 100, 200)
             draw_text("Press TAB to switch, ENTER to submit", 100, 300)
-
+            draw_text("the key: "+status_msg[1], 100, 400, color=(255, 0, 0))
+            draw_text("the loadbalancer: "+status_msg[2], 100, 450, color=(255, 0, 0))
         pygame.display.flip()
 
 
 def send_to_server(u, p, action):
-    # This matches your server's split("=") logic
     data = f"{u}={p}={action}"
     try:
         s = socket.socket()
+        s.settimeout(2) # <--- ADD THIS: Don't wait more than 2 seconds
         s.connect(("127.0.0.1", 8080))
         s.send(data.encode())
         response = s.recv(1024).decode()
-        print(f"Server says: {response}")
         s.close()
-    except:
-        print("Could not connect to server!")
+        print(response)
+        answer = response.split("=")
+        return answer # Return the actual answer to the UI
+    except Exception as e:
+        print(f"Connection Error: {e}")
+        return "CONNECTION_ERROR"
 
 
 if __name__ == "__main__":

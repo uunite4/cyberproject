@@ -6,7 +6,7 @@ import sqlite3
 # --- CONFIGURATION ---
 LOGIN_SERVER_IP = "127.0.0.1"
 LOGIN_SERVER_PORT = 8080
-DB_PATH = r"C:\Users\USER\PycharmProjects\PythonProject\Cyber-Proj-main\game.db"
+DB_PATH = r"C:\Users\USER\PycharmProjects\PythonProject\Cyber-Proj-main\loginServerBasics\game.db"
 
 
 def generateToken(length=16):
@@ -79,6 +79,7 @@ def main():
             response_packet = ""
 
             if action == "LOGIN":
+                print("login")
                 userToken = handleLogin(username, password)
                 if userToken == 404:
                     response_packet = "ERROR=ERROR: NO USER FOUND"
@@ -87,6 +88,7 @@ def main():
                     response_packet = f"OK={userToken}={gameServerIP}"
 
             elif action == "SIGNUP":
+                print("signup")
                 userToken = handleSignup(username, password)
                 if userToken == "ALREADY FOUND":
                     response_packet = "ERROR=ERROR: USER ALREADY FOUND"
