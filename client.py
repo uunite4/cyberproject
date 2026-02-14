@@ -8,7 +8,7 @@ from Player import PlayerData, handle_input, health_bar_update, S_health_bar_upd
 from settings import *
 from map_data import MAP
 from map import draw_map
-
+from Bullet import *
 
 # ---------- network helpers ----------
 def qc3_pack(cmd: int, payload: bytes = b"") -> bytes:
@@ -110,7 +110,7 @@ def run():
     map_h = MAP_H
 
     players = {}  # pid -> PlayerData
-
+    bullets11 = {}
     running = True
     while running:
         # -------- window events --------
@@ -119,10 +119,10 @@ def run():
                 running = False
 
         # -------- input -> server --------
-        dx, dy, dspeed, dire = handle_input()
+        dx, dy, dspeed, dire,shot = handle_input()
 
         try:
-            sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbb", dx, dy, dspeed, dire)))
+            sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbbb", dx, dy, dspeed, dire,shot)))
         except BlockingIOError:
             # normal on non-blocking sockets
             pass
@@ -153,9 +153,10 @@ def run():
                             off += 12
                             active_ids.add(pid)
 
+
                             if pid not in players:
                                 # PlayerData in your project expects: (pid, x, y, dir1, group)
-                                players[pid] = PlayerData(pid, x, y, pdire, 0)
+                                players[pid] = PlayerData(pid, x, y, pdire, 0,0)
 
                             players[pid].update_from_server(x, y, health, pdire)
 
@@ -163,6 +164,24 @@ def run():
                         for pid_to_remove in list(players.keys()):
                             if pid_to_remove not in active_ids:
                                 del players[pid_to_remove]
+
+                        count1 = payload[off]
+                        off += 1
+                        active_bull = set()
+                        for _ in range(count1):
+                            if off + 8 > len(payload):
+                                break
+                            bullet_x ,bullet_y  , pid, dirb= struct.unpack("!HHHH", payload[off:off + 8])
+                            off += 8
+                            active_bull.add(pid)
+                            if pid not in bullets11:
+
+                                bullets11[pid] = Bullet(pid, bullet_x, bullet_y ,dirb,0)
+                            bullets11[pid].update_from_server_bull(bullet_x, bullet_y)
+
+                        for bull_to_remove in list(bullets11.keys()):
+                            if bull_to_remove not in active_bull:
+                                del bullets11[bull_to_remove]
 
         except BlockingIOError:
             pass
@@ -184,6 +203,12 @@ def run():
         # draw map
         draw_map(screen, MAP, cam_x, cam_y, WINDOW_W, WINDOW_H)
 
+        # =====draw bull
+        for pid, b in bullets11.items():
+            bx = b.x - cam_x
+            by = b.y - cam_y
+            pygame.draw.circle(screen, "yellow", (bx,by), 10)
+
         # draw all players as sprites
         for pid, p in players.items():
             px = int(p.x - cam_x - PLAYER_SIZE // 2)
@@ -200,6 +225,8 @@ def run():
 
         pygame.display.flip()
         clock.tick(60)
+
+
 
     try:
         sock.close()

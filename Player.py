@@ -3,13 +3,13 @@ import struct
 import random
 from settings import *
 from map_data import *
-PLAYER_SIZE = 40
+
 
 # ---------------------------------
 # PlayerData - מחזיק את הנתונים האמיתיים מהשרת
 # ---------------------------------
 class PlayerData:
-    def __init__(self, pid, x, y , dir1,group):
+    def __init__(self, pid, x, y , dir1,group, gcd):
         self.id = pid
         self.x = x
         self.y = y
@@ -19,6 +19,7 @@ class PlayerData:
         self.healthBarx = 20
         self.healthBary = 20
         self.dir = dir1
+        self.gun_cooldown = gcd
 
 
     def update_from_server(self, x, y,health,direction):
@@ -34,6 +35,7 @@ def handle_input():
     dx = int(keys[pygame.K_d]) - int(keys[pygame.K_a])
     dy = int(keys[pygame.K_s]) - int(keys[pygame.K_w])
     dspeed = int(keys[pygame.K_LSHIFT])
+    shot = int(keys[pygame.K_SPACE])
     if dx == 1:
         if dy == 1:
             dire = 2
@@ -56,7 +58,7 @@ def handle_input():
         elif dy == 0:
             dire =0
 
-    return dx,dy ,dspeed,dire
+    return dx,dy ,dspeed,dire ,shot
 def check_collision_with_stone(self, next_x, next_y):  # True = blocked (stone/outside)
     left = next_x - PLAYER_SIZE // 2  # player box left (pixels)
     right = next_x + PLAYER_SIZE // 2 - 1  # player box right (pixels)
@@ -103,6 +105,25 @@ def check_collision_with_lava(self, next_x, next_y):    # True = blocked (stone/
         if MAP[tile_y][tile_x] == "b":
             return True
     return False
+def check_bullet_hit(p,b):
+    left = p.x #- PLAYER_SIZE // 2  # player box left (pixels)
+    right = p.x + PLAYER_SIZE   # player box right (pixels)
+    top = p.y #- PLAYER_SIZE // 2  # player box top (pixels)
+    bottom = p.y + PLAYER_SIZE // 2 - 1  # player box bottom (pixels)
+
+    corners = [  # 4 corners
+        (left, top),
+        (right, top),
+        (left, bottom),
+        (right, bottom),
+    ]
+
+    for px, py in corners:
+        if px == b.x and py == b.y:
+            return True
+    return False
+
+
 def new_place():
     while True:
 

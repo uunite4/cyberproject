@@ -4,10 +4,10 @@ import struct
 import itertools
 import time
 
-from Player import PlayerData, new_place, check_collision_with_stone, check_collision_with_lava
+from Player import PlayerData, new_place, check_collision_with_stone, check_collision_with_lava, check_bullet_hit
 from settings import *
 from map_data import MAP
-
+from Bullet import *
 
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
@@ -59,7 +59,7 @@ last_broadcast = time.time()
 print(f"QC3 Server listening on {HOST}:{PORT}")
 
 
-def broadcast_state():
+def broadcast_state(all_bullets):
     count = min(255, len(clients))
     payload = bytearray()
     payload.append(count)
@@ -68,6 +68,7 @@ def broadcast_state():
         if i >= count:
             break
         p = c["player"]
+
         payload += struct.pack(
             "!IHHHH",
             int(p.id),
@@ -76,7 +77,14 @@ def broadcast_state():
             int(p.health),
             int(p.dir),
         )
-
+    payload.append(len(all_bullets))
+    for b in all_bullets:
+        payload += struct.pack(
+            "!HHHH",
+            int(b.x),
+            int(b.y),
+            int(b.id),
+            int(b.dir))
     packet = qc3_pack(CMD_STATE, bytes(payload))
 
     dead = []
@@ -95,7 +103,8 @@ def broadcast_state():
             pass
         clients.pop(s, None)
 
-
+bullets = []
+bullet_id_gen = itertools.count(10000)
 # -------- main loop --------
 while True:
     now = time.time()
@@ -115,7 +124,7 @@ while True:
             # PlayerData signature: (pid, x, y, dir1, group)
             clients[conn] = {
                 "stream": QC3Stream(),
-                "player": PlayerData(pid, px, py, 3, 0),  # start facing south
+                "player": PlayerData(pid, px, py, 3,0, 0),  # start facing south
                 "last": now
             }
 
@@ -143,14 +152,24 @@ while True:
                 for cmd, payload in clients[s]["stream"].pop_messages():
                     clients[s]["last"] = now
 
-                    if cmd == CMD_INPUT and len(payload) == 4:
-                        dx, dy, dsprint, dire = struct.unpack("!bbbb", payload)
+                    if cmd == CMD_INPUT and len(payload) == 5 :
+                        dx, dy, dsprint, dire ,shot= struct.unpack("!bbbbb", payload)
 
                         p = clients[s]["player"]
 
-                        # update direction if client sent one
+                        
+
+
                         if dire != 0:
                             p.dir = int(dire)
+
+                        if shot ==1:
+                            if p.gun_cooldown == 0:
+                                b_id = next(bullet_id_gen)
+                                new_bullet = Bullet(b_id,p.x, p.y, p.dir, BULLET_DISTANS )
+                                bullets.append(new_bullet)
+                                p.gun_cooldown=BULLET_COOLDOWN
+                            else: p.gun_cooldown -=1
 
                         speed = SPEED + (SPEED * dsprint)
 
@@ -169,6 +188,17 @@ while True:
                             if p.health <= 0:
                                 p.x, p.y = new_place()
                                 p.health = 100
+
+                        for b in bullets[:]:
+                            if check_bullet_hit(p,b):
+                                p.health -= 0.5
+
+                    # בסוף הלולאה הראשית, מחוץ ל-readable
+                    for b in bullets[:]:
+                        # קריאה לשם הפונקציה המדויק מהקלאס שלך
+                        is_dead = b.update_bullet()
+                        if is_dead:
+                            bullets.remove(b)
 
             except Exception:
                 pid = None
@@ -198,5 +228,5 @@ while True:
 
     # broadcast at 20Hz
     if now - last_broadcast >= 0.05:
-        broadcast_state()
+        broadcast_state(bullets)
         last_broadcast = now
