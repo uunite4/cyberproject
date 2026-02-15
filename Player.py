@@ -34,6 +34,7 @@ def handle_input():
     dx = int(keys[pygame.K_d]) - int(keys[pygame.K_a])
     dy = int(keys[pygame.K_s]) - int(keys[pygame.K_w])
     dspeed = int(keys[pygame.K_LSHIFT])
+    attack = int(keys[pygame.K_SPACE])
     if dx == 1:
         if dy == 1:
             dire = 2
@@ -56,7 +57,7 @@ def handle_input():
         elif dy == 0:
             dire =0
 
-    return dx,dy ,dspeed,dire
+    return dx,dy ,dspeed,dire,attack
 def check_collision_with_stone(self, next_x, next_y):  # True = blocked (stone/outside)
     left = next_x - PLAYER_SIZE // 2  # player box left (pixels)
     right = next_x + PLAYER_SIZE // 2 - 1  # player box right (pixels)

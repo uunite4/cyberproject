@@ -144,11 +144,12 @@ while True:
                 for cmd, payload in clients[s]["stream"].pop_messages():
                     clients[s]["last"] = now
 
-                    if cmd == CMD_INPUT and len(payload) == 4:
-                        dx, dy, dsprint, dire = struct.unpack("!bbbb", payload)
+                    if cmd == CMD_INPUT and len(payload) == 5:
+                        dx, dy, dsprint, dire, attack = struct.unpack("!bbbbb", payload)
 
                         p = clients[s]["player"]
-
+                        if attack == 1:
+                            dagger.attack(p, clients, new_place)
                         # update direction if client sent one
                         if dire != 0:
                             p.dir = int(dire)
@@ -170,9 +171,6 @@ while True:
                             if p.health <= 0:
                                 p.x, p.y = new_place()
                                 p.health = 100
-                    elif cmd == CMD_STAB:
-                        p = clients[s]["player"]
-                        dagger.attack(p, clients, new_place)
 
 
             except Exception:

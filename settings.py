@@ -10,7 +10,6 @@ TILE_SIZE = 40
 SPEED = 5
 PLAYER_SIZE = 40
 #=======cmd
-CMD_STAB    = 0x03
 CMD_JOIN    = 0x01
 CMD_INPUT   = 0x02
 CMD_STATE   = 0x10

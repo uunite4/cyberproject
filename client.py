@@ -119,13 +119,10 @@ def run():
                 running = False
 
         # -------- input -> server --------
-        dx, dy, dspeed, dire = handle_input()
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_SPACE]:
-            sock.sendall(qc3_pack(CMD_STAB))
+        dx, dy, dspeed, dire,attack = handle_input()
 
         try:
-            sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbb", dx, dy, dspeed, dire)))
+            sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbbb", dx, dy, dspeed, dire,attack)))
         except BlockingIOError:
             # normal on non-blocking sockets
             pass
