@@ -120,6 +120,9 @@ def run():
 
         # -------- input -> server --------
         dx, dy, dspeed, dire = handle_input()
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_SPACE]:
+            sock.sendall(qc3_pack(CMD_STAB))
 
         try:
             sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbb", dx, dy, dspeed, dire)))

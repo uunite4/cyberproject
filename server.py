@@ -7,6 +7,7 @@ import time
 from Player import PlayerData, new_place, check_collision_with_stone, check_collision_with_lava
 from settings import *
 from map_data import MAP
+from weapon import Dagger
 
 
 def clamp(v, lo, hi):
@@ -53,7 +54,7 @@ server.setblocking(False)
 
 clients = {}  # sock -> {"stream": QC3Stream, "player": PlayerData, "last": float}
 id_gen = itertools.count(1)
-
+dagger = Dagger()
 last_broadcast = time.time()
 
 print(f"QC3 Server listening on {HOST}:{PORT}")
@@ -169,6 +170,10 @@ while True:
                             if p.health <= 0:
                                 p.x, p.y = new_place()
                                 p.health = 100
+                    elif cmd == CMD_STAB:
+                        p = clients[s]["player"]
+                        dagger.attack(p, clients, new_place)
+
 
             except Exception:
                 pid = None
