@@ -43,7 +43,6 @@ def reqHandle(req):
         else: useCmd = S.CMDS["MOVE"]
         # FINAL PACKET
         res = struct.pack('!bhh', useCmd, player["x"], player["y"])
-
     return res
 
 async def main():

@@ -13,6 +13,10 @@ def drawServers(screen):
     pygame.draw.rect(screen, S.SERVER2["color"], server2Rect)
     pygame.draw.rect(screen, S.OVERLAP["color"], overlapRect)
 
+def moveOffPackt(pkStruct, player):
+    x, y = struct.unpack_from('!hh', pkStruct, 1)
+    player.tp(x, y)
+
 def handleRes(resStruct, player):
     cmd = struct.unpack_from('B', resStruct, 0)[0]
 
@@ -20,21 +24,17 @@ def handleRes(resStruct, player):
         return
 
     elif (cmd == S.CMDS["MOVE"]):
-        x, y = struct.unpack_from('!hh', resStruct, 1)
-        print(x, y)
-        player.tp(x, y)
+        moveOffPackt(resStruct, player)
 
-    elif (cmd == S.CMDS["KEEP_SERVER"]):                            # WE SENT CORDS, NEED TO STAY IN THE SAME SERVER
-        return "stay"
-    elif (cmd == S.CMDS["CHANGE_SERVER"]):                          # WE SENT CORDS, NEED TO CHANGE SERVER
-        print("! CHANGING SERVER !")
-        newServer = struct.unpack_from('b', resStruct, 1)[0]
-        # 1 = SERVER1 | 2 = SERVER2 | ...
-        if (newServer == 1):
-            return S.SERVER1["ip"], S.SERVER1["port"]
-        elif (newServer == 2):
-            return S.SERVER2["ip"], S.SERVER2["port"]
+    elif (cmd == S.CMDS["MOVE+OVERLAP"]):
+        moveOffPackt(resStruct, player)
+        # TODO: CHECK IF ALREADY CONNECTED TO SERVER 2
+        # If not connected, connect pos
+        # If connected, send pos
 
+    elif (cmd == S.CMDS["MOVE+SWITCH_SERVER"]):
+        moveOffPackt()
+        # TODO: CHANGE ROLES
 
 async def main():
     # 1. Initialize
