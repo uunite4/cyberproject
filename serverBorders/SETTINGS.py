@@ -35,6 +35,7 @@ SERVER2 = {
 
 CMDS = {
     "MOVE": 0x01,
+    "INIT_POS": 0x05,
     "CHANGE_SERVER": 0x02,
     "CHECK_POS": 0x03,
     "KEEP_SERVER": 0x04

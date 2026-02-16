@@ -8,9 +8,13 @@ class Player:
         self.width = 40
         self.height = 40
 
-    def move(self, xVel, yVel):
-        self.x += xVel
-        self.y += yVel
+    # def move(self, xVel, yVel):
+    #     self.x += xVel
+    #     self.y += yVel
+
+    def tp(self, x, y):
+        self.x = x
+        self.y = y
 
     def draw(self, screen):
         playerRect = pygame.Rect(self.x, self.y, self.width, self.height)

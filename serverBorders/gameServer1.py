@@ -4,6 +4,7 @@ import SETTINGS as S
 import struct
 
 thisServer = S.SERVER1
+player = {}
 
 def point_in_rect(px, py, rx, ry, w, h):
     return (
@@ -13,12 +14,29 @@ def point_in_rect(px, py, rx, ry, w, h):
 
 def reqHandle(req):
     global res
+    global player
     cmd = struct.unpack_from('B', req, 0)[0]
-    if (cmd == S.CMDS["MOVE"]):     # CLIENT GAVE US DIRECTION, WE NEED TO RETURN VELS
+
+    if (cmd == S.CMDS["INIT_POS"]):
+
+        x, y = struct.unpack_from('bb', req, 1)
+        player = {
+            "x": x,
+            "y": y
+        }
+        print(player)
+        res = struct.pack('!b', S.CMDS["INIT_POS"]) # SEND BACK EMPTY
+
+    elif (cmd == S.CMDS["MOVE"]):
+        # CLIENT GAVE US DIRECTION, WE RETURN POS
         xDir, yDir = struct.unpack_from('bb', req, 1)
         xVel = xDir * S.PLAYER_VEL
         yVel = yDir * S.PLAYER_VEL
-        res = struct.pack('!bbb',S.CMDS["MOVE"], xVel, yVel)
+        player["x"] += xVel
+        player["y"] += yVel
+        res = struct.pack('!bhh',S.CMDS["MOVE"], player["x"], player["y"])
+        # TODO: CHECK IF IN OVERFLOW / IS IN SERVER 2
+        # DOING IN NOW...
 
     elif (cmd == S.CMDS["CHECK_POS"]):  # CLIENT GAVE US CORDS, WE NEED TO CHECK IF INSIDE THIS SERVER
         if len(req) < 5:

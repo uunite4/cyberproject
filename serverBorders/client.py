@@ -13,11 +13,17 @@ def drawServers(screen):
     pygame.draw.rect(screen, S.SERVER2["color"], server2Rect)
     pygame.draw.rect(screen, S.OVERLAP["color"], overlapRect)
 
-def handleRes(resStruct, player, client):
+def handleRes(resStruct, player):
     cmd = struct.unpack_from('B', resStruct, 0)[0]
-    if (cmd == S.CMDS["MOVE"]):                                     # WE SENT INPUTS, WE GOT MOVE
-        xVel, yVel = struct.unpack_from('bb', resStruct, 1)
-        player.move(xVel, yVel)
+
+    if (cmd == S.CMDS["INIT_POS"]):
+        return
+
+    elif (cmd == S.CMDS["MOVE"]):
+        x, y = struct.unpack_from('!hh', resStruct, 1)
+        print(x, y)
+        player.tp(x, y)
+
     elif (cmd == S.CMDS["KEEP_SERVER"]):                            # WE SENT CORDS, NEED TO STAY IN THE SAME SERVER
         return "stay"
     elif (cmd == S.CMDS["CHANGE_SERVER"]):                          # WE SENT CORDS, NEED TO CHANGE SERVER
@@ -38,13 +44,17 @@ async def main():
     running = True
 
     # SET UP CLIENT
-    global client
-    client = EasyQUIC(S.SERVER1["ip"], S.SERVER1["port"])
-    await client.connect()
+    currentClient = EasyQUIC(S.SERVER1["ip"], S.SERVER1["port"])
+    await currentClient.connect()
 
     # Create player
     myPlayer = Player.Player()
     pressed = False
+
+    # SEND INITIAL POS
+    pk = struct.pack("!bbb", S.CMDS["INIT_POS"], myPlayer.x, myPlayer.y)
+    response = await currentClient.send(pk)
+    handleRes(response, myPlayer)
 
     # --- THE GAME LOOP ---
     while running:
@@ -53,20 +63,6 @@ async def main():
             if event.type == pygame.QUIT:
                 running = False
 
-        # CHECK IF WE MOVED LAST FRAME
-        # IF WE DID, WE SHOULD CHECK WITH THE SEREVR IF
-        # WE'RE STILL INSIDE IT
-        if (pressed):
-            pressed = False
-            pk = struct.pack('!bhh', S.CMDS["CHECK_POS"], myPlayer.x, myPlayer.y)  # h is signed 2 bytes
-            response = await client.send(pk)
-            nextAction = handleRes(response, myPlayer, client)
-            if (nextAction != "stay"):  # WE NEED TO UPDATE CLIENT
-                await client.close()    # CLOSE CURRENT CLIENT
-                client = EasyQUIC(nextAction[0], nextAction[1])
-                await client.connect()  # OPEN NEW CLIENT
-                #pressed = False  # reset to avoid sending a leftover MOVE packet
-
         # KEYS (GET INPUTS)
         inputs = {
             "w": 0,
@@ -74,7 +70,7 @@ async def main():
             "s": 0,
             "d": 0,
         }
-
+        pressed = False
         keys = pygame.key.get_pressed()
         if keys[pygame.K_w]:
             inputs["w"] = 1
@@ -94,8 +90,8 @@ async def main():
             xAxisDirection = inputs['d'] - inputs['a']
             yAxisDirection = inputs['s'] - inputs['w']
             pk = struct.pack('!bbb', S.CMDS["MOVE"], xAxisDirection, yAxisDirection) # b is signed byte
-            response = await client.send(pk)
-            handleRes(response, myPlayer, client)
+            response = await currentClient.send(pk)
+            handleRes(response, myPlayer)
 
         # DRAW
         screen.fill((30, 30, 30))   # BG
