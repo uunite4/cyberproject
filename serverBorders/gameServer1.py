@@ -34,20 +34,15 @@ def reqHandle(req):
         yVel = yDir * S.PLAYER_VEL
         player["x"] += xVel
         player["y"] += yVel
-        res = struct.pack('!bhh',S.CMDS["MOVE"], player["x"], player["y"])
-        # TODO: CHECK IF IN OVERFLOW / IS IN SERVER 2
-        # DOING IN NOW...
-
-    elif (cmd == S.CMDS["CHECK_POS"]):  # CLIENT GAVE US CORDS, WE NEED TO CHECK IF INSIDE THIS SERVER
-        if len(req) < 5:
-            print(f"Short CHECK_POS packet: {len(req)} bytes")
-            return  struct.pack('!b',S.CMDS["KEEP_SERVER"])
-        playerX, playerY = struct.unpack_from('!hh', req, 1)
-        if point_in_rect(playerX, playerY, thisServer["x"], 0, thisServer["width"], S.WINDOW_HEIGHT):
-            res = struct.pack('!b',S.CMDS["KEEP_SERVER"])
-        else:   # PLAYER OUTSIDE OF SERVER!
-            print("DETECTED PLAYER OUT OF RANGE")
-            res = struct.pack('!bb',S.CMDS["CHANGE_SERVER"], 2) # 2 is for server2
+        global useCmd
+        # CHECK OVERLAP / SERVER 2
+        inOverlap = point_in_rect(player["x"], player["y"], S.OVERLAP["x"], 0, S.OVERLAP["width"], S.WINDOW_HEIGHT)
+        inServer = point_in_rect(player["x"], player["y"], thisServer["x"], 0, thisServer["width"], S.WINDOW_HEIGHT)
+        if (inOverlap): useCmd = S.CMDS["MOVE+OVERLAP"]
+        elif (not inServer): useCmd = S.CMDS["MOVE+SWITCH_SERVER"]
+        else: useCmd = S.CMDS["MOVE"]
+        # FINAL PACKET
+        res = struct.pack('!bhh', useCmd, player["x"], player["y"])
 
     return res
 
