@@ -25,6 +25,7 @@ class _ClientProtocol(QuicConnectionProtocol):
             self.close()
 
     def close(self):
+        self._client.close_connection(self._connection_id)
         self._quic.close(error_code=0)
         self.transmit()
 
@@ -32,15 +33,10 @@ class _ClientProtocol(QuicConnectionProtocol):
 class QuicClient:
     def __init__(self, cert_file: str, on_receive: OnReceive):
         self.cert_file = cert_file
-
         self.on_receive = on_receive
+
         self._connections: dict[int, _ClientProtocol] = {}
         self.lifetime_connections = 0
-
-    def _get_next_connection_id(self) -> int:
-        connection_id = self.lifetime_connections
-        self.lifetime_connections += 1
-        return connection_id
 
     async def connect(self, server_ip: str, server_port: int):
         config = QuicConfiguration(is_client=True)
@@ -82,7 +78,11 @@ class QuicClient:
     async def close_connection(self, connection_id: int):
         conn = self._get_connection(connection_id)
         if conn:
-            conn.close()  # maybe need await
+            conn.close()
+
+    async def stop(self):
+        for conn_id in list(self._connections.keys()):
+            await self.close_connection(conn_id)
 
     def _add_connection(self, connection_id: int, conn: _ClientProtocol):
         self._connections[connection_id] = conn
@@ -93,6 +93,7 @@ class QuicClient:
     def _remove_connection(self, connection_id: int):
         self._connections.pop(connection_id, None)
 
-    async def stop(self):
-        for conn_id in list(self._connections.keys()):
-            await self.close_connection(conn_id)
+    def _get_next_connection_id(self) -> int:
+        connection_id = self.lifetime_connections
+        self.lifetime_connections += 1
+        return connection_id

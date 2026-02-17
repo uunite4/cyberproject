@@ -11,6 +11,12 @@ OnReceive = Callable[[int, bytes], None]
 OnConnect = Callable[[int], None]
 OnDisconnect = Callable[[int], None]
 
+"""
+
+clean it up
+
+"""
+
 
 class _ServerProtocol(QuicConnectionProtocol):
     def __init__(self, *args, server: "QuicServer", connection_id: int, **kwargs):
@@ -61,30 +67,6 @@ class QuicServer:
         self._connections: dict[int, _ServerProtocol] = dict()
         self.lifetime_connections = 0
 
-    async def broadcast(self, data: bytes):
-        for conn in list(self._connections.values()):
-            conn.send(data)
-
-    async def send(self, data: bytes, connection_id: int):
-        connection = self._get_connection(connection_id)
-        if not connection:
-            raise RuntimeError("Not connected")
-        connection.send(data)
-
-    def _get_next_connection_id(self) -> int:
-        connection_id = self.lifetime_connections
-        self.lifetime_connections += 1
-        return connection_id
-
-    def _add_connection(self, connection_id: int, conn: _ServerProtocol):
-        self._connections[connection_id] = conn
-
-    def _get_connection(self, connection_id: int):
-        return self._connections.get(connection_id)
-
-    def _remove_connection(self, connection_id: int):
-        self._connections.pop(connection_id, None)
-
     async def start(self):
         config = QuicConfiguration(is_client=False)
         config.load_cert_chain(self.cert_file, self.key_file)
@@ -107,5 +89,29 @@ class QuicServer:
             create_protocol=create_connection,
         )
 
+    async def send(self, data: bytes, connection_id: int):
+        connection = self._get_connection(connection_id)
+        if not connection:
+            raise RuntimeError("Not connected")
+        connection.send(data)
+
+    async def broadcast(self, data: bytes):
+        for conn in list(self._connections.values()):
+            conn.send(data)
+
     async def stop(self):
         self._server.close()
+
+    def _add_connection(self, connection_id: int, conn: _ServerProtocol):
+        self._connections[connection_id] = conn
+
+    def _get_connection(self, connection_id: int):
+        return self._connections.get(connection_id)
+
+    def _remove_connection(self, connection_id: int):
+        self._connections.pop(connection_id, None)
+
+    def _get_next_connection_id(self) -> int:
+        connection_id = self.lifetime_connections
+        self.lifetime_connections += 1
+        return connection_id
