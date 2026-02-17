@@ -6,7 +6,7 @@ EXAMPLE_SERVER_IP = "127.0.0.1"
 EXAMPLE_SERVER_PORT = 8000
 
 
-class Server:
+class ServerExample:
 
     def __init__(self):
         self.server = QuicServer(
@@ -33,10 +33,10 @@ class Server:
         print("Server started")
 
         while True:
-            await self.server.broadcast(b"EEE")
+            await self.server.broadcast(b"hi to everyone")
             await asyncio.sleep(1)
 
 
 if __name__ == '__main__':
-    s = Server()
+    s = ServerExample()
     asyncio.run(s.run())

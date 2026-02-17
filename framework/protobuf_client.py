@@ -4,7 +4,7 @@ from example.server_example import EXAMPLE_SERVER_IP, EXAMPLE_SERVER_PORT
 from wrappers.client_wrapper import QuicClient
 
 
-class Client:
+class ClientExample:
 
     def __init__(self):
         self.client = None
@@ -24,10 +24,10 @@ class Client:
         )
 
         while True:
-            self.client.send(server_id, b'wew')
+            self.client.send(server_id, b'hi server')
             await asyncio.sleep(1)
 
 
 if __name__ == '__main__':
-    c = Client()
+    c = ClientExample()
     asyncio.run(c.run())
