@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+message PlayerState {
+  int32 player_id = 1;
+  int32 direction_x = 2;
+  int32 direction_y = 3;
+}
