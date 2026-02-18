@@ -3,8 +3,6 @@ BASE_DIR = Path(__file__).resolve().parent
 
 WINDOW_WIDTH = 960
 WINDOW_HEIGHT = 540
-CERT = str(BASE_DIR.parent / "auth" / "cert.pem")
-KEY = str(BASE_DIR.parent / "auth" / "key.pem")
 PLAYER_VEL = 3
 
 OVERLAP_WIDTH = 300
