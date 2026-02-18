@@ -14,13 +14,13 @@ class PlayerData:
         self.x = x
         self.y = y
         self.group = group
-        self.health = 100  # אפשר להוסיף עוד שדות בעתיד
+        self.health = PLAYER_HEALTH  # אפשר להוסיף עוד שדות בעתיד
         self.color = (200, 50, 50)  # צבע ברירת מחדל, אפשר לקבל מהשרת
         self.healthBarx = 20
         self.healthBary = 20
         self.dir = dir1
         self.gun_cooldown = gcd
-
+        self.current_weapon = 1
 
     def update_from_server(self, x, y,health,direction):
         self.x = x
@@ -36,6 +36,11 @@ def handle_input():
     dy = int(keys[pygame.K_s]) - int(keys[pygame.K_w])
     dspeed = int(keys[pygame.K_LSHIFT])
     shot = int(keys[pygame.K_SPACE])
+    if int(keys[pygame.K_1]):
+        current_weapon=1
+    elif int(keys[pygame.K_2]):
+        current_weapon=2
+    else: current_weapon=0
     if dx == 1:
         if dy == 1:
             dire = 2
@@ -58,7 +63,7 @@ def handle_input():
         elif dy == 0:
             dire =0
 
-    return dx,dy ,dspeed,dire ,shot
+    return dx,dy ,dspeed,dire ,shot ,current_weapon
 def check_collision_with_stone(self, next_x, next_y):  # True = blocked (stone/outside)
     left = next_x - PLAYER_SIZE // 2  # player box left (pixels)
     right = next_x + PLAYER_SIZE // 2 - 1  # player box right (pixels)
@@ -118,9 +123,8 @@ def check_bullet_hit(p,b):
         (right, bottom),
     ]
 
-    for px, py in corners:
-        if px == b.x and py == b.y:
-            return True
+    if left <= b.x <= right and top <= b.y <= bottom:
+        return True
     return False
 
 

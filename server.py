@@ -80,7 +80,7 @@ def broadcast_state(all_bullets):
     payload.append(len(all_bullets))
     for b in all_bullets:
         payload += struct.pack(
-            "!HHHH",
+            "!hhHh",
             int(b.x),
             int(b.y),
             int(b.id),
@@ -152,24 +152,23 @@ while True:
                 for cmd, payload in clients[s]["stream"].pop_messages():
                     clients[s]["last"] = now
 
-                    if cmd == CMD_INPUT and len(payload) == 5 :
-                        dx, dy, dsprint, dire ,shot= struct.unpack("!bbbbb", payload)
-
+                    if cmd == CMD_INPUT and len(payload) == 6 :
+                        dx, dy, dsprint, dire ,attack,current_weapon= struct.unpack("!bbbbbb", payload)
                         p = clients[s]["player"]
-
-                        
-
+                        if current_weapon == 0:
+                            p.current_weapon = p.current_weapon
+                        else : p.current_weapon =current_weapon
 
                         if dire != 0:
                             p.dir = int(dire)
-
-                        if shot ==1:
-                            if p.gun_cooldown == 0:
-                                b_id = next(bullet_id_gen)
-                                new_bullet = Bullet(b_id,p.x, p.y, p.dir, BULLET_DISTANS )
-                                bullets.append(new_bullet)
-                                p.gun_cooldown=BULLET_COOLDOWN
-                            else: p.gun_cooldown -=1
+                        if p.current_weapon==2:
+                            if attack ==1:
+                                if p.gun_cooldown == 0:
+                                    b_id = get_next_bullet_id(bullets)
+                                    new_bullet = Bullet(b_id,p.x, p.y, p.dir, BULLET_DISTANS ,p.id)
+                                    bullets.append(new_bullet)
+                                    p.gun_cooldown=BULLET_COOLDOWN
+                                else: p.gun_cooldown -=1
 
                         speed = SPEED + (SPEED * dsprint)
 
@@ -190,8 +189,9 @@ while True:
                                 p.health = 100
 
                         for b in bullets[:]:
-                            if check_bullet_hit(p,b):
-                                p.health -= 0.5
+                            if b.player_id != p.id:
+                                if check_bullet_hit(p,b):
+                                    p.health -= BULLET_DAMEG
 
                     # בסוף הלולאה הראשית, מחוץ ל-readable
                     for b in bullets[:]:

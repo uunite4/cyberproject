@@ -7,8 +7,9 @@ from map_data import *
 
 
 class Bullet:
-    def __init__(self, pid, x, y , dir1,dise):
+    def __init__(self, pid, x, y , dir1,dise,pi):
         self.id = pid
+        self.player_id = pi
         self.x = x
         self.y = y
         self.dir = dir1
@@ -51,3 +52,10 @@ class Bullet:
     def update_from_server_bull(self,bx,by):
         self.x = bx
         self.y = by
+
+def get_next_bullet_id(bullets):
+    used_ids = {b.id for b in bullets}
+    current_id = 0
+    while current_id in used_ids:
+        current_id += 1
+    return current_id

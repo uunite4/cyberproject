@@ -119,10 +119,10 @@ def run():
                 running = False
 
         # -------- input -> server --------
-        dx, dy, dspeed, dire,shot = handle_input()
+        dx, dy, dspeed, dire,shot,current_weapon = handle_input()
 
         try:
-            sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbbb", dx, dy, dspeed, dire,shot)))
+            sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbbbb", dx, dy, dspeed, dire,shot,current_weapon)))
         except BlockingIOError:
             # normal on non-blocking sockets
             pass
@@ -171,12 +171,12 @@ def run():
                         for _ in range(count1):
                             if off + 8 > len(payload):
                                 break
-                            bullet_x ,bullet_y  , pid, dirb= struct.unpack("!HHHH", payload[off:off + 8])
+                            bullet_x ,bullet_y  , pid, dirb= struct.unpack("!hhHh", payload[off:off + 8])
                             off += 8
                             active_bull.add(pid)
                             if pid not in bullets11:
 
-                                bullets11[pid] = Bullet(pid, bullet_x, bullet_y ,dirb,0)
+                                bullets11[pid] = Bullet(pid, bullet_x, bullet_y ,dirb,0,0)
                             bullets11[pid].update_from_server_bull(bullet_x, bullet_y)
 
                         for bull_to_remove in list(bullets11.keys()):
