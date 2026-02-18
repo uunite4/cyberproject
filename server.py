@@ -4,7 +4,7 @@ import struct
 import itertools
 import time
 
-from Player import PlayerData, new_place, check_collision_with_stone, check_collision_with_lava
+from Player import *
 from settings import *
 from map_data import MAP
 from weapon import Dagger
@@ -70,13 +70,14 @@ def broadcast_state():
             break
         p = c["player"]
         payload += struct.pack(
-            "!IHHHHB",
+            "!IHHHHBB",
             int(p.id),
             int(p.x),
             int(p.y),
             int(p.health),
             int(p.dir),
             int(getattr(p, "attack", 0)),
+            int(getattr(p, "current_weapon", 1)),
         )
 
     packet = qc3_pack(CMD_STATE, bytes(payload))
@@ -145,14 +146,20 @@ while True:
                 for cmd, payload in clients[s]["stream"].pop_messages():
                     clients[s]["last"] = now
 
-                    if cmd == CMD_INPUT and len(payload) == 5:
-                        dx, dy, dsprint, dire, attack = struct.unpack("!bbbbb", payload)
+                    if cmd == CMD_INPUT and len(payload) == 6:
+                        dx, dy, dsprint, dire, attack, current_weapon = struct.unpack("!bbbbbb", payload)
 
                         p = clients[s]["player"]
                         p.attack = int(attack)
-                        if attack == 1:
+                        if current_weapon == 0:
+                            p.current_weapon = p.current_weapon
+                        else:
+                            p.current_weapon = current_weapon
+
+                        # only dagger attacks when weapon == 1
+                        if p.attack == 1 and p.current_weapon == 1:
                             dagger.attack(p, clients, new_place)
-                        # update direction if client sent one
+
                         if dire != 0:
                             p.dir = int(dire)
 
@@ -161,18 +168,17 @@ while True:
                         nx = clamp(p.x + dx * speed, 0, MAP_W)
                         ny = clamp(p.y + dy * speed, 0, MAP_H)
 
-                        # axis-separated collision
                         if not check_collision_with_stone(p, nx, p.y):
                             p.x = nx
                         if not check_collision_with_stone(p, p.x, ny):
                             p.y = ny
 
-                        # lava damage + respawn
                         if check_collision_with_lava(p, p.x, p.y):
                             p.health -= 0.5
                             if p.health <= 0:
                                 p.x, p.y = new_place()
                                 p.health = 100
+
 
 
             except Exception:

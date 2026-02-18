@@ -155,11 +155,11 @@ def run():
                 running = False
 
         # -------- input -> server --------
-        dx, dy, dspeed, dire,attack = handle_input()
+        dx, dy, dspeed, dire,attack,current_weapon = handle_input()
         local_attack = attack
 
         try:
-            sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbbb", dx, dy, dspeed, dire,attack)))
+            sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbbbb", dx, dy, dspeed, dire,attack,current_weapon)))
         except BlockingIOError:
             # normal on non-blocking sockets
             pass
@@ -184,17 +184,16 @@ def run():
                         active_ids = set()
 
                         for _ in range(count):
-                            if off + 13 > len(payload): break
-                            pid, x, y, health, pdire, patt = struct.unpack("!IHHHHB", payload[off:off + 13])
-                            off += 13
+                            if off + 14 > len(payload): break
+                            pid, x, y, health, pdire, patt, pweapon = struct.unpack("!IHHHHBB", payload[off:off + 14])
+                            off += 14
                             active_ids.add(pid)
 
                             if pid not in players:
                                 # PlayerData in your project expects: (pid, x, y, dir1, group)
                                 players[pid] = PlayerData(pid, x, y, pdire, 0)
 
-                            players[pid].update_from_server(x, y, health, pdire, patt)
-
+                            players[pid].update_from_server(x, y, health, pdire, patt, pweapon)
 
                         # remove players who left
                         for pid_to_remove in list(players.keys()):
@@ -240,7 +239,7 @@ def run():
             #
             #     screen.blit(DAGGERS.get(d, DEFAULT_DAGGER), (dagger_x, dagger_y))
 
-            if getattr(p, "attack", 0) == 1:
+            if getattr(p, "attack", 0) == 1 and getattr(p, "current_weapon", 1) == 1:
                 d = p.dir if p.dir != 0 else 3
                 vx, vy = dir_to_vec(d)  # same helper you already added earlier
                 dagger_x = int((p.x + vx * TILE_SIZE) - cam_x - TILE_SIZE // 2)

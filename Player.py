@@ -1,6 +1,8 @@
 import pygame
 import struct
 import random
+
+
 from settings import *
 from map_data import *
 PLAYER_SIZE = 40
@@ -14,20 +16,22 @@ class PlayerData:
         self.x = x
         self.y = y
         self.group = group
-        self.health = 100  # אפשר להוסיף עוד שדות בעתיד
+        self.health = PLAYER_HEALTH  # אפשר להוסיף עוד שדות בעתיד
         self.color = (200, 50, 50)  # צבע ברירת מחדל, אפשר לקבל מהשרת
         self.healthBarx = 20
         self.healthBary = 20
         self.dir = dir1
         self.attack = 0
+        self.current_weapon = 1
 
-    def update_from_server(self, x, y, health, direction, attack):
+    def update_from_server(self, x, y, health, direction, attack, current_weapon):
         self.x = x
         self.y = y
         self.health = health
         if direction != 0:
             self.dir = direction
         self.attack = attack
+        self.current_weapon = current_weapon
 
 
 def handle_input():
@@ -36,6 +40,11 @@ def handle_input():
     dy = int(keys[pygame.K_s]) - int(keys[pygame.K_w])
     dspeed = int(keys[pygame.K_LSHIFT])
     attack = int(keys[pygame.K_SPACE])
+    current_weapon = 0
+    if keys[pygame.K_1]:
+        current_weapon = 1
+    elif keys[pygame.K_2]:
+        current_weapon = 2
     if dx == 1:
         if dy == 1:
             dire = 2
@@ -58,7 +67,8 @@ def handle_input():
         elif dy == 0:
             dire =0
 
-    return dx,dy ,dspeed,dire,attack
+    return dx,dy ,dspeed,dire,attack,current_weapon
+
 def check_collision_with_stone(self, next_x, next_y):  # True = blocked (stone/outside)
     left = next_x - PLAYER_SIZE // 2  # player box left (pixels)
     right = next_x + PLAYER_SIZE // 2 - 1  # player box right (pixels)

@@ -30,6 +30,7 @@ grass='grass.png'
 stone='stone.png'
 lava = 'lava.png'
 #===========
+PLAYER_HEALTH = 100
 HEALTH_BAR_SIZE_X = 120
 HEALTH_BAR_SIZE_Y = 30
 S_HEALTH_BAR_SIZE_X = 40
