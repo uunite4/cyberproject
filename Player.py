@@ -1,17 +1,16 @@
+
 import pygame
 import struct
 import random
-
-
 from settings import *
 from map_data import *
-PLAYER_SIZE = 40
+
 
 # ---------------------------------
 # PlayerData - מחזיק את הנתונים האמיתיים מהשרת
 # ---------------------------------
 class PlayerData:
-    def __init__(self, pid, x, y , dir1,group):
+    def __init__(self, pid, x, y , dir1,group, gcd):
         self.id = pid
         self.x = x
         self.y = y
@@ -21,8 +20,9 @@ class PlayerData:
         self.healthBarx = 20
         self.healthBary = 20
         self.dir = dir1
-        self.attack = 0
+        self.gun_cooldown = gcd
         self.current_weapon = 1
+        self.attack = 0
 
     def update_from_server(self, x, y, health, direction, attack, current_weapon):
         self.x = x
@@ -33,18 +33,17 @@ class PlayerData:
         self.attack = attack
         self.current_weapon = current_weapon
 
-
 def handle_input():
     keys = pygame.key.get_pressed()
     dx = int(keys[pygame.K_d]) - int(keys[pygame.K_a])
     dy = int(keys[pygame.K_s]) - int(keys[pygame.K_w])
     dspeed = int(keys[pygame.K_LSHIFT])
-    attack = int(keys[pygame.K_SPACE])
-    current_weapon = 0
-    if keys[pygame.K_1]:
-        current_weapon = 1
-    elif keys[pygame.K_2]:
-        current_weapon = 2
+    shot = int(keys[pygame.K_SPACE])
+    if int(keys[pygame.K_1]):
+        current_weapon=1
+    elif int(keys[pygame.K_2]):
+        current_weapon=2
+    else: current_weapon=0
     if dx == 1:
         if dy == 1:
             dire = 2
@@ -67,8 +66,7 @@ def handle_input():
         elif dy == 0:
             dire =0
 
-    return dx,dy ,dspeed,dire,attack,current_weapon
-
+    return dx,dy ,dspeed,dire ,shot ,current_weapon
 def check_collision_with_stone(self, next_x, next_y):  # True = blocked (stone/outside)
     left = next_x - PLAYER_SIZE // 2  # player box left (pixels)
     right = next_x + PLAYER_SIZE // 2 - 1  # player box right (pixels)
@@ -115,6 +113,24 @@ def check_collision_with_lava(self, next_x, next_y):    # True = blocked (stone/
         if MAP[tile_y][tile_x] == "b":
             return True
     return False
+def check_bullet_hit(p,b):
+    left = p.x #- PLAYER_SIZE // 2  # player box left (pixels)
+    right = p.x + PLAYER_SIZE   # player box right (pixels)
+    top = p.y #- PLAYER_SIZE // 2  # player box top (pixels)
+    bottom = p.y + PLAYER_SIZE // 2 - 1  # player box bottom (pixels)
+
+    corners = [  # 4 corners
+        (left, top),
+        (right, top),
+        (left, bottom),
+        (right, bottom),
+    ]
+
+    if left <= b.x <= right and top <= b.y <= bottom:
+        return True
+    return False
+
+
 def new_place():
     while True:
 
@@ -147,4 +163,3 @@ def S_health_bar_update(health,screen,x,y):
     #y=y%WINDOW_H
     pygame.draw.rect(screen, "green", (x, y-40, green1, S_HEALTH_BAR_SIZE_Y))
     pygame.draw.rect(screen, "red", (x+green1, y-40, red1, S_HEALTH_BAR_SIZE_Y))
-

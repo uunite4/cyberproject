@@ -4,10 +4,11 @@ import struct
 import itertools
 import time
 
-from Player import *
+from Player import PlayerData, new_place, check_collision_with_stone, check_collision_with_lava, check_bullet_hit
 from settings import *
 from map_data import MAP
-from weapon import Dagger
+from Bullet import *
+from Dagger import *
 
 
 def clamp(v, lo, hi):
@@ -56,11 +57,12 @@ clients = {}  # sock -> {"stream": QC3Stream, "player": PlayerData, "last": floa
 id_gen = itertools.count(1)
 dagger = Dagger()
 last_broadcast = time.time()
-
+bullets = []
+bullet_id_gen = itertools.count(10000)
 print(f"QC3 Server listening on {HOST}:{PORT}")
 
 
-def broadcast_state():
+def broadcast_state(all_bullets):
     count = min(255, len(clients))
     payload = bytearray()
     payload.append(count)
@@ -69,6 +71,7 @@ def broadcast_state():
         if i >= count:
             break
         p = c["player"]
+
         payload += struct.pack(
             "!IHHHHBB",
             int(p.id),
@@ -77,9 +80,16 @@ def broadcast_state():
             int(p.health),
             int(p.dir),
             int(p.attack),
-            int(p.current_weapon),
+            int(p.current_weapon)
         )
-
+    payload.append(len(all_bullets))
+    for b in all_bullets:
+        payload += struct.pack(
+            "!hhHh",
+            int(b.x),
+            int(b.y),
+            int(b.id),
+            int(b.dir))
     packet = qc3_pack(CMD_STATE, bytes(payload))
 
     dead = []
@@ -118,7 +128,7 @@ while True:
             # PlayerData signature: (pid, x, y, dir1, group)
             clients[conn] = {
                 "stream": QC3Stream(),
-                "player": PlayerData(pid, px, py, 3, 0),  # start facing south
+                "player": PlayerData(pid, px, py, 3, 0, 0),  # start facing south
                 "last": now
             }
 
@@ -148,38 +158,59 @@ while True:
 
                     if cmd == CMD_INPUT and len(payload) == 6:
                         dx, dy, dsprint, dire, attack, current_weapon = struct.unpack("!bbbbbb", payload)
-
                         p = clients[s]["player"]
-                        p.attack = int(attack)
                         if current_weapon == 0:
                             p.current_weapon = p.current_weapon
                         else:
                             p.current_weapon = current_weapon
 
-                        # only dagger attacks when weapon == 1
-                        if p.attack == 1 and p.current_weapon == 1:
-                            dagger.attack(p, clients, new_place)
-
                         if dire != 0:
                             p.dir = int(dire)
+
+                        p.attack = 0
+                        if attack == 1:
+                            p.attack = 1
+                            if p.current_weapon == 2:
+
+                                if p.gun_cooldown == 0:
+                                    b_id = get_next_bullet_id(bullets)
+                                    new_bullet = Bullet(b_id, p.x, p.y, p.dir, BULLET_DISTANS, p.id)
+                                    bullets.append(new_bullet)
+                                    p.gun_cooldown = BULLET_COOLDOWN
+                                else:
+                                    p.gun_cooldown -= 1
+                            if p.current_weapon == 1:
+                                dagger.attack(p, clients, new_place)
 
                         speed = SPEED + (SPEED * dsprint)
 
                         nx = clamp(p.x + dx * speed, 0, MAP_W)
                         ny = clamp(p.y + dy * speed, 0, MAP_H)
 
+                        # axis-separated collision
                         if not check_collision_with_stone(p, nx, p.y):
                             p.x = nx
                         if not check_collision_with_stone(p, p.x, ny):
                             p.y = ny
 
+                        # lava damage + respawn
                         if check_collision_with_lava(p, p.x, p.y):
                             p.health -= 0.5
                             if p.health <= 0:
                                 p.x, p.y = new_place()
                                 p.health = 100
 
+                        for b in bullets[:]:
+                            if b.player_id != p.id:
+                                if check_bullet_hit(p, b):
+                                    p.health -= BULLET_DAMEG
 
+                    # בסוף הלולאה הראשית, מחוץ ל-readable
+                    for b in bullets[:]:
+                        # קריאה לשם הפונקציה המדויק מהקלאס שלך
+                        is_dead = b.update_bullet()
+                        if is_dead:
+                            bullets.remove(b)
 
             except Exception:
                 pid = None
@@ -209,5 +240,5 @@ while True:
 
     # broadcast at 20Hz
     if now - last_broadcast >= 0.05:
-        broadcast_state()
+        broadcast_state(bullets)
         last_broadcast = now

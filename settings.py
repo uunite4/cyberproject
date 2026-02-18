@@ -1,3 +1,4 @@
+
 #from pygame.examples.grid import TILE_SIZE
 MAP_W = 192*40
 MAP_H = 108*40
@@ -9,7 +10,9 @@ TILE_SIZE = 40
 #-==-=-=playersettings
 SPEED = 5
 PLAYER_SIZE = 40
+PLAYER_HEALTH =100
 #=======cmd
+CMD_JUMP    = 0x03
 CMD_JOIN    = 0x01
 CMD_INPUT   = 0x02
 CMD_STATE   = 0x10
@@ -19,7 +22,7 @@ HOST = "0.0.0.0"
 PORT = 5000
 SERVER_IP = "127.0.0.1"
 #=-=-=-=-=-=-BROADCAST
-BROADCAST_HZ = 60
+BROADCAST_HZ = 30
 BROADCAST_DT = 1.0 / BROADCAST_HZ
 #-=-=-=-=-=--MAP
 BUILDING_SIZE = 40
@@ -30,14 +33,15 @@ grass='grass.png'
 stone='stone.png'
 lava = 'lava.png'
 #===========
-PLAYER_HEALTH = 100
 HEALTH_BAR_SIZE_X = 120
 HEALTH_BAR_SIZE_Y = 30
 S_HEALTH_BAR_SIZE_X = 40
 S_HEALTH_BAR_SIZE_Y = 10
-# ---- COPY EVERYTHING BELOW INTO settings.py ----
-
-
+#==================
+BULLET_DISTANS =100
+BULLET_SPEED = 10
+BULLET_COOLDOWN = 10
+BULLET_DAMEG = 5
 
 
 

@@ -1,4 +1,6 @@
-# weapon.py
+
+
+# Dagger.py
 import time
 from settings import PLAYER_SIZE
 

@@ -1,3 +1,4 @@
+
 import os
 import pygame
 import socket
@@ -8,7 +9,7 @@ from Player import PlayerData, handle_input, health_bar_update, S_health_bar_upd
 from settings import *
 from map_data import MAP
 from map import draw_map
-
+from Bullet import *
 
 # ---------- network helpers ----------
 def qc3_pack(cmd: int, payload: bytes = b"") -> bytes:
@@ -78,7 +79,6 @@ def load_player_sprites():
     }
 
     return sprites
-
 def load_dagger_sprites() -> dict[int, pygame.Surface]:
     base_path = os.path.join(os.path.dirname(__file__), "DAGGER-NORTH.png")
     base = pygame.image.load(base_path).convert_alpha()
@@ -100,18 +100,20 @@ def load_dagger_sprites() -> dict[int, pygame.Surface]:
         5: rot(base, 90),
         6: rot(base, 45),
     }
-
-
 def dir_to_vec(d: int) -> tuple[int, int]:
-    if d == 1: return (1, 0)
-    if d == 2: return (1, 1)
-    if d == 3: return (0, 1)
-    if d == 4: return (-1, 1)
-    if d == 5: return (-1, 0)
-    if d == 6: return (-1, -1)
-    if d == 7: return (0, -1)
-    if d == 8: return (1, -1)
-    return (0, 1)
+    # מיפוי כיוונים לוקטורים (x, y)
+    # 1=מזרח, 2=דרום-מזרח, 3=דרום, 4=דרום-מערב, 5=מערב... וכן הלאה
+    vectors = {
+        1: (1, 0),   # East
+        2: (1, 1),   # South-East
+        3: (0, 1),   # South
+        4: (-1, 1),  # South-West
+        5: (-1, 0),  # West
+        6: (-1, -1), # North-West
+        7: (0, -1),  # North
+        8: (1, -1)   # North-East
+    }
+    return vectors.get(d, (0, 0)) # אם הכיוון לא ידוע, אל תזיז
 
 
 def run():
@@ -146,7 +148,7 @@ def run():
     map_h = MAP_H
 
     players = {}  # pid -> PlayerData
-
+    bullets11 = {}
     running = True
     while running:
         # -------- window events --------
@@ -157,7 +159,6 @@ def run():
         # -------- input -> server --------
         dx, dy, dspeed, dire,attack,current_weapon = handle_input()
         local_attack = attack
-
         try:
             sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbbbb", dx, dy, dspeed, dire,attack,current_weapon)))
         except BlockingIOError:
@@ -184,14 +185,16 @@ def run():
                         active_ids = set()
 
                         for _ in range(count):
-                            if off + 14 > len(payload): break
-                            pid, x, y, health, pdire, patt, pweapon = struct.unpack("!IHHHHBB", payload[off:off + 14])
+                            if off + 14> len(payload):
+                                break
+                            pid, x, y, health, pdire,patt, pweapon = struct.unpack("!IHHHHBB", payload[off:off + 14])
                             off += 14
                             active_ids.add(pid)
 
+
                             if pid not in players:
                                 # PlayerData in your project expects: (pid, x, y, dir1, group)
-                                players[pid] = PlayerData(pid, x, y, pdire, 0)
+                                players[pid] = PlayerData(pid, x, y, pdire, 0,0)
 
                             players[pid].update_from_server(x, y, health, pdire, patt, pweapon)
 
@@ -199,6 +202,26 @@ def run():
                         for pid_to_remove in list(players.keys()):
                             if pid_to_remove not in active_ids:
                                 del players[pid_to_remove]
+
+
+                        #shot
+                        count1 = payload[off]
+                        off += 1
+                        active_bull = set()
+                        for _ in range(count1):
+                            if off + 8 > len(payload):
+                                break
+                            bullet_x ,bullet_y  , pid, dirb= struct.unpack("!hhHh", payload[off:off + 8])
+                            off += 8
+                            active_bull.add(pid)
+                            if pid not in bullets11:
+
+                                bullets11[pid] = Bullet(pid, bullet_x, bullet_y ,dirb,0,0)
+                            bullets11[pid].update_from_server_bull(bullet_x, bullet_y)
+
+                        for bull_to_remove in list(bullets11.keys()):
+                            if bull_to_remove not in active_bull:
+                                del bullets11[bull_to_remove]
 
         except BlockingIOError:
             pass
@@ -220,6 +243,12 @@ def run():
         # draw map
         draw_map(screen, MAP, cam_x, cam_y, WINDOW_W, WINDOW_H)
 
+        # =====draw bull
+        for pid, b in bullets11.items():
+            bx = b.x - cam_x
+            by = b.y - cam_y
+            pygame.draw.circle(screen, "yellow", (bx,by), 10)
+
         # draw all players as sprites
         for pid, p in players.items():
             px = int(p.x - cam_x - PLAYER_SIZE // 2)
@@ -228,18 +257,8 @@ def run():
             sprite = SPRITES.get(p.dir, DEFAULT_SPRITE)
             screen.blit(sprite, (px, py))
 
-            # d = p.dir if p.dir != 0 else 3
-            # vx, vy = dir_to_vec(d)
-            # if local_attack == 1:
-            #     d = me.dir if me.dir != 0 else 3
-            #     vx, vy = dir_to_vec(d)
-            #
-            #     dagger_x = int((me.x + vx * TILE_SIZE) - cam_x - TILE_SIZE // 2)
-            #     dagger_y = int((me.y + vy * TILE_SIZE) - cam_y - TILE_SIZE // 2)
-            #
-            #     screen.blit(DAGGERS.get(d, DEFAULT_DAGGER), (dagger_x, dagger_y))
-
             if p.attack == 1 and p.current_weapon == 1:
+
                 d = p.dir if p.dir != 0 else 3
                 vx, vy = dir_to_vec(d)  # same helper you already added earlier
                 dagger_x = int((p.x + vx * TILE_SIZE) - cam_x - TILE_SIZE // 2)
@@ -254,6 +273,8 @@ def run():
 
         pygame.display.flip()
         clock.tick(60)
+
+
 
     try:
         sock.close()
