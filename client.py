@@ -42,6 +42,8 @@ def main_menu():
                     if event.key == pygame.K_TAB:  # Switch fields
                         active_field = "password" if active_field == "username" else "username"
                     elif event.key == pygame.K_RETURN:  # SEND TO SERVER
+                        print("username: "+username)
+                        print("password: "+password)
                         status_msg = send_to_server(username, password, "LOGIN" if mode == "LOGIN_INPUT" else "SIGNUP")
                     elif event.key == pygame.K_BACKSPACE:
                         if active_field == "username":

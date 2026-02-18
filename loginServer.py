@@ -74,14 +74,24 @@ def main():
 
             username = loginData[0]
             password = loginData[1]
-            action = loginData[2]
+            action = loginData[2]           #not going to be ""
 
             response_packet = ""
 
+
             if action == "LOGIN":
                 print("login")
+                print(username + " is username")
+                print(password + " is password")
+                print(action + " is action")
                 userToken = handleLogin(username, password)
-                if userToken == 404:
+                print(userToken)
+
+                if username == "":
+                    response_packet = "ERROR=ERROR: username is empty= try again"
+                elif password == "":
+                    response_packet = "ERROR=ERROR: password is empty= try again"
+                elif userToken == 404:
                     response_packet = "ERROR=ERROR: with login=NO USER FOUND"
                 else:
                     gameServerIP = sendTokenToLB(userToken)
@@ -89,14 +99,24 @@ def main():
 
             elif action == "SIGNUP":
                 print("signup")
+                print(username + " is username")
+                print(password + " is password")
+                print(action + " is action")
                 userToken = handleSignup(username, password)
-                if userToken == "ALREADY FOUND":
-                    response_packet = f"ERROR=ERROR: with sign up=USER ALREADY FOUND"
+                print(userToken)
+                if username == "":
+                    response_packet = "ERROR=ERROR: username is empty= try again"
+                elif password == "":
+                    response_packet = "ERROR=ERROR: password is empty= try again"
+                elif userToken == 404:
+                    response_packet = "ERROR=ERROR: with signup=User already found"
                 else:
                     gameServerIP = sendTokenToLB(userToken)
                     response_packet = f"OK={userToken}={gameServerIP}"
 
             # Send response and CLOSE this specific client connection
+
+            print(response_packet)
             clientSocket.send(response_packet.encode())
             clientSocket.close()
             print(f"Handled {action} for {username}. Response sent.")
