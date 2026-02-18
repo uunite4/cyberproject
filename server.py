@@ -76,8 +76,8 @@ def broadcast_state():
             int(p.y),
             int(p.health),
             int(p.dir),
-            int(getattr(p, "attack", 0)),
-            int(getattr(p, "current_weapon", 1)),
+            int(p.attack),
+            int(p.current_weapon),
         )
 
     packet = qc3_pack(CMD_STATE, bytes(payload))

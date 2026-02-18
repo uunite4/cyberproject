@@ -239,7 +239,7 @@ def run():
             #
             #     screen.blit(DAGGERS.get(d, DEFAULT_DAGGER), (dagger_x, dagger_y))
 
-            if getattr(p, "attack", 0) == 1 and getattr(p, "current_weapon", 1) == 1:
+            if p.attack == 1 and p.current_weapon == 1:
                 d = p.dir if p.dir != 0 else 3
                 vx, vy = dir_to_vec(d)  # same helper you already added earlier
                 dagger_x = int((p.x + vx * TILE_SIZE) - cam_x - TILE_SIZE // 2)
