@@ -108,7 +108,7 @@ def main():
                     response_packet = "ERROR=ERROR: username is empty= try again"
                 elif password == "":
                     response_packet = "ERROR=ERROR: password is empty= try again"
-                elif userToken == 404:
+                elif userToken == "ALREADY FOUND":
                     response_packet = "ERROR=ERROR: with signup=User already found"
                 else:
                     gameServerIP = sendTokenToLB(userToken)
