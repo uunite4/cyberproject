@@ -23,11 +23,10 @@ class MyServer:
     # RECEIVE DATA
     # ----------
     def on_receive(self, connection_id: int, data: bytes):
-        print("Got data ", data, " from client ID ", connection_id)
         cmd = struct.unpack_from('B', data, 0)[0]
 
         if (cmd == S.CMDS["INIT_POS"]):
-            x, y = struct.unpack_from('bb', data, 1)
+            x, y = struct.unpack_from('!hh', data, 1)
             self.player = {
                 "x": x,
                 "y": y
@@ -41,19 +40,28 @@ class MyServer:
             yVel = yDir * S.PLAYER_VEL
             self.player["x"] += xVel
             self.player["y"] += yVel
-            global useCmd
+
+            # SEND MOVE
+            pk = struct.pack('!bhh', S.CMDS["MOVE"], self.player["x"], self.player["y"])
+            self.server.send(pk, connection_id)
+
+            # NOW THAT WE UPDATED POSITION, WE CAN CHECK FOR RANGES
             # CHECK OVERLAP / SERVER 2
             inOverlap = point_in_rect(self.player["x"], self.player["y"], S.OVERLAP["x"], 0, S.OVERLAP["width"], S.WINDOW_HEIGHT)
             inServer = point_in_rect(self.player["x"], self.player["y"], self.serverData["x"], 0, self.serverData["width"], S.WINDOW_HEIGHT)
             if (inOverlap):
-                useCmd = S.CMDS["MOVE+OVERLAP"]
+                pk = struct.pack('!b', S.CMDS["OVERLAP"])
+                self.server.send(pk, connection_id)
             elif (not inServer):
-                useCmd = S.CMDS["MOVE+SWITCH_SERVER"]
-            else:
-                useCmd = S.CMDS["MOVE"]
-            # FINAL PACKET
-            pk = struct.pack('!bhh', useCmd, self.player["x"], self.player["y"])
-            self.server.send(pk, connection_id)
+                pk = struct.pack('!b', S.CMDS["SWITCH_SERVER"])
+                self.server.send(pk, connection_id)
+        elif (cmd == S.CMDS["POS_DONT_RESPOND"]):
+            x, y = struct.unpack_from('!hh', data, 1)
+            self.player = {
+                "x": x,
+                "y": y
+            }
+            print(f"POS DONT RESPOND: {self.player['x']}, {self.player['y']}")
 
     def on_connect(self, connection_id: int):
         print(f"{connection_id} connected")

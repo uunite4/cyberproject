@@ -13,32 +13,34 @@ class MyClient:
     def __init__(self):
         self.client = None
         self.running = True
-
+        self.serverIDs = {
+            "control": None,
+            "inactive": None
+        }
         pygame.init()
         self.screen = pygame.display.set_mode((S.WINDOW_WIDTH, S.WINDOW_HEIGHT))
         pygame.display.set_caption("Game")
-
         self.player = Player.Player()
 
     # ----------
-    # RECIEVE DATA
+    # RECEIVE DATA
     # ----------
     def on_receive(self, connection_id: int, data: bytes):
-        print("Server ID ", connection_id, " sent data")
         cmd = struct.unpack_from('B', data, 0)[0]
 
         if (cmd == S.CMDS["MOVE"]):
             moveOffPackt(data, self.player)
 
-        elif (cmd == S.CMDS["MOVE+OVERLAP"]):
-            moveOffPackt(data, self.player)
-            # TODO: CHECK IF ALREADY CONNECTED TO SERVER 2
-            # If not connected, connect pos
-            # If connected, send pos
+        elif (cmd == S.CMDS["OVERLAP"]):
+            # SEND POS TO SECOND SERVER
+            pk = struct.pack("!bhh", S.CMDS["POS_DONT_RESPOND"], self.player.x, self.player.y)
+            self.client.send(self.serverIDs["inactive"], pk)
 
-        elif (cmd == S.CMDS["MOVE+SWITCH_SERVER"]):
-            moveOffPackt(data, self.player)
-            # TODO: CHANGE ROLES
+        elif (cmd == S.CMDS["SWITCH_SERVER"]):
+            # SWITCH BETWEEN CONTROL AND INACTIVE
+            temp = self.serverIDs["control"]
+            self.serverIDs["control"] = self.serverIDs["inactive"]
+            self.serverIDs["inactive"] = temp
 
     # ----------
     # RUNNING
@@ -53,6 +55,13 @@ class MyClient:
             server_ip=S.SERVER1["ip"],
             server_port=S.SERVER1["port"],
         )
+        self.serverIDs["control"] = server_id
+        # CREATE INACTIVE CONNECTION
+        server_id_inactive = await self.client.connect(
+            server_ip=S.SERVER2["ip"],
+            server_port=S.SERVER2["port"],
+        )
+        self.serverIDs["inactive"] = server_id_inactive
 
         # SEND INITIAL POS
         pk = struct.pack("!bhh", S.CMDS["INIT_POS"], self.player.x, self.player.y)
@@ -91,8 +100,7 @@ class MyClient:
                 xAxisDirection = inputs['d'] - inputs['a']
                 yAxisDirection = inputs['s'] - inputs['w']
                 pk = struct.pack('!bbb', S.CMDS["MOVE"], xAxisDirection, yAxisDirection)  # b is signed byte
-                print("Sending ", pk, " to server ID ", server_id)
-                self.client.send(server_id, pk)
+                self.client.send(self.serverIDs["control"], pk)
 
             # DRAW
             self.screen.fill((30, 30, 30))  # BG
@@ -100,6 +108,7 @@ class MyClient:
             self.player.draw(self.screen)  # PLAYER
 
             pygame.display.flip()
+            await asyncio.sleep(1 / 60)
 
         pygame.quit()
 

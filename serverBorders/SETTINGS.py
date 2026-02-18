@@ -3,7 +3,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 WINDOW_WIDTH = 960
 WINDOW_HEIGHT = 540
-PLAYER_VEL = 3
+PLAYER_VEL = 10
 
 OVERLAP_WIDTH = 300
 
@@ -34,6 +34,7 @@ SERVER2 = {
 CMDS = {
     "INIT_POS": 0x01,
     "MOVE": 0x02,
-    "MOVE+OVERLAP": 0x03,
-    "MOVE+SWITCH_SERVER": 0x03,
+    "OVERLAP": 0x03,
+    "SWITCH_SERVER": 0x04,
+    "POS_DONT_RESPOND": 0x05,
 }

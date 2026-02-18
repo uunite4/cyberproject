@@ -73,7 +73,6 @@ class QuicClient:
         conn = self._get_connection(connection_id)
         if not conn:
             raise RuntimeError("Not connected")
-        print('we')
         conn.send(data)
 
     def close_connection(self, connection_id: int):
