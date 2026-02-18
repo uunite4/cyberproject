@@ -70,12 +70,13 @@ def broadcast_state():
             break
         p = c["player"]
         payload += struct.pack(
-            "!IHHHH",
+            "!IHHHHB",
             int(p.id),
             int(p.x),
             int(p.y),
             int(p.health),
             int(p.dir),
+            int(getattr(p, "attack", 0)),
         )
 
     packet = qc3_pack(CMD_STATE, bytes(payload))
@@ -148,6 +149,7 @@ while True:
                         dx, dy, dsprint, dire, attack = struct.unpack("!bbbbb", payload)
 
                         p = clients[s]["player"]
+                        p.attack = int(attack)
                         if attack == 1:
                             dagger.attack(p, clients, new_place)
                         # update direction if client sent one

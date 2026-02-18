@@ -79,6 +79,40 @@ def load_player_sprites():
 
     return sprites
 
+def load_dagger_sprites() -> dict[int, pygame.Surface]:
+    base_path = os.path.join(os.path.dirname(__file__), "DAGGER-NORTH.png")
+    base = pygame.image.load(base_path).convert_alpha()
+
+    if base.get_width() != TILE_SIZE or base.get_height() != TILE_SIZE:
+        base = pygame.transform.scale(base, (TILE_SIZE, TILE_SIZE))
+
+    def rot(img, deg):
+        return pygame.transform.rotate(img, deg)
+
+    # base = NORTH (dir 7)
+    return {
+        7: base,
+        8: rot(base, -45),
+        1: rot(base, -90),
+        2: rot(base, -135),
+        3: rot(base, 180),
+        4: rot(base, 135),
+        5: rot(base, 90),
+        6: rot(base, 45),
+    }
+
+
+def dir_to_vec(d: int) -> tuple[int, int]:
+    if d == 1: return (1, 0)
+    if d == 2: return (1, 1)
+    if d == 3: return (0, 1)
+    if d == 4: return (-1, 1)
+    if d == 5: return (-1, 0)
+    if d == 6: return (-1, -1)
+    if d == 7: return (0, -1)
+    if d == 8: return (1, -1)
+    return (0, 1)
+
 
 def run():
     pygame.init()
@@ -92,6 +126,8 @@ def run():
     SPRITES = load_player_sprites()
     DEFAULT_SPRITE = SPRITES[3]  # south if dir==0
 
+    DAGGERS = load_dagger_sprites()
+    DEFAULT_DAGGER = DAGGERS[3]
     # ---- connect ----
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((SERVER_IP, PORT))
@@ -120,6 +156,7 @@ def run():
 
         # -------- input -> server --------
         dx, dy, dspeed, dire,attack = handle_input()
+        local_attack = attack
 
         try:
             sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbbb", dx, dy, dspeed, dire,attack)))
@@ -147,17 +184,17 @@ def run():
                         active_ids = set()
 
                         for _ in range(count):
-                            if off + 12 > len(payload):
-                                break
-                            pid, x, y, health, pdire = struct.unpack("!IHHHH", payload[off:off + 12])
-                            off += 12
+                            if off + 13 > len(payload): break
+                            pid, x, y, health, pdire, patt = struct.unpack("!IHHHHB", payload[off:off + 13])
+                            off += 13
                             active_ids.add(pid)
 
                             if pid not in players:
                                 # PlayerData in your project expects: (pid, x, y, dir1, group)
                                 players[pid] = PlayerData(pid, x, y, pdire, 0)
 
-                            players[pid].update_from_server(x, y, health, pdire)
+                            players[pid].update_from_server(x, y, health, pdire, patt)
+
 
                         # remove players who left
                         for pid_to_remove in list(players.keys()):
@@ -191,6 +228,24 @@ def run():
 
             sprite = SPRITES.get(p.dir, DEFAULT_SPRITE)
             screen.blit(sprite, (px, py))
+
+            # d = p.dir if p.dir != 0 else 3
+            # vx, vy = dir_to_vec(d)
+            # if local_attack == 1:
+            #     d = me.dir if me.dir != 0 else 3
+            #     vx, vy = dir_to_vec(d)
+            #
+            #     dagger_x = int((me.x + vx * TILE_SIZE) - cam_x - TILE_SIZE // 2)
+            #     dagger_y = int((me.y + vy * TILE_SIZE) - cam_y - TILE_SIZE // 2)
+            #
+            #     screen.blit(DAGGERS.get(d, DEFAULT_DAGGER), (dagger_x, dagger_y))
+
+            if getattr(p, "attack", 0) == 1:
+                d = p.dir if p.dir != 0 else 3
+                vx, vy = dir_to_vec(d)  # same helper you already added earlier
+                dagger_x = int((p.x + vx * TILE_SIZE) - cam_x - TILE_SIZE // 2)
+                dagger_y = int((p.y + vy * TILE_SIZE) - cam_y - TILE_SIZE // 2)
+                screen.blit(DAGGERS.get(d, DEFAULT_DAGGER), (dagger_x, dagger_y))
 
             # health bars
             if pid == my_id:

@@ -19,14 +19,15 @@ class PlayerData:
         self.healthBarx = 20
         self.healthBary = 20
         self.dir = dir1
+        self.attack = 0
 
-
-    def update_from_server(self, x, y,health,direction):
+    def update_from_server(self, x, y, health, direction, attack):
         self.x = x
         self.y = y
         self.health = health
         if direction != 0:
             self.dir = direction
+        self.attack = attack
 
 
 def handle_input():
