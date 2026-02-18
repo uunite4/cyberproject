@@ -8,7 +8,7 @@ from Player import PlayerData, new_place, check_collision_with_stone, check_coll
 from settings import *
 from map_data import MAP
 from Bullet import *
-
+from Dagger import *
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
 
@@ -53,10 +53,12 @@ server.setblocking(False)
 
 clients = {}  # sock -> {"stream": QC3Stream, "player": PlayerData, "last": float}
 id_gen = itertools.count(1)
-
+dagger = Dagger()
 last_broadcast = time.time()
-
+bullets = []
+bullet_id_gen = itertools.count(10000)
 print(f"QC3 Server listening on {HOST}:{PORT}")
+
 
 
 def broadcast_state(all_bullets):
@@ -70,13 +72,15 @@ def broadcast_state(all_bullets):
         p = c["player"]
 
         payload += struct.pack(
-            "!IHHHH",
+            "!IHHHHBB",
             int(p.id),
             int(p.x),
             int(p.y),
             int(p.health),
             int(p.dir),
-        )
+            int(p.attack),
+            int(p.current_weapon)
+            )
     payload.append(len(all_bullets))
     for b in all_bullets:
         payload += struct.pack(
@@ -103,8 +107,8 @@ def broadcast_state(all_bullets):
             pass
         clients.pop(s, None)
 
-bullets = []
-bullet_id_gen = itertools.count(10000)
+
+
 # -------- main loop --------
 while True:
     now = time.time()
@@ -161,15 +165,22 @@ while True:
 
                         if dire != 0:
                             p.dir = int(dire)
-                        if p.current_weapon==2:
-                            if attack ==1:
+
+                        p.attack=0
+                        if attack ==1:
+                            p.attack =1
+                            if p.current_weapon==2:
+
                                 if p.gun_cooldown == 0:
                                     b_id = get_next_bullet_id(bullets)
                                     new_bullet = Bullet(b_id,p.x, p.y, p.dir, BULLET_DISTANS ,p.id)
                                     bullets.append(new_bullet)
                                     p.gun_cooldown=BULLET_COOLDOWN
                                 else: p.gun_cooldown -=1
+                            if p.current_weapon ==1:
+                                dagger.attack(p, clients, new_place)
 
+                                
                         speed = SPEED + (SPEED * dsprint)
 
                         nx = clamp(p.x + dx * speed, 0, MAP_W)

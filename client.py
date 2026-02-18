@@ -78,6 +78,41 @@ def load_player_sprites():
     }
 
     return sprites
+def load_dagger_sprites() -> dict[int, pygame.Surface]:
+    base_path = os.path.join(os.path.dirname(__file__), "DAGGER-NORTH.png")
+    base = pygame.image.load(base_path).convert_alpha()
+
+    if base.get_width() != TILE_SIZE or base.get_height() != TILE_SIZE:
+        base = pygame.transform.scale(base, (TILE_SIZE, TILE_SIZE))
+
+    def rot(img, deg):
+        return pygame.transform.rotate(img, deg)
+
+    # base = NORTH (dir 7)
+    return {
+        7: base,
+        8: rot(base, -45),
+        1: rot(base, -90),
+        2: rot(base, -135),
+        3: rot(base, 180),
+        4: rot(base, 135),
+        5: rot(base, 90),
+        6: rot(base, 45),
+    }
+def dir_to_vec(d: int) -> tuple[int, int]:
+    # מיפוי כיוונים לוקטורים (x, y)
+    # 1=מזרח, 2=דרום-מזרח, 3=דרום, 4=דרום-מערב, 5=מערב... וכן הלאה
+    vectors = {
+        1: (1, 0),   # East
+        2: (1, 1),   # South-East
+        3: (0, 1),   # South
+        4: (-1, 1),  # South-West
+        5: (-1, 0),  # West
+        6: (-1, -1), # North-West
+        7: (0, -1),  # North
+        8: (1, -1)   # North-East
+    }
+    return vectors.get(d, (0, 0)) # אם הכיוון לא ידוע, אל תזיז
 
 
 def run():
@@ -92,6 +127,8 @@ def run():
     SPRITES = load_player_sprites()
     DEFAULT_SPRITE = SPRITES[3]  # south if dir==0
 
+    DAGGERS = load_dagger_sprites()
+    DEFAULT_DAGGER = DAGGERS[3]
     # ---- connect ----
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((SERVER_IP, PORT))
@@ -119,10 +156,10 @@ def run():
                 running = False
 
         # -------- input -> server --------
-        dx, dy, dspeed, dire,shot,current_weapon = handle_input()
-
+        dx, dy, dspeed, dire,attack,current_weapon = handle_input()
+        local_attack = attack
         try:
-            sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbbbb", dx, dy, dspeed, dire,shot,current_weapon)))
+            sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbbbb", dx, dy, dspeed, dire,attack,current_weapon)))
         except BlockingIOError:
             # normal on non-blocking sockets
             pass
@@ -147,10 +184,10 @@ def run():
                         active_ids = set()
 
                         for _ in range(count):
-                            if off + 12 > len(payload):
+                            if off + 14> len(payload):
                                 break
-                            pid, x, y, health, pdire = struct.unpack("!IHHHH", payload[off:off + 12])
-                            off += 12
+                            pid, x, y, health, pdire,patt, pweapon = struct.unpack("!IHHHHBB", payload[off:off + 14])
+                            off += 14
                             active_ids.add(pid)
 
 
@@ -158,13 +195,15 @@ def run():
                                 # PlayerData in your project expects: (pid, x, y, dir1, group)
                                 players[pid] = PlayerData(pid, x, y, pdire, 0,0)
 
-                            players[pid].update_from_server(x, y, health, pdire)
+                            players[pid].update_from_server(x, y, health, pdire, patt, pweapon)
 
                         # remove players who left
                         for pid_to_remove in list(players.keys()):
                             if pid_to_remove not in active_ids:
                                 del players[pid_to_remove]
 
+
+                        #shot
                         count1 = payload[off]
                         off += 1
                         active_bull = set()
@@ -216,6 +255,14 @@ def run():
 
             sprite = SPRITES.get(p.dir, DEFAULT_SPRITE)
             screen.blit(sprite, (px, py))
+
+            if p.attack == 1 and p.current_weapon == 1:
+
+                d = p.dir if p.dir != 0 else 3
+                vx, vy = dir_to_vec(d)  # same helper you already added earlier
+                dagger_x = int((p.x + vx * TILE_SIZE) - cam_x - TILE_SIZE // 2)
+                dagger_y = int((p.y + vy * TILE_SIZE) - cam_y - TILE_SIZE // 2)
+                screen.blit(DAGGERS.get(d, DEFAULT_DAGGER), (dagger_x, dagger_y))
 
             # health bars
             if pid == my_id:
