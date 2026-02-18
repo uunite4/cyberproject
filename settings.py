@@ -20,7 +20,7 @@ CMD_WELCOME = 0x11
 #-=-=-=-=--=serverinfo
 HOST = "0.0.0.0"
 PORT = 5000
-SERVER_IP = "10.12.9.161"
+SERVER_IP = "127.0.0.1"
 #=-=-=-=-=-=-BROADCAST
 BROADCAST_HZ = 30
 BROADCAST_DT = 1.0 / BROADCAST_HZ
