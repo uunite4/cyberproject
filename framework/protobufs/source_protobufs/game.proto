@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+message ClientPlayerState {
+
+  int32 directionX = 2;
+  int32 directionY = 3;
+
+}
+
+message ServerPlayerState {
+
+  int32 playerId = 1;
+  int32 positionX = 2;
+  int32 positionY = 3;
+}
+
+message ServerPlayerStateList {
+  repeated ServerPlayerState players = 1;
+}

@@ -7,17 +7,15 @@ from wrappers.client_wrapper import QuicClient
 class ClientExample:
 
     def __init__(self):
-        self.client = None
-
-    def on_receive(self, connection_id: int, data: bytes):
-        print(f"{connection_id}: {data.decode()}")
-
-    async def run(self):
         self.client = QuicClient(
             cert_file="../certificate/cert.pem",
             on_receive=self.on_receive
         )
 
+    def on_receive(self, connection_id: int, data: bytes):
+        print(f"{connection_id}: {data.decode()}")
+
+    async def run(self):
         server_id = await self.client.connect(
             server_ip=EXAMPLE_SERVER_IP,
             server_port=EXAMPLE_SERVER_PORT,

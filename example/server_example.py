@@ -21,6 +21,7 @@ class ServerExample:
 
     def on_receive(self, connection_id: int, data: bytes):
         print(f"{connection_id}: {data.decode()}")
+        self.server.send(connection_id, b'echo!')
 
     def on_connect(self, connection_id: int):
         print(f"{connection_id} connected")
@@ -33,7 +34,7 @@ class ServerExample:
         print("Server started")
 
         while True:
-            await self.server.broadcast(b"hi to everyone")
+            self.server.broadcast(b"broadcast")
             await asyncio.sleep(1)
 
 

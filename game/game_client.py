@@ -1,8 +1,8 @@
 import asyncio
-import struct
 
 import pygame
 
+from framework.protobufs.compiled_protobufs.game_pb2 import *
 from game.game_server import SERVER_IP, SERVER_PORT
 from wrappers.client_wrapper import QuicClient
 
@@ -56,32 +56,14 @@ class GameClient:
         self.delta_time = 0
         self.tick = 0
 
-    def serialize(self):
+    def build_request(self):
 
-        x = int(self.player_direction.x) + 1  # -1,0,1 -> 0,1,2
-        y = int(self.player_direction.y) + 1  # -1,0,1 -> 0,1,2
-
-        return struct.pack(
-            'B',
-            (x << 2) | y  # store x in high 2 bits, y in low 2 bits
+        request = ClientPlayerState(
+            directionX=int(self.player_direction.x),
+            directionY=int(self.player_direction.y)
         )
 
-    def deserialize(self, data: bytes):
-
-        player_count = struct.unpack_from('H', data)[0]
-        offset = struct.calcsize('H')
-
-        players = []
-        for _ in range(player_count):
-            player_id, x, y = struct.unpack_from("Hhh", data, offset)
-            offset += struct.calcsize('Hhh')
-            players.append({
-                "id": player_id,
-                "x": x,
-                "y": y
-            })
-
-        return players
+        return request.SerializeToString()
 
     def upsert_player(self, player_id: int, pos: pygame.Vector2):
         if player_id in self.players:
@@ -95,13 +77,13 @@ class GameClient:
 
     def on_receive(self, connection_id: int, data: bytes):
         if connection_id == self.server_id:
+            state_list = ServerPlayerStateList()
+            state_list.ParseFromString(data)
 
-            player_data = self.deserialize(data)
-
-            for p in player_data:
+            for player in state_list.players:
                 self.upsert_player(
-                    p['id'],
-                    pygame.Vector2(p['x'], p['y'])
+                    player.playerId,
+                    pygame.Vector2(player.positionX, player.positionY)
                 )
 
     def handle_events(self):
@@ -141,7 +123,7 @@ class GameClient:
 
         # only send at the SEND FPS
         if self.tick % (1 / SEND_FPS):
-            self.client.send(self.server_id, self.serialize())
+            self.client.send(self.server_id, self.build_request())
 
     async def run(self, server_ip: str, server_port: int):
         self.server_id = await self.client.connect(
@@ -152,15 +134,12 @@ class GameClient:
 
         try:
             while self.running:
-                self.delta_time = self.clock.tick(DISPLAY_FPS) / 1000.0
-                pygame.display.set_caption(str((1 / self.delta_time).__round__(1)))
                 self.tick += 1
                 self.update()
-
-                await asyncio.sleep(0.001)
+                await asyncio.sleep(1 / DISPLAY_FPS)
         finally:
             print("Shutting down")
-            await self.client.stop()
+            self.client.stop()
             pygame.quit()
 
 

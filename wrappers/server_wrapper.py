@@ -89,17 +89,17 @@ class QuicServer:
             create_protocol=create_connection,
         )
 
-    async def send(self, data: bytes, connection_id: int):
+    def send(self, connection_id: int, data: bytes):
         connection = self._get_connection(connection_id)
         if not connection:
             raise RuntimeError("Not connected")
         connection.send(data)
 
-    async def broadcast(self, data: bytes):
+    def broadcast(self, data: bytes):
         for conn in list(self._connections.values()):
             conn.send(data)
 
-    async def stop(self):
+    def stop(self):
         self._server.close()
 
     def _add_connection(self, connection_id: int, conn: _ServerProtocol):

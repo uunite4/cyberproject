@@ -20,11 +20,13 @@ def compile_protobuf(protobuf_name: str):
 
 def recompile_all():
     clear_all()
-
     src_dir = Path(SOURCE_DIR)
 
-    for file in src_dir.glob("*"):
-        compile_protobuf(file.name)
+    for file in src_dir.iterdir():
+        if file.is_file():
+            compile_protobuf(file.name)
+
+    print('recompiled protobufs')
 
 
 def clear_all():

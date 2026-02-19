@@ -25,7 +25,6 @@ class _ClientProtocol(QuicConnectionProtocol):
             self.close()
 
     def close(self):
-        self._client.close_connection(self._connection_id)
         self._quic.close(error_code=0)
         self.transmit()
 
@@ -65,8 +64,6 @@ class QuicClient:
         protocol.connection = connection_context_manager
 
         self._add_connection(connection_id, protocol)
-
-        print(f'{server_ip}:{server_port} connected')
         return connection_id
 
     def send(self, connection_id: int, data: bytes):
@@ -75,14 +72,15 @@ class QuicClient:
             raise RuntimeError("Not connected")
         conn.send(data)
 
-    async def close_connection(self, connection_id: int):
+    def close_connection(self, connection_id: int):
         conn = self._get_connection(connection_id)
         if conn:
             conn.close()
+            self._remove_connection(connection_id)
 
-    async def stop(self):
+    def stop(self):
         for conn_id in list(self._connections.keys()):
-            await self.close_connection(conn_id)
+            self.close_connection(conn_id)
 
     def _add_connection(self, connection_id: int, conn: _ClientProtocol):
         self._connections[connection_id] = conn
