@@ -114,17 +114,11 @@ def check_collision_with_lava(self, next_x, next_y):    # True = blocked (stone/
             return True
     return False
 def check_bullet_hit(p,b):
-    left = p.x #- PLAYER_SIZE // 2  # player box left (pixels)
+    left = p.x - PLAYER_SIZE // 2  # player box left (pixels)
     right = p.x + PLAYER_SIZE   # player box right (pixels)
-    top = p.y #- PLAYER_SIZE // 2  # player box top (pixels)
+    top = p.y - PLAYER_SIZE // 2  # player box top (pixels)
     bottom = p.y + PLAYER_SIZE // 2 - 1  # player box bottom (pixels)
 
-    corners = [  # 4 corners
-        (left, top),
-        (right, top),
-        (left, bottom),
-        (right, bottom),
-    ]
 
     if left <= b.x <= right and top <= b.y <= bottom:
         return True

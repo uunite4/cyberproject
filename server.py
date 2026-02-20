@@ -77,7 +77,7 @@ def broadcast_state(all_bullets):
             int(p.id),
             int(p.x),
             int(p.y),
-            int(p.health),
+            max(0, int(p.health)),
             int(p.dir),
             int(p.attack),
             int(p.current_weapon)
@@ -204,6 +204,9 @@ while True:
                             if b.player_id != p.id:
                                 if check_bullet_hit(p, b):
                                     p.health -= BULLET_DAMEG
+                                    if p.health <= 0:
+                                        p.x, p.y = new_place()
+                                        p.health = 100
 
                     # בסוף הלולאה הראשית, מחוץ ל-readable
                     for b in bullets[:]:

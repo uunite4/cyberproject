@@ -211,13 +211,13 @@ def run():
                         for _ in range(count1):
                             if off + 8 > len(payload):
                                 break
-                            bullet_x ,bullet_y  , pid, dirb= struct.unpack("!hhHh", payload[off:off + 8])
+                            bullet_x ,bullet_y  , bullet_id, dirb= struct.unpack("!hhHh", payload[off:off + 8])
                             off += 8
-                            active_bull.add(pid)
-                            if pid not in bullets11:
+                            active_bull.add(bullet_id)
+                            if bullet_id not in bullets11:
 
-                                bullets11[pid] = Bullet(pid, bullet_x, bullet_y ,dirb,0,0)
-                            bullets11[pid].update_from_server_bull(bullet_x, bullet_y)
+                                bullets11[bullet_id] = Bullet(bullet_id, bullet_x, bullet_y ,dirb,0,0)
+                            bullets11[bullet_id].update_from_server_bull(bullet_x, bullet_y)
 
                         for bull_to_remove in list(bullets11.keys()):
                             if bull_to_remove not in active_bull:
@@ -244,7 +244,7 @@ def run():
         draw_map(screen, MAP, cam_x, cam_y, WINDOW_W, WINDOW_H)
 
         # =====draw bull
-        for pid, b in bullets11.items():
+        for bullet_id, b in bullets11.items():
             bx = b.x - cam_x
             by = b.y - cam_y
             pygame.draw.circle(screen, "yellow", (bx,by), 10)
