@@ -103,7 +103,8 @@ class Dagger:
 
             if target.id == attacker.id:
                 continue
-
+            if target.group == attacker.group:
+                continue
             if target.health <= 0:
                 continue
 
