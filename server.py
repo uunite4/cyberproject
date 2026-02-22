@@ -10,6 +10,16 @@ from map_data import MAP
 from Bullet import *
 from Dagger import *
 
+def id_to_group(player_id, clients):
+    """
+    מחזיר את ה-group של שחקן לפי id
+    אם השחקן לא קיים מחזיר None
+    """
+    for data in clients.values():
+        if data["player"].id == player_id:
+            return data["player"].group
+    return None
+
 
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
@@ -212,12 +222,14 @@ while True:
                                 p.health = 100
 
                         for b in bullets[:]:
+                            shooter_group = id_to_group(b.player_id, clients)
                             if b.player_id != p.id:
-                                if check_bullet_hit(p, b):
-                                    p.health -= BULLET_DAMEG
-                                    if p.health <= 0:
-                                        p.x, p.y = new_place()
-                                        p.health = 100
+                                if shooter_group != p.group:
+                                    if check_bullet_hit(p, b):
+                                        p.health -= BULLET_DAMEG
+                                        if p.health <= 0:
+                                            p.x, p.y = new_place()
+                                            p.health = 100
 
                     # בסוף הלולאה הראשית, מחוץ ל-readable
                     for b in bullets[:]:

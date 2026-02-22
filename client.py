@@ -250,7 +250,7 @@ def run():
         for bullet_id, b in bullets11.items():
             bx = b.x - cam_x
             by = b.y - cam_y
-            pygame.draw.circle(screen, "yellow", (bx,by), 10)
+            pygame.draw.circle(screen, "yellow", (bx,by), BULLET_SIZE)
 
         # draw all players as sprites
         for pid, p in players.items():
