@@ -73,14 +73,15 @@ def broadcast_state(all_bullets):
         p = c["player"]
 
         payload += struct.pack(
-            "!IHHHHBB",
+            "!IHHHHBBB",
             int(p.id),
             int(p.x),
             int(p.y),
             max(0, int(p.health)),
             int(p.dir),
             int(p.attack),
-            int(p.current_weapon)
+            int(p.current_weapon),
+            int(p.group)
         )
     payload.append(len(all_bullets))
     for b in all_bullets:
@@ -123,12 +124,22 @@ while True:
             conn.setblocking(False)
 
             pid = next(id_gen)
+            # --- choose group with fewer players (first player -> group 1) ---
+            g1 = 0
+            g2 = 0
+            for c in clients.values():
+                if c["player"].group == 1:
+                    g1 += 1
+                elif c["player"].group == 2:
+                    g2 += 1
+
+            group = 1 if g1 <= g2 else 2
             px, py = new_place()
 
             # PlayerData signature: (pid, x, y, dir1, group)
             clients[conn] = {
                 "stream": QC3Stream(),
-                "player": PlayerData(pid, px, py, 3, 0, 0),  # start facing south
+                "player": PlayerData(pid, px, py, 3, group, 0),  # start facing south
                 "last": now
             }
 

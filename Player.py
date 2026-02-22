@@ -24,7 +24,7 @@ class PlayerData:
         self.current_weapon = 1
         self.attack = 0
 
-    def update_from_server(self, x, y, health, direction, attack, current_weapon):
+    def update_from_server(self, x, y, health, direction, attack, current_weapon, group):
         self.x = x
         self.y = y
         self.health = health
@@ -32,6 +32,7 @@ class PlayerData:
             self.dir = direction
         self.attack = attack
         self.current_weapon = current_weapon
+        self.group = group
 
 def handle_input():
     keys = pygame.key.get_pressed()

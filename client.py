@@ -49,7 +49,7 @@ def camera_from_pos(x, y, map_w, map_h):
     return cam_x, cam_y
 
 
-def load_player_sprites():
+def load_player_sprites(group):
     """
     Loads rotation sprites from: ./rotations/
     Must exist next to client.py
@@ -58,7 +58,10 @@ def load_player_sprites():
       1=east, 2=south-east, 3=south, 4=south-west,
       5=west, 6=north-west, 7=north, 8=north-east
     """
-    rotations_dir = os.path.join(os.path.dirname(__file__), "rotations")
+    if group == 1:
+        rotations_dir = os.path.join(os.path.dirname(__file__), "rotations")
+    else:
+        rotations_dir = os.path.join(os.path.dirname(__file__), "rotation1")
 
     def load(name: str) -> pygame.Surface:
         path = os.path.join(rotations_dir, name)
@@ -125,9 +128,10 @@ def run():
     screen = pygame.display.set_mode((WINDOW_W, WINDOW_H))
 
     # load sprites
-    SPRITES = load_player_sprites()
-    DEFAULT_SPRITE = SPRITES[3]  # south if dir==0
-
+    SPRITES1 = load_player_sprites(1)
+    DEFAULT_SPRITE1 = SPRITES1[3]  # south if dir==0
+    SPRITES2 = load_player_sprites(2)
+    DEFAULT_SPRITE2 = SPRITES2[3]  # south if dir==0
     DAGGERS = load_dagger_sprites()
     DEFAULT_DAGGER = DAGGERS[3]
     # ---- connect ----
@@ -185,18 +189,17 @@ def run():
                         active_ids = set()
 
                         for _ in range(count):
-                            if off + 14> len(payload):
+                            if off + 15 > len(payload):
                                 break
-                            pid, x, y, health, pdire,patt, pweapon = struct.unpack("!IHHHHBB", payload[off:off + 14])
-                            off += 14
+                            pid, x, y, health, pdire, patt, pweapon, pgroup = struct.unpack("!IHHHHBBB",payload[off:off + 15])
+                            off += 15
                             active_ids.add(pid)
 
-
                             if pid not in players:
-                                # PlayerData in your project expects: (pid, x, y, dir1, group)
-                                players[pid] = PlayerData(pid, x, y, pdire, 0,0)
+                                players[pid] = PlayerData(pid, x, y, pdire, pgroup, 0)
 
-                            players[pid].update_from_server(x, y, health, pdire, patt, pweapon)
+                            players[pid].update_from_server(x, y, health, pdire, patt, pweapon, pgroup)
+
 
                         # remove players who left
                         for pid_to_remove in list(players.keys()):
@@ -253,8 +256,10 @@ def run():
         for pid, p in players.items():
             px = int(p.x - cam_x - PLAYER_SIZE // 2)
             py = int(p.y - cam_y - PLAYER_SIZE // 2)
-
-            sprite = SPRITES.get(p.dir, DEFAULT_SPRITE)
+            if(p.group == 1):
+                sprite = SPRITES1.get(p.dir, DEFAULT_SPRITE1)
+            else:
+                sprite = SPRITES2.get(p.dir, DEFAULT_SPRITE1)
             screen.blit(sprite, (px, py))
 
             if p.attack == 1 and p.current_weapon == 1:
