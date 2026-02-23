@@ -4,22 +4,18 @@ import struct
 import random
 from settings import *
 from map_data import *
-
+from Entity import *
 
 # ---------------------------------
 # PlayerData - מחזיק את הנתונים האמיתיים מהשרת
 # ---------------------------------
-class PlayerData:
+class PlayerData(Entity):
     def __init__(self, pid, x, y , dir1,group, gcd):
-        self.id = pid
-        self.x = x
-        self.y = y
+        super().__init__(x, y, dir1, PLAYER_HEALTH, pid, "player")
         self.group = group
-        self.health = PLAYER_HEALTH  # אפשר להוסיף עוד שדות בעתיד
         self.color = (200, 50, 50)  # צבע ברירת מחדל, אפשר לקבל מהשרת
         self.healthBarx = 20
         self.healthBary = 20
-        self.dir = dir1
         self.gun_cooldown = gcd
         self.current_weapon = 1
         self.attack = 0

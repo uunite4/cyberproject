@@ -5,22 +5,17 @@ import struct
 import random
 from settings import *
 from map_data import *
+from Entity import *
 
 
-
-class Bullet:
+class Bullet(Entity):
     def __init__(self, bid, x, y , dir1,dise,pi):
-        self.id = bid
+        super().__init__(x, y, dir1, dise, bid, "bullet")
         self.player_id = pi
-        self.x = x
-        self.y = y
-        self.dir = dir1
-        self.dis = dise  # אפשר להוסיף עוד שדות בעתיד
-          # צבע ברירת מחדל, אפשר לקבל מהשרת
 
 
     def update_bullet(self):
-        if self.dis >= 0:
+        if self.health >= 0:
             if self.dir == 1:
                 dx =  1
                 dy = 0
@@ -48,7 +43,7 @@ class Bullet:
 
             self.x += dx * BULLET_SPEED
             self.y += dy * BULLET_SPEED
-            self.dis -= 1
+            self.health -= 1
             return False
         else: return True
     def update_from_server_bull(self,bx,by):
