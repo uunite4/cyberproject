@@ -76,7 +76,7 @@ class Dagger:
     # --------------------
     def damage_player(self, target):
         target.health -= self.damage
-        if target.health < 0:
+        if target.health <= 0:
             target.health = 0
 
 

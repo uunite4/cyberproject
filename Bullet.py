@@ -9,8 +9,8 @@ from map_data import *
 
 
 class Bullet:
-    def __init__(self, pid, x, y , dir1,dise,pi):
-        self.id = pid
+    def __init__(self, bid, x, y , dir1,dise,pi):
+        self.id = bid
         self.player_id = pi
         self.x = x
         self.y = y

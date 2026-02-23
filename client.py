@@ -48,6 +48,15 @@ def camera_from_pos(x, y, map_w, map_h):
     cam_y = max(0, min(map_h - WINDOW_H, cam_y))
     return cam_x, cam_y
 
+def rot(img, deg):
+    return pygame.transform.rotate(img, deg)
+
+def load(name: str, rotations_dir) -> pygame.Surface:
+    path = os.path.join(rotations_dir, name)
+    img = pygame.image.load(path).convert_alpha()
+    if img.get_width() != PLAYER_SIZE or img.get_height() != PLAYER_SIZE:
+        img = pygame.transform.scale(img, (PLAYER_SIZE, PLAYER_SIZE))
+    return img
 
 def load_player_sprites(group):
     """
@@ -63,22 +72,17 @@ def load_player_sprites(group):
     else:
         rotations_dir = os.path.join(os.path.dirname(__file__), "rotation1")
 
-    def load(name: str) -> pygame.Surface:
-        path = os.path.join(rotations_dir, name)
-        img = pygame.image.load(path).convert_alpha()
-        if img.get_width() != PLAYER_SIZE or img.get_height() != PLAYER_SIZE:
-            img = pygame.transform.scale(img, (PLAYER_SIZE, PLAYER_SIZE))
-        return img
+
 
     sprites = {
-        1: load("east.png"),
-        2: load("south-east.png"),
-        3: load("south.png"),
-        4: load("south-west.png"),
-        5: load("west.png"),
-        6: load("north-west.png"),
-        7: load("north.png"),
-        8: load("north-east.png"),
+        1: load("east.png", rotations_dir),
+        2: load("south-east.png", rotations_dir),
+        3: load("south.png", rotations_dir),
+        4: load("south-west.png", rotations_dir),
+        5: load("west.png", rotations_dir),
+        6: load("north-west.png", rotations_dir),
+        7: load("north.png", rotations_dir),
+        8: load("north-east.png", rotations_dir),
     }
 
     return sprites
@@ -89,8 +93,6 @@ def load_dagger_sprites() -> dict[int, pygame.Surface]:
     if base.get_width() != TILE_SIZE or base.get_height() != TILE_SIZE:
         base = pygame.transform.scale(base, (TILE_SIZE, TILE_SIZE))
 
-    def rot(img, deg):
-        return pygame.transform.rotate(img, deg)
 
     # base = NORTH (dir 7)
     return {
@@ -259,7 +261,7 @@ def run():
             if(p.group == 1):
                 sprite = SPRITES1.get(p.dir, DEFAULT_SPRITE1)
             else:
-                sprite = SPRITES2.get(p.dir, DEFAULT_SPRITE1)
+                sprite = SPRITES2.get(p.dir, DEFAULT_SPRITE2)
             screen.blit(sprite, (px, py))
 
             if p.attack == 1 and p.current_weapon == 1:
