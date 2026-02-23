@@ -75,16 +75,21 @@ def main_menu():
             draw_text(f"Username: {username} {'|' if active_field == 'username' else ''}", 100, 150)
             draw_text(f"Password: {'*' * len(password)} {'|' if active_field == 'password' else ''}", 100, 200)
             draw_text("Press TAB to switch, ENTER to submit", 100, 300)
+
             if status_msg[1] == "ERROR: with signup":
                 draw_text("SignUp failed!", 100, 400, color=(255, 0, 0))
             elif status_msg[1] == "ERROR: with login":
                 draw_text("Login Failed!", 100, 400, color=(255,0,0))
+            elif status_msg[1] == "ERROR: username is empty" or status_msg[1] == "ERROR: password is empty":
+                draw_text("password or username is empty", 100, 400, color=(255, 0, 0))
             else:
                 draw_text("the key: "+status_msg[1], 100, 400, color=(255, 0, 0))
             if status_msg[2] == "NO USER FOUND":
                 draw_text("NO USER FOUND ", 100, 460, color=(255, 0, 0))
             elif status_msg[2] == "User already found":
                 draw_text("USER FOUND ", 100, 460, color=(255, 0, 0))
+            elif status_msg[1] == "ERROR: username is empty" or status_msg[1] == "ERROR: password is empty":
+                draw_text("password or username is empty", 100, 400, color=(255, 0, 0))
             else:
                 draw_text("the next server: " + status_msg[2], 100, 460, color=(255, 0, 0))
         pygame.display.flip()
