@@ -66,11 +66,7 @@ def handle_input():
     return dx,dy ,dspeed,dire ,shot ,current_weapon
 
 def get_corners(x,y):
-    left = x - PLAYER_SIZE // 2  # player box left (pixels)
-    right = x + PLAYER_SIZE // 2 - 1  # player box right (pixels)
-    top = y - PLAYER_SIZE // 2  # player box top (pixels)
-    bottom = y + PLAYER_SIZE // 2 - 1  # player box bottom (pixels)
-
+    left, right, top, bottom = get_sides(x,y)
     corners = [  # 4 corners
         (left, top),
         (right, top),
@@ -79,6 +75,14 @@ def get_corners(x,y):
     ]
 
     return corners
+
+def get_sides(x,y):
+    left = x - PLAYER_SIZE // 2  # player box left (pixels)
+    right = x + PLAYER_SIZE // 2 - 1  # player box right (pixels)
+    top = y - PLAYER_SIZE // 2  # player box top (pixels)
+    bottom = y + PLAYER_SIZE // 2 - 1  # player box bottom (pixels)
+
+    return left,right,top,bottom
 
 def check_collision_with_stone(self, next_x, next_y):  # True = blocked (stone/outside)
     corners = get_corners(next_x,next_y)
@@ -107,11 +111,7 @@ def check_collision_with_lava(self, next_x, next_y):    # True = blocked (stone/
             return True
     return False
 def check_bullet_hit(p,b):
-    left = p.x - PLAYER_SIZE // 2  # player box left (pixels)
-    right = p.x + PLAYER_SIZE   # player box right (pixels)
-    top = p.y - PLAYER_SIZE // 2  # player box top (pixels)
-    bottom = p.y + PLAYER_SIZE // 2 - 1  # player box bottom (pixels)
-
+    left, right, top, bottom = get_sides(p.x, p.y)
 
     if left <= b.x <= right and top <= b.y <= bottom:
         return True
@@ -120,24 +120,13 @@ def check_bullet_hit(p,b):
 
 def new_place():
     while True:
-
         px =random.randint(1,WIDTH)
         py = random.randint(1,HEIGHT)
-
         if MAP[py][px] == " ":
             return px*40,py*40
         else:
             pass
-def check_player_collision(current_player, next_x, next_y, clients):
-    for other_sock, other_data in clients.items():
-        other_p = other_data["player"]
-        if other_p.id == current_player.id:
-            continue  # אל תבדוק התנגשות של השחקן עם עצמו
 
-        if (abs(next_x - other_p.x) < PLAYER_SIZE and
-            abs(next_y - other_p.y) < PLAYER_SIZE):
-            return True
-    return False
 def health_bar_update(health,screen):
     green1 =  (HEALTH_BAR_SIZE_X /100)*health
     red1= HEALTH_BAR_SIZE_X - green1
