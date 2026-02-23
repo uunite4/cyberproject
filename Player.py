@@ -65,8 +65,8 @@ def handle_input():
 
     return dx,dy ,dspeed,dire ,shot ,current_weapon
 
-def get_corners(x,y):
-    left, right, top, bottom = get_sides(x,y)
+def get_corners(x,y,size):
+    left, right, top, bottom = get_sides(x,y,size)
     corners = [  # 4 corners
         (left, top),
         (right, top),
@@ -76,11 +76,11 @@ def get_corners(x,y):
 
     return corners
 
-def get_sides(x,y):
-    left = x - PLAYER_SIZE // 2  # player box left (pixels)
-    right = x + PLAYER_SIZE // 2 - 1  # player box right (pixels)
-    top = y - PLAYER_SIZE // 2  # player box top (pixels)
-    bottom = y + PLAYER_SIZE // 2 - 1  # player box bottom (pixels)
+def get_sides(x,y, size):
+    left = x - size // 2  # player box left (pixels)
+    right = x + size // 2 - 1  # player box right (pixels)
+    top = y - size // 2  # player box top (pixels)
+    bottom = y + size // 2 - 1  # player box bottom (pixels)
 
     return left,right,top,bottom
 
@@ -98,7 +98,7 @@ def check_collision_with_stone(self, next_x, next_y):  # True = blocked (stone/o
             return True
     return False
 def check_collision_with_lava(self, next_x, next_y):    # True = blocked (stone/outside)
-    corners = get_corners(next_x, next_y)
+    corners = get_corners(next_x, next_y, PLAYER_SIZE)
 
     for px, py in corners:  # test each corner
         tile_x = int(px // TILE_SIZE)  # pixel -> tile col
