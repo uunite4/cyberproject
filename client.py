@@ -35,10 +35,18 @@ def main_menu():
 
             if event.type == pygame.KEYDOWN:
                 if mode == "START":
-                    if event.key == pygame.K_l: mode = "LOGIN_INPUT"
-                    if event.key == pygame.K_s: mode = "SIGNUP_INPUT"
+                    if event.key == pygame.K_l:
+                        mode = "LOGIN_INPUT"
+                    if event.key == pygame.K_s:
+                        mode = "SIGNUP_INPUT"
 
                 elif "INPUT" in mode:
+                    if event.key == pygame.K_ESCAPE:
+                        mode = "START"
+                        # Optional: Clear the text so it's empty when you come back
+                        username = ""
+                        password = ""
+                        status_msg = "Waiting for input..."
                     if event.key == pygame.K_TAB:  # Switch fields
                         active_field = "password" if active_field == "username" else "username"
                     elif event.key == pygame.K_RETURN:  # SEND TO SERVER
