@@ -1,20 +1,18 @@
 
 
-import pygame
-import struct
-import random
-from settings import *
-from map_data import *
+
 from Entity import *
 
 
 class Bullet(Entity):
-    def __init__(self, bid, x, y , dir1,dise,pi):
-        super().__init__(x, y, dir1, dise, bid, "bullet")
+    def __init__(self, bid, x, y , dir1,dis,pi):
+        super().__init__(x, y, dir1, dis, bid, "bullet")
         self.player_id = pi
 
 
     def update_bullet(self):
+        dx = 0
+        dy = 0
         if self.health >= 0:
             if self.dir == 1:
                 dx =  1
