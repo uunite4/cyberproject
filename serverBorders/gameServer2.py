@@ -7,7 +7,8 @@ import struct
 class MyServer:
 
     def __init__(self):
-        self.serverData = S.SERVER2
+        self.serverNumber = 2
+        self.serverData = S.SERVERS[self.serverNumber - 1]
         self.player = {}
         self.server = QuicServer(
             ip=self.serverData["ip"],
@@ -40,6 +41,11 @@ class MyServer:
             yVel = yDir * S.PLAYER_VEL
             self.player["x"] += xVel
             self.player["y"] += yVel
+
+            if (self.player["x"] < 0): self.player["x"] = 0
+            if (self.player["x"] + S.PLAYER_SIZE > S.WINDOW_WIDTH): self.player["x"] = S.WINDOW_WIDTH - S.PLAYER_SIZE
+            if (self.player["y"] < 0): self.player["y"] = 0
+            if (self.player["y"] + S.PLAYER_SIZE > S.WINDOW_HEIGHT): self.player["y"] = S.WINDOW_HEIGHT - S.PLAYER_SIZE
 
             # SEND MOVE
             pk = struct.pack('!bhh', S.CMDS["MOVE"], self.player["x"], self.player["y"])

@@ -12,6 +12,8 @@ class MyClient:
 
     def __init__(self):
         self.client = None
+        self.connections = []
+        self.iControl = 0
         self.running = True
         self.serverIDs = {
             "control": None,
@@ -51,17 +53,16 @@ class MyClient:
             on_receive=self.on_receive
         )
 
-        server_id = await self.client.connect(
-            server_ip=S.SERVER1["ip"],
-            server_port=S.SERVER1["port"],
-        )
-        self.serverIDs["control"] = server_id
-        # CREATE INACTIVE CONNECTION
-        server_id_inactive = await self.client.connect(
-            server_ip=S.SERVER2["ip"],
-            server_port=S.SERVER2["port"],
-        )
-        self.serverIDs["inactive"] = server_id_inactive
+        # Connect to all servers
+        for server in S.SERVERS:
+            server_id = await self.client.connect(
+                server_ip=server["ip"],
+                server_port=server["port"],
+            )
+            self.connections.append(server_id)
+
+        # TODO: CREATE LB AND MAKE IT SEND YOU THE
+        # CONTROL INDEX
 
         # SEND INITIAL POS
         pk = struct.pack("!bhh", S.CMDS["INIT_POS"], self.player.x, self.player.y)
@@ -74,33 +75,10 @@ class MyClient:
                     self.running = False
 
             # KEYS (GET INPUTS)
-            inputs = {
-                "w": 0,
-                "a": 0,
-                "s": 0,
-                "d": 0,
-            }
-            pressed = False
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_w]:
-                inputs["w"] = 1
-                pressed = True
-            if keys[pygame.K_s]:
-                inputs["s"] = 1
-                pressed = True
-            if keys[pygame.K_a]:
-                inputs["a"] = 1
-                pressed = True
-            if keys[pygame.K_d]:
-                inputs["d"] = 1
-                pressed = True
+            inputs, pressed = getInputs()
 
             # SEND INPUTS
-            if (pressed):
-                xAxisDirection = inputs['d'] - inputs['a']
-                yAxisDirection = inputs['s'] - inputs['w']
-                pk = struct.pack('!bbb', S.CMDS["MOVE"], xAxisDirection, yAxisDirection)  # b is signed byte
-                self.client.send(self.serverIDs["control"], pk)
+            if (pressed): sendInputs(self, inputs)
 
             # DRAW
             self.screen.fill((30, 30, 30))  # BG
@@ -114,16 +92,56 @@ class MyClient:
 
 
 def drawServers(screen):
-    server1Rect = pygame.Rect(S.SERVER1["x"], 0, S.SERVER1["width"], S.WINDOW_HEIGHT)
-    server2Rect = pygame.Rect(S.SERVER2["x"], 0, S.SERVER2["width"], S.WINDOW_HEIGHT)
-    overlapRect = pygame.Rect(S.OVERLAP["x"], 0, S.OVERLAP["width"], S.WINDOW_HEIGHT)
-    pygame.draw.rect(screen, S.SERVER1["color"], server1Rect)
-    pygame.draw.rect(screen, S.SERVER2["color"], server2Rect)
-    pygame.draw.rect(screen, S.OVERLAP["color"], overlapRect)
+
+    for server in S.SERVERS:
+        sRect = pygame.Rect(server["x"], 0,  S.GENERAL_SERVER["width"], S.WINDOW_HEIGHT)
+        pygame.draw.rect(screen, S.GENERAL_SERVER["color"], sRect)
+
+    for overlap in S.OVERLAPS:
+        oRect = pygame.Rect(overlap["x"], 0, S.GENERAL_OVERLAP["width"], S.WINDOW_HEIGHT)
+        pygame.draw.rect(screen, S.GENERAL_OVERLAP["color"], oRect)
+
+
+    # server1Rect = pygame.Rect(S.SERVER1["x"], 0, S.SERVER1["width"], S.WINDOW_HEIGHT)
+    # server2Rect = pygame.Rect(S.SERVER2["x"], 0, S.SERVER2["width"], S.WINDOW_HEIGHT)
+    # overlapRect = pygame.Rect(S.OVERLAP["x"], 0, S.OVERLAP["width"], S.WINDOW_HEIGHT)
+    # pygame.draw.rect(screen, S.SERVER1["color"], server1Rect)
+    # pygame.draw.rect(screen, S.SERVER2["color"], server2Rect)
+    # pygame.draw.rect(screen, S.OVERLAP["color"], overlapRect)
 
 def moveOffPackt(pkStruct, player):
     x, y = struct.unpack_from('!hh', pkStruct, 1)
     player.tp(x, y)
+
+def getInputs():
+    inputs = {
+        "w": 0,
+        "a": 0,
+        "s": 0,
+        "d": 0,
+    }
+    pressed = False
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_w]:
+        inputs["w"] = 1
+        pressed = True
+    if keys[pygame.K_s]:
+        inputs["s"] = 1
+        pressed = True
+    if keys[pygame.K_a]:
+        inputs["a"] = 1
+        pressed = True
+    if keys[pygame.K_d]:
+        inputs["d"] = 1
+        pressed = True
+
+    return inputs, pressed
+
+def sendInputs(self, inputs):
+    xAxisDirection = inputs['d'] - inputs['a']
+    yAxisDirection = inputs['s'] - inputs['w']
+    pk = struct.pack('!bbb', S.CMDS["MOVE"], xAxisDirection, yAxisDirection)  # b is signed byte
+    self.client.send(self.serverIDs["control"], pk)
 
 
 if __name__ == "__main__":
