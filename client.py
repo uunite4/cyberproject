@@ -1,13 +1,10 @@
 
 import os
-import pygame
 import socket
 import struct
 import sys
 
 from Player import PlayerData, handle_input, health_bar_update, S_health_bar_update
-from settings import *
-from map_data import MAP
 from map import draw_map
 from Bullet import *
 
