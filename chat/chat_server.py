@@ -5,15 +5,12 @@ from wrappers.server_wrapper import QuicServer
 
 CHAT_SERVER_IP = "127.0.0.1"
 CHAT_SERVER_PORT = 8000
+SEND_FPS: int = 10
 
 """
 
-ideas:
-
-1. maybe only send every X ms instead of when received
-2. save a map of connection_id to username (and make a method to convert)
-3. save the username only once, when a connection is made
-4. then, only send the message, and not the username
+not sure if it should use a buffer
+or just broadcast each message to anyone but the sender once received
 
 """
 
@@ -30,32 +27,42 @@ class ChatServer:
             on_connect=self.on_connect,
             on_disconnect=self.on_disconnect,
         )
-        self.clients: list[int] = list()  # connection ids
+        self.message_buffer: list[ChatMessage] = list()
 
     def on_receive(self, connection_id: int, data: bytes):
-        request = ChatMessage()
-        request.ParseFromString(data)
-
-        # only send the message to the other clients
-        for id in self.clients:
-
-            if id != connection_id:
-                self.server.send(id, data)
+        message = ChatMessage()
+        message.ParseFromString(data)
+        self.message_buffer.append(message)
 
     def on_connect(self, connection_id: int):
-        self.clients.append(connection_id)
         print(f"{connection_id} connected")
 
     def on_disconnect(self, connection_id: int):
-        self.clients.remove(connection_id)
         print(f"{connection_id} disconnected")
+
+    def send_buffer(self):
+
+        if not self.message_buffer:
+            return
+
+        message_list = ChatMessagesList()
+
+        for m in self.message_buffer:
+            message = message_list.messages.add()
+            message.username = m.username
+            message.message = m.message
+
+        self.server.broadcast(message_list.SerializeToString())
+        self.message_buffer.clear()
 
     async def run(self):
         await self.server.start()
         print("Server started")
 
         try:
-            await asyncio.Future()  # run forever
+            while True:
+                self.send_buffer()
+                await asyncio.sleep(1 / SEND_FPS)
 
         except asyncio.CancelledError:
             print("Server shutting down...")

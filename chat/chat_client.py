@@ -19,9 +19,15 @@ class ChatClient:
         )
 
     def on_receive(self, connection_id: int, data: bytes):
-        response = ChatMessage()
-        response.ParseFromString(data)
-        print(f"{response.username}: {response.message}")
+        message_list = ChatMessagesList()
+        message_list.ParseFromString(data)
+
+        for m in message_list.messages:
+
+            if m.username == self.username:
+                continue
+
+            print(f"{m.username}: {m.message}")
 
     def send(self, message: str):
         response = ChatMessage(

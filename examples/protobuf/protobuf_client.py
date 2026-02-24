@@ -23,7 +23,7 @@ class ClientExample:
             name="232"
         ).SerializeToString()
 
-        self.client.send(self.server_id, response)
+        self.client.send_buffer(self.server_id, response)
 
     async def run(self):
         self.client = QuicClient(
