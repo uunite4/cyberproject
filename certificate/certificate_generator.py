@@ -1,13 +1,13 @@
 import datetime
 import ipaddress
-from example.server_example import EXAMPLE_SERVER_IP
+from examples.basic.basic_server import BASIC_SERVER_IP
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
-IP = EXAMPLE_SERVER_IP
+IP = BASIC_SERVER_IP
 
 # 1. Generate Private Key
 key = rsa.generate_private_key(public_exponent=65537, key_size=4096)

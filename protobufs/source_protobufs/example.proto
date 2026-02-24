@@ -12,10 +12,3 @@ message ServerResponse {
   bool isAlive = 1;
 
 }
-
-message ExampleMessage {
-
-  int32 number = 1;
-  string name = 2;
-
-}

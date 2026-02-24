@@ -1,19 +1,17 @@
 import asyncio
 
+from examples.twoservers.settings_test import TEST2_SERVER_PORT, TEST2_SERVER_IP
 from wrappers.server_wrapper import QuicServer
 
-EXAMPLE_SERVER_IP = "127.0.0.1"
-EXAMPLE_SERVER_PORT = 8000
 
-
-class ServerExample:
+class ServerTest2:
 
     def __init__(self):
         self.server = QuicServer(
-            ip=EXAMPLE_SERVER_IP,
-            port=EXAMPLE_SERVER_PORT,
-            cert_file="../certificate/cert.pem",
-            key_file="../certificate/key.pem",
+            ip=TEST2_SERVER_IP,
+            port=TEST2_SERVER_PORT,
+            cert_file="../../certificate/cert.pem",
+            key_file="../../certificate/key.pem",
             on_receive=self.on_receive,
             on_connect=self.on_connect,
             on_disconnect=self.on_disconnect,
@@ -21,7 +19,6 @@ class ServerExample:
 
     def on_receive(self, connection_id: int, data: bytes):
         print(f"{connection_id}: {data.decode()}")
-        self.server.send(connection_id, b'echo!')
 
     def on_connect(self, connection_id: int):
         print(f"{connection_id} connected")
@@ -33,11 +30,19 @@ class ServerExample:
         await self.server.start()
         print("Server started")
 
-        while True:
-            self.server.broadcast(b"broadcast")
-            await asyncio.sleep(1)
+        try:
+            while True:
+                self.server.broadcast(b'S2')
+                await asyncio.sleep(1)
+
+        except asyncio.CancelledError:
+            print("Server shutting down...")
+
+        finally:
+            await self.server.stop()
+            print("Server shut down")
 
 
 if __name__ == '__main__':
-    s = ServerExample()
+    s = ServerTest2()
     asyncio.run(s.run())

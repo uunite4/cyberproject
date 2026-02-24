@@ -2,8 +2,8 @@ syntax = "proto3";
 
 message ClientPlayerState {
 
-  int32 directionX = 2;
-  int32 directionY = 3;
+  int32 directionX = 1;
+  int32 directionY = 2;
 
 }
 

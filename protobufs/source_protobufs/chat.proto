@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+message ChatMessage {
+
+  string message = 1;
+  string username = 2;
+
+}
+
+message ChatMessagesList {
+
+  repeated ChatMessage messages = 1;
+
+}
