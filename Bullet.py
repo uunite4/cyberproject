@@ -43,7 +43,8 @@ class Bullet(Entity):
             self.y += dy * BULLET_SPEED
             self.health -= 1
             return False
-        else: return True
+        else:
+            return True
     def update_from_server_bull(self,bx,by):
         self.x = bx
         self.y = by

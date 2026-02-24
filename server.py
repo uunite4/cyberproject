@@ -184,6 +184,7 @@ def apply_bullet_hits_for_player(p, bullets, clients):
         if shooter_group != p.group:
             if check_bullet_hit(p, b):
                 p.health -= BULLET_DAMEG
+                bullets.remove(b)
                 if p.health <= 0:
                     p.x, p.y = new_place()
                     p.health = 100

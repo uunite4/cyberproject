@@ -85,7 +85,7 @@ def get_sides(x,y, size):
     return left,right,top,bottom
 
 def check_collision_with_stone(self, next_x, next_y):  # True = blocked (stone/outside)
-    corners = get_corners(next_x,next_y)
+    corners = get_corners(next_x,next_y,PLAYER_SIZE)
 
     for px, py in corners:  # test each corner
         tile_x = int(px // TILE_SIZE)  # pixel -> tile col
@@ -111,7 +111,7 @@ def check_collision_with_lava(self, next_x, next_y):    # True = blocked (stone/
             return True
     return False
 def check_bullet_hit(p,b):
-    left, right, top, bottom = get_sides(p.x, p.y)
+    left, right, top, bottom = get_sides(p.x, p.y,PLAYER_SIZE)
 
     if left <= b.x <= right and top <= b.y <= bottom:
         return True
