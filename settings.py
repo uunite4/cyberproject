@@ -36,6 +36,16 @@ S_HEALTH_BAR_SIZE_X = 40
 S_HEALTH_BAR_SIZE_Y = 10
 # ---- COPY EVERYTHING BELOW INTO settings.py ----
 
+MONSTERS = {
+    "GOBLIN" : { #some sort of monster
+        "health" : 200, #starter health
+        "speed" : 3,
+        "see_radius" : 5, #going to players in this range
+        "att_radius" : 3, #attack players in this range
+        "damage" : 20,
+        "size" : 30, #of sprite
+    }
+}
 
 
 
