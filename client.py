@@ -223,7 +223,10 @@ def draw_bullets(screen, bullets, cam_x, cam_y):
     for _, b in bullets.items():
         bx = b.x - cam_x
         by = b.y - cam_y
-        pygame.draw.circle(screen, "yellow", (bx, by), BULLET_SIZE)
+
+        pygame.draw.circle(screen, "red", (bx, by), BULLET_SIZE)
+        pygame.draw.circle(screen, "orange", (bx, by), BULLET_SIZE-1)
+        pygame.draw.circle(screen, "yellow", (bx, by), BULLET_SIZE-3)
 
 
 def draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER):

@@ -62,15 +62,6 @@ class Dagger:
             fy + half
         )
 
-
-    # --------------------
-    # Collision check
-    # --------------------
-    def inside(self, hitbox, px, py):
-        left, top, right, bottom = hitbox
-        return left <= px <= right and top <= py <= bottom
-
-
     # --------------------
     # Apply damage
     # --------------------
@@ -108,6 +99,19 @@ class Dagger:
             if target.health <= 0:
                 continue
 
-            if self.inside(hitbox, target.x, target.y):
+            target_box = player_rect(target)
+
+            if rects_overlap(hitbox, target_box):
                 self.damage_player(target)
                 self.respawn_if_dead(target, new_place)
+
+
+
+def rects_overlap(a, b):
+    # a,b: (left, top, right, bottom)
+    return not (a[2] < b[0] or a[0] > b[2] or a[3] < b[1] or a[1] > b[3])
+
+def player_rect(p):
+    half = PLAYER_SIZE // 2
+    # player is centered at (p.x, p.y)
+    return (p.x - half, p.y - half, p.x + half - 1, p.y + half - 1)
