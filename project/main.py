@@ -8,7 +8,6 @@ def main():
     pygame.init()
 
     clock = pygame.time.Clock()
-    enemy = enemyData(pid=1, x=640, y=320, p_type="fighter", speed = 3, see_radius=5, att_radius= 7) # enemy
     while True:
 
         for event in pygame.event.get():

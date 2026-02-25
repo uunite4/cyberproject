@@ -20,8 +20,6 @@ def vector(x1,y1,x2,y2):
     if not its:
     (speed*first_variable, speed*second_variable*first_variable)
     """
-
-
     dx = x2-x1
     dy = y2-y1
     if dx==0:
@@ -36,3 +34,13 @@ def vector(x1,y1,x2,y2):
     elif dx>0:
         dx = 1
     return(dx,slope)
+
+def draw_enemy(screen, enemys, cam_x, cam_y, ENEMY_SPRITES, DEFAULT_SPRITE):
+    for eid, e in enemys.items():
+        ex = int(e.x - cam_x - ENEMY_SIZE // 2)
+        ey = int(e.y - cam_y - ENEMY_SIZE // 2)
+
+        sprite = ENEMY_SPRITES.get(p.dir, DEFAULT_SPRITE)
+
+        screen.blit(sprite, (ex, ey))
+        #need to add the attack for monster
