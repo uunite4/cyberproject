@@ -137,9 +137,9 @@ def apply_movement(p, dx, dy, dsprint):
     ny = clamp(p.y + dy * speed, 0, MAP_H)
 
     # axis-separated collision
-    if not check_collision_with_stone(p, nx, p.y):
+    if not check_collision_with_stone(nx, p.y, PLAYER_SIZE):
         p.x = nx
-    if not check_collision_with_stone(p, p.x, ny):
+    if not check_collision_with_stone(p.x, ny, PLAYER_SIZE):
         p.y = ny
 
 

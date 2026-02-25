@@ -84,8 +84,8 @@ def get_sides(x,y, size):
 
     return left,right,top,bottom
 
-def check_collision_with_stone(self, next_x, next_y):  # True = blocked (stone/outside)
-    corners = get_corners(next_x,next_y,PLAYER_SIZE)
+def check_collision_with_stone(next_x, next_y, size):  # True = blocked (stone/outside)
+    corners = get_corners(next_x,next_y,size)
 
     for px, py in corners:  # test each corner
         tile_x = int(px // TILE_SIZE)  # pixel -> tile col
