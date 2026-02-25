@@ -61,8 +61,14 @@ class MyClient:
             )
             self.connections.append(server_id)
 
-        # TODO: CREATE LB AND MAKE IT SEND YOU THE
-        # CONTROL INDEX
+        # connect to LB and send initial
+        lb_id = await self.client.connect(
+            server_ip=S.LOAD_BALANCER["ip"],
+            server_port=S.LOAD_BALANCER["port"]
+        )
+        pk = struct.pack("!b", S.CMDS["INIT_LB"])
+        self.client.send(lb_id, pk)
+
 
         # SEND INITIAL POS
         pk = struct.pack("!bhh", S.CMDS["INIT_POS"], self.player.x, self.player.y)
@@ -100,14 +106,6 @@ def drawServers(screen):
     for overlap in S.OVERLAPS:
         oRect = pygame.Rect(overlap["x"], 0, S.GENERAL_OVERLAP["width"], S.WINDOW_HEIGHT)
         pygame.draw.rect(screen, S.GENERAL_OVERLAP["color"], oRect)
-
-
-    # server1Rect = pygame.Rect(S.SERVER1["x"], 0, S.SERVER1["width"], S.WINDOW_HEIGHT)
-    # server2Rect = pygame.Rect(S.SERVER2["x"], 0, S.SERVER2["width"], S.WINDOW_HEIGHT)
-    # overlapRect = pygame.Rect(S.OVERLAP["x"], 0, S.OVERLAP["width"], S.WINDOW_HEIGHT)
-    # pygame.draw.rect(screen, S.SERVER1["color"], server1Rect)
-    # pygame.draw.rect(screen, S.SERVER2["color"], server2Rect)
-    # pygame.draw.rect(screen, S.OVERLAP["color"], overlapRect)
 
 def moveOffPackt(pkStruct, player):
     x, y = struct.unpack_from('!hh', pkStruct, 1)

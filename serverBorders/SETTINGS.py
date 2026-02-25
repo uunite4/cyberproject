@@ -41,28 +41,16 @@ OVERLAPS = [
     for i in range(1, SERVER_NUMBER)
 ]
 
-# SERVERS_WIDTH = WINDOW_WIDTH // 2 + OVERLAP["width"] // 2
-#
-# SERVER1 = {
-#     "width": SERVERS_WIDTH,
-#     "color": (173, 28, 28),
-#     "x": 0,
-#     "ip": "127.0.0.1",
-#     "port": 8081
-# }
-#
-# SERVER2 = {
-#     "width": SERVERS_WIDTH,
-#     "color": (28, 28, 176),
-#     "x": WINDOW_WIDTH // 2 - OVERLAP["width"] // 2,
-#     "ip": "127.0.0.1",
-#     "port": 8082
-# }
-#
 CMDS = {
     "INIT_POS": 0x01,
     "MOVE": 0x02,
     "OVERLAP": 0x03,
     "SWITCH_SERVER": 0x04,
     "POS_DONT_RESPOND": 0x05,
+    "INIT_LB": 0x06
+}
+
+LOAD_BALANCER = {
+    "ip": "127.0.0.1",
+    "port": 5050,
 }
