@@ -17,6 +17,7 @@ class MyServer:
             on_connect=self.on_connect,
             on_disconnect=self.on_disconnect,
         )
+        self.connections = []
 
     # ----------
     # RECEIVE DATA
@@ -27,8 +28,10 @@ class MyServer:
             x,y, iServer = get_random_position()
             # send server index to client
             pk2Client = struct.pack("!bb", S.CMDS["INIT_LB"], iServer)
-            self.server.send(pk2Client, connection_id)
+            self.server.send(connection_id, pk2Client)
             # send pos to server
+            pk2Server = struct.pack("!bhh", S.CMDS["LB_ADDING_PLAYER"], x, y)
+            self.server.send(self.connections[iServer], pk2Server)
 
 
     def on_connect(self, connection_id: int):
@@ -43,9 +46,9 @@ class MyServer:
 
         # Connect to all servers
         for server in S.SERVERS:
-            server_id = await self.server.connect(
-                server_ip=server["ip"],
-                server_port=server["port"],
+            server_id = await self.server.connect_to_server(
+                ip=server["ip"],
+                port=server["port"],
             )
             self.connections.append(server_id)
 
@@ -76,7 +79,7 @@ def get_random_position():
     x = random.randint(left, right - 1)
     y = random.randint(0, S.WINDOW_HEIGHT - 1)
 
-    return x, y, serer_index
+    return x, y, server_index
 
 if __name__ == "__main__":
     s = MyServer()

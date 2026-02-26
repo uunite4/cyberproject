@@ -14,11 +14,8 @@ class MyClient:
         self.client = None
         self.connections = []
         self.iControl = 0
+        self.iInActive = None
         self.running = True
-        self.serverIDs = {
-            "control": None,
-            "inactive": None
-        }
         pygame.init()
         self.screen = pygame.display.set_mode((S.WINDOW_WIDTH, S.WINDOW_HEIGHT))
         pygame.display.set_caption("Game")
@@ -30,19 +27,29 @@ class MyClient:
     def on_receive(self, connection_id: int, data: bytes):
         cmd = struct.unpack_from('B', data, 0)[0]
 
-        if (cmd == S.CMDS["MOVE"]):
+        if (cmd == S.CMDS["INIT_LB"]):
+            self.iControl = struct.unpack_from('!b', data, 1)
+
+        elif (cmd == S.CMDS["MOVE"]):
             moveOffPackt(data, self.player)
 
         elif (cmd == S.CMDS["OVERLAP"]):
             # SEND POS TO SECOND SERVER
+
+            dir = struct.unpack_from('!b', data, 1)
+            if (dir == "r"):
+                self.iInActive = self.iControl + 1
+            elif (dir == "l"):
+                self.iInActive = self.iControl - 1
+
             pk = struct.pack("!bhh", S.CMDS["POS_DONT_RESPOND"], self.player.x, self.player.y)
             self.client.send(self.serverIDs["inactive"], pk)
 
         elif (cmd == S.CMDS["SWITCH_SERVER"]):
             # SWITCH BETWEEN CONTROL AND INACTIVE
-            temp = self.serverIDs["control"]
+            # temp = self.serverIDs["control"]
             self.serverIDs["control"] = self.serverIDs["inactive"]
-            self.serverIDs["inactive"] = temp
+            self.iControl = None
 
     # ----------
     # RUNNING
@@ -71,8 +78,8 @@ class MyClient:
 
 
         # SEND INITIAL POS
-        pk = struct.pack("!bhh", S.CMDS["INIT_POS"], self.player.x, self.player.y)
-        self.client.send(server_id, pk)
+        # pk = struct.pack("!bhh", S.CMDS["INIT_POS"], self.player.x, self.player.y)
+        # self.client.send(server_id, pk)
 
         while self.running:
             # Check for events
@@ -139,7 +146,7 @@ def sendInputs(self, inputs):
     xAxisDirection = inputs['d'] - inputs['a']
     yAxisDirection = inputs['s'] - inputs['w']
     pk = struct.pack('!bbb', S.CMDS["MOVE"], xAxisDirection, yAxisDirection)  # b is signed byte
-    self.client.send(self.serverIDs["control"], pk)
+    self.client.send(self.connections[self.iControl], pk)
 
 
 if __name__ == "__main__":

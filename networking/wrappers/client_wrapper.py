@@ -1,3 +1,4 @@
+import uuid
 from typing import Callable
 
 from qh3 import QuicConnectionProtocol, QuicConfiguration, connect
@@ -7,10 +8,11 @@ OnReceive = Callable[[int, bytes], None]
 
 
 class _ClientProtocol(QuicConnectionProtocol):
-    def __init__(self, *args, client: "QuicClient", connection_id: int, **kwargs):
+    def __init__(self, *args, client: "QuicClient", connection_id: int, connection_cm, **kwargs):
         super().__init__(*args, **kwargs)
         self._client = client
         self._connection_id = connection_id
+        self._connection_cm = connection_cm
         self._stream_id = self._quic.get_next_available_stream_id()
 
     def send(self, data: bytes):
@@ -22,12 +24,14 @@ class _ClientProtocol(QuicConnectionProtocol):
             self._client.on_receive(self._connection_id, event.data)
 
         elif isinstance(event, ConnectionTerminated):
-            self.close()
+            self._client._remove_connection(self._connection_id)
 
-    def close(self):
-        self._client.close_connection(self._connection_id)
+    async def close_protocol(self):
+        self._client._remove_connection(self._connection_id)
+
         self._quic.close(error_code=0)
         self.transmit()
+        await self._connection_cm.__aexit__(None, None, None)
 
 
 class QuicClient:
@@ -44,45 +48,45 @@ class QuicClient:
         config.server_name = server_ip
 
         connection_id = self._get_next_connection_id()
-
-        def create_protocol(*args, **kwargs):
-            return _ClientProtocol(
-                *args,
-                client=self,
-                connection_id=connection_id,
-                **kwargs,
-            )
-
         connection_context_manager = connect(
             host=server_ip,
             port=server_port,
             configuration=config,
-            create_protocol=create_protocol
-
+            create_protocol=lambda *args, **kwargs: _ClientProtocol(
+                *args,
+                client=self,
+                connection_id=connection_id,
+                connection_cm=connection_context_manager,
+                **kwargs,
+            ),
         )
 
-        protocol = await connection_context_manager.__aenter__()
-        protocol.connection = connection_context_manager
+        client_protocol = await connection_context_manager.__aenter__()
+        client_protocol._connection_cm = connection_context_manager
 
-        self._add_connection(connection_id, protocol)
-
-        print(f'{server_ip}:{server_port} connected')
+        self._add_connection(connection_id, client_protocol)
         return connection_id
 
     def send(self, connection_id: int, data: bytes):
         conn = self._get_connection(connection_id)
         if not conn:
-            raise RuntimeError("Not connected")
+            print(f"{connection_id} Not connected")
+            return
         conn.send(data)
 
-    def close_connection(self, connection_id: int):
+    def broadcast(self, data: bytes):
+        for conn in list(self._connections.values()):
+            conn.send(data)
+
+    async def close_connection(self, connection_id: int):
         conn = self._get_connection(connection_id)
         if conn:
-            conn.close()
+            await conn.close_protocol()
+            self._remove_connection(connection_id)
 
-    def stop(self):
+    async def stop(self):
         for conn_id in list(self._connections.keys()):
-            self.close_connection(conn_id)
+            await self.close_connection(conn_id)
 
     def _add_connection(self, connection_id: int, conn: _ClientProtocol):
         self._connections[connection_id] = conn
@@ -94,6 +98,4 @@ class QuicClient:
         self._connections.pop(connection_id, None)
 
     def _get_next_connection_id(self) -> int:
-        connection_id = self.lifetime_connections
-        self.lifetime_connections += 1
-        return connection_id
+        return uuid.uuid4().int
