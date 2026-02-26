@@ -60,7 +60,7 @@ def handle_input():
             dire =0
 
     return dx,dy ,dspeed,dire,attack
-def check_collision_with_stone(self, next_x, next_y):  # True = blocked (stone/outside)
+def check_collision_with_stone(size, next_x, next_y):  # True = blocked (stone/outside)
     left = next_x - PLAYER_SIZE // 2  # player box left (pixels)
     right = next_x + PLAYER_SIZE // 2 - 1  # player box right (pixels)
     top = next_y - PLAYER_SIZE // 2  # player box top (pixels)

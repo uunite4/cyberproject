@@ -36,3 +36,12 @@ def vector(x1,y1,x2,y2):
     elif dx>0:
         dx = 1
     return(dx,slope)
+
+def jumps(size,slope):
+    ab = abs(slope)
+    if ab==0:
+        return size
+    elif ab<=1:
+        return size*ab
+    elif ab>1:
+        return size/ab

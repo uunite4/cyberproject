@@ -59,3 +59,21 @@ class enemyData:
             if dis < min_dis:
                 min_dis = dis
         return min_dis
+
+    def in_view(self,x,y):
+        ex,ey = self.entity.x, self.entity.y
+        dir, slope = vector(ex,ey,x,y)
+        if dir==0:
+            while (ey < y and slope==-1) or (ey > y and slope==1):
+                if check_collision_with_stone(S.TILE_SIZE,ex,ey):
+                    return False
+                ey += slope*S.TILE_SIZE
+            return True
+        else:
+            jump = jumps(S.TILE_SIZE, slope)
+            while (ex < x and dir==-1) or (ex > x and dir==1):
+                if check_collision_with_stone(S.TILE_SIZE, ex, ey):
+                    return False
+                ex += dir * jump
+                ey += slope*dir*jump
+            return True
