@@ -42,7 +42,7 @@ class enemyData:
             return True
         return False
 
-    def Big_check(self,arr_id, arr_pos):#An array of numbers and another array
+    def Big_check(self,arr_id, arr_pos):#An array of pos numbers and another array of ids
         #the lists are ordered
         for i in arr_pos:
             dis = distance(i[0], i[1],self.entity.x,self.entity.y)
@@ -52,10 +52,33 @@ class enemyData:
             return order(list_id_ip)
 
 
-    def small_check(self,arr_id,arr_pos):
+    def small_check(self,arr_pos):
         min_dis = distance(arr_pos[0][0],arr_pos[0][1],self.entity.x,self.entity.y)
         for i in arr_pos:
             dis = distance(i[0], i[1],self.entity.x,self.entity.y)
             if dis < min_dis:
                 min_dis = dis
         return min_dis
+
+    def check_att_redius(self,arr_pos_id):
+        if arr_pos == null:
+            return 0
+        else:
+            arr_att = []
+            for i in arr_pos_id:
+                dis = distance(i[0], i[1], self.entity.x, self.entity.y)
+                if dis <= S.MONSTERS[self.type]["att_radius"]:
+                    arr_att.append(tuple[arr_id[i], arr_pos[i]])
+        return arr_att
+
+    def to_attck(self, arr_att):#check if enemy should attck
+        while true:
+            if arr_att == null:
+                pass# if there is no one in the attack radius keep walking eithout changes
+            else:
+                min_dis = distance(arr_att[0][0],arr_att[0][1],self.entity.x,self.entity.y)
+                for i in arr_att:
+                    dis = distance(i[0], i[1],self.entity.x,self.entity.y)
+                    if dis < min_dis:
+                        min_dis = dis
+                attack(min_dis)#not real function - need attack function from idan
