@@ -1,5 +1,6 @@
 
-# weapon.py
+
+# Dagger.py
 import time
 from settings import PLAYER_SIZE
 
@@ -75,7 +76,7 @@ class Dagger:
     # --------------------
     def damage_player(self, target):
         target.health -= self.damage
-        if target.health < 0:
+        if target.health <= 0:
             target.health = 0
 
 
@@ -102,7 +103,8 @@ class Dagger:
 
             if target.id == attacker.id:
                 continue
-
+            if target.group == attacker.group:
+                continue
             if target.health <= 0:
                 continue
 

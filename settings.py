@@ -1,13 +1,14 @@
+
 #from pygame.examples.grid import TILE_SIZE
-MAP_W = 192*40
-MAP_H = 108*40
+MAP_W = 1920*40
+MAP_H = 1080*40
 WINDOW_W = 1280
 WINDOW_H = 640
 #=----=-=-=
 FRAMERATE = 120
 TILE_SIZE = 40
 #-==-=-=playersettings
-SPEED = 5
+SPEED = 50
 PLAYER_SIZE = 40
 PLAYER_HEALTH =100
 #=======cmd
@@ -25,12 +26,17 @@ BROADCAST_HZ = 30
 BROADCAST_DT = 1.0 / BROADCAST_HZ
 #-=-=-=-=-=--MAP
 BUILDING_SIZE = 40
-WIDTH = 192
-HEIGHT = 108
+WIDTH = 1920
+HEIGHT = 1080
 #Obgects
-grass='grass.png'
-stone='stone.png'
-lava = 'lava.png'
+grass='imges\grass.png'
+stone='imges\stone.png'
+lava = 'imges\lava.png'
+tree ='imges\\tree.png'
+pesel= 'imges\statue.png'
+marble = 'imges\marble.png'
+bitmikdash = 'imges\statue.png'
+ostone='imges\\blackstone.png'
 #===========
 HEALTH_BAR_SIZE_X = 120
 HEALTH_BAR_SIZE_Y = 30
@@ -38,35 +44,7 @@ S_HEALTH_BAR_SIZE_X = 40
 S_HEALTH_BAR_SIZE_Y = 10
 #==================
 BULLET_DISTANS =100
-BULLET_SPEED = 10
+BULLET_SPEED = 15
 BULLET_COOLDOWN = 10
 BULLET_DAMEG = 10
-
-
-
-#BLOCK_MAP = [
-#    '666666666666',
-#    '444557755444',
-#    '333333333333',
-#    '222222222222',
-#    '111111111111',
-#    '            ',
-#    '            ',
-#    '            ',#  '            ']
-
-#COLOR_LEGEND = {
-#    '1': 'blue',
-#    '2': 'green',
-#    '3': 'red',
-#    '4': 'orange',
- #   '5': 'purple',
-#    '6': 'bronce',
-#    '7': 'grey',
-#}
-
-#GAP_SIZE = 2
-#BLOCK_HEIGHT = WINDOW_HEIGHT / len(BLOCK_MAP) - GAP_SIZE
-#BLOCK_WIDTH = WINDOW_WIDTH / len(BLOCK_MAP[0]) - GAP_SIZE
-#TOP_OFFSET = WINDOW_HEIGHT // 30
-
-#UPGRADES = ['speed', 'laser', 'heart', 'size']
+BULLET_SIZE = 5

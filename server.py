@@ -6,9 +6,20 @@ import time
 
 from Player import PlayerData, new_place, check_collision_with_stone, check_collision_with_lava, check_bullet_hit
 from settings import *
-from map_data import MAP
+from map_data import *
 from Bullet import *
 from Dagger import *
+
+
+# ----------------- helpers -----------------
+
+def id_to_group(player_id, clients):
+    for data in clients.values():
+        if data["player"].id == player_id:
+            return data["player"].group
+    return None
+
+
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
 
@@ -44,24 +55,191 @@ class QC3Stream:
         return msgs
 
 
-# -------- server socket --------
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-server.bind((HOST, PORT))
-server.listen()
-server.setblocking(False)
+# ----------------- networking / lifecycle -----------------
 
-clients = {}  # sock -> {"stream": QC3Stream, "player": PlayerData, "last": float}
-id_gen = itertools.count(1)
-dagger = Dagger()
-last_broadcast = time.time()
-bullets = []
-bullet_id_gen = itertools.count(10000)
-print(f"QC3 Server listening on {HOST}:{PORT}")
+def choose_group(clients):
+    g1 = 0
+    g2 = 0
+    for c in clients.values():
+        if c["player"].group == 1:
+            g1 += 1
+        elif c["player"].group == 2:
+            g2 += 1
+    return 1 if g1 <= g2 else 2
 
 
+def accept_new_client(server_sock, clients, id_gen, now):
+    conn, addr = server_sock.accept()
+    conn.setblocking(False)
 
-def broadcast_state(all_bullets):
+    pid = next(id_gen)
+    group = choose_group(clients)
+    px, py = new_place()
+
+    clients[conn] = {
+        "stream": QC3Stream(),
+        "player": PlayerData(pid, px, py, 3, group, 0),  # start facing south
+        "last": now
+    }
+
+    print("CONNECT", addr, "id=", pid)
+
+    welcome_payload = struct.pack("!III", pid, MAP_W, MAP_H)
+    try:
+        conn.sendall(qc3_pack(CMD_WELCOME, welcome_payload))
+    except Exception:
+        disconnect_client(conn, clients)
+
+
+def disconnect_client(sock, clients):
+    pid = None
+    try:
+        pid = clients[sock]["player"].id
+    except Exception:
+        pass
+
+    if pid is not None:
+        print("DISCONNECT", pid)
+
+    try:
+        sock.close()
+    except Exception:
+        pass
+
+    clients.pop(sock, None)
+
+
+def timeout_clients(clients, now, timeout_sec=10):
+    dead = []
+    for s in list(clients.keys()):
+        if now - clients[s]["last"] > timeout_sec:
+            dead.append(s)
+
+    for s in dead:
+        pid = clients[s]["player"].id
+        print("TIMEOUT", pid)
+        disconnect_client(s, clients)
+
+
+# ----------------- game logic -----------------
+
+def tick_cooldowns(clients):
+    for c in clients.values():
+        p = c["player"]
+        if hasattr(p, "gun_cooldown") and p.gun_cooldown > 0:
+            p.gun_cooldown -= 1
+
+
+def apply_movement(p, dx, dy, dsprint):
+    speed = SPEED + (SPEED * dsprint)
+
+    nx = clamp(p.x + dx * speed, 0, MAP_W)
+    ny = clamp(p.y + dy * speed, 0, MAP_H)
+
+    # axis-separated collision
+    if not check_collision_with_stone(p, nx, p.y):
+        p.x = nx
+    if not check_collision_with_stone(p, p.x, ny):
+        p.y = ny
+
+
+def apply_lava_and_respawn(p):
+    if check_collision_with_lava(p, p.x, p.y):
+        p.health -= 0.5
+        if p.health <= 0:
+            p.x, p.y = new_place()
+            p.health = 100
+
+
+def try_attack(p, attack, bullets, clients, dagger):
+    p.attack = 0
+    if attack != 1:
+        return
+
+    p.attack = 1
+
+    if p.current_weapon == 2:
+        if p.gun_cooldown == 0:
+            b_id = get_next_bullet_id(bullets)
+            new_bullet = Bullet(b_id, p.x, p.y, p.dir, BULLET_DISTANS, p.id)
+            bullets.append(new_bullet)
+            p.gun_cooldown = BULLET_COOLDOWN
+
+    elif p.current_weapon == 1:
+        dagger.attack(p, clients, new_place)
+
+
+def apply_bullet_hits_for_player(p, bullets, clients):
+    for b in bullets[:]:
+        shooter_group = id_to_group(b.player_id, clients)
+
+        # לא פוגע בעצמו
+        if b.player_id == p.id:
+            continue
+
+        # אם לא מוצאים קבוצה (יורה התנתק) - אפשר לבחור להתעלם
+        if shooter_group is None:
+            continue
+
+        if shooter_group != p.group:
+            if check_bullet_hit(p, b):
+                p.health -= BULLET_DAMEG
+                bullets.remove(b)
+                if p.health <= 0:
+                    p.x, p.y = new_place()
+                    p.health = 100
+
+
+def update_bullets(bullets):
+    for b in bullets[:]:
+        is_dead = b.update_bullet()  # שם הפונקציה שלך
+        if is_dead:
+            bullets.remove(b)
+
+
+def handle_input_message(p, payload, bullets, clients, dagger):
+    if len(payload) != 6:
+        return
+
+    dx, dy, dsprint, dire, attack, current_weapon = struct.unpack("!bbbbbb", payload)
+
+    # weapon switch
+    if current_weapon != 0:
+        p.current_weapon = current_weapon
+
+    # direction update
+    if dire != 0:
+        p.dir = int(dire)
+
+    # attack
+    try_attack(p, attack, bullets, clients, dagger)
+
+    # movement + env
+    apply_movement(p, dx, dy, dsprint)
+    apply_lava_and_respawn(p)
+
+
+def handle_client_read(sock, clients, bullets, dagger, now):
+    try:
+        data = sock.recv(4096)
+        if not data:
+            raise ConnectionError()
+
+        clients[sock]["stream"].feed(data)
+        clients[sock]["last"] = now
+
+        for cmd, payload in clients[sock]["stream"].pop_messages():
+            if cmd == CMD_INPUT:
+                p = clients[sock]["player"]
+                handle_input_message(p, payload, bullets, clients, dagger)
+
+    except Exception:
+        disconnect_client(sock, clients)
+
+
+# ----------------- state broadcast -----------------
+
+def build_state_payload(clients, bullets):
     count = min(255, len(clients))
     payload = bytearray()
     payload.append(count)
@@ -72,24 +250,31 @@ def broadcast_state(all_bullets):
         p = c["player"]
 
         payload += struct.pack(
-            "!IHHHHBB",
+            "!IIIHHBBB",
             int(p.id),
             int(p.x),
             int(p.y),
-            int(p.health),
+            max(0, int(p.health)),
             int(p.dir),
             int(p.attack),
-            int(p.current_weapon)
-            )
-    payload.append(len(all_bullets))
-    for b in all_bullets:
-        payload += struct.pack(
-            "!hhHh",
-            int(b.x),
-            int(b.y),
-            int(b.id),
-            int(b.dir))
-    packet = qc3_pack(CMD_STATE, bytes(payload))
+            int(p.current_weapon),
+            int(p.group)
+        )
+
+    # bullets (limit to 255 to keep one byte length safe)
+    bcount = min(255, len(bullets))
+    payload.append(bcount)
+
+    for i in range(bcount):
+        b = bullets[i]
+        payload += struct.pack("!iiHi", int(b.x), int(b.y), int(b.id), int(b.dir))
+
+    return bytes(payload)
+
+
+def broadcast_state(server_cmd, clients, bullets):
+    payload = build_state_payload(clients, bullets)
+    packet = qc3_pack(server_cmd, payload)
 
     dead = []
     for s in list(clients.keys()):
@@ -101,143 +286,60 @@ def broadcast_state(all_bullets):
             dead.append(s)
 
     for s in dead:
-        try:
-            s.close()
-        except Exception:
-            pass
-        clients.pop(s, None)
+        disconnect_client(s, clients)
 
 
+# ----------------- main -----------------
 
-# -------- main loop --------
-while True:
-    now = time.time()
+def main():
+    # server socket
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind((HOST, PORT))
+    server.listen()
+    server.setblocking(False)
 
-    rlist = [server] + list(clients.keys())
-    readable, _, _ = select.select(rlist, [], [], 0.02)
+    clients = {}  # sock -> {"stream": QC3Stream, "player": PlayerData, "last": float}
+    id_gen = itertools.count(1)
 
-    for s in readable:
-        # new client
-        if s is server:
-            conn, addr = server.accept()
-            conn.setblocking(False)
+    dagger = Dagger()
+    bullets = []
 
-            pid = next(id_gen)
-            px, py = new_place()
+    last_broadcast = time.time()
+    print(f"QC3 Server listening on {HOST}:{PORT}")
 
-            # PlayerData signature: (pid, x, y, dir1, group)
-            clients[conn] = {
-                "stream": QC3Stream(),
-                "player": PlayerData(pid, px, py, 3,0, 0),  # start facing south
-                "last": now
-            }
+    while True:
+        now = time.time()
 
-            print("CONNECT", addr, "id=", pid)
+        # read sockets
+        rlist = [server] + list(clients.keys())
+        readable, _, _ = select.select(rlist, [], [], 0.02)
 
-            welcome_payload = struct.pack("!IHH", pid, MAP_W, MAP_H)
-            try:
-                conn.sendall(qc3_pack(CMD_WELCOME, welcome_payload))
-            except Exception:
-                try:
-                    conn.close()
-                except Exception:
-                    pass
-                clients.pop(conn, None)
+        # cooldowns tick each loop
+        tick_cooldowns(clients)
 
-        # existing client
-        else:
-            try:
-                data = s.recv(4096)
-                if not data:
-                    raise ConnectionError()
+        for s in readable:
+            if s is server:
+                accept_new_client(server, clients, id_gen, now)
+            else:
+                handle_client_read(s, clients, bullets, dagger, now)
 
-                clients[s]["stream"].feed(data)
+        # world updates
+        update_bullets(bullets)
 
-                for cmd, payload in clients[s]["stream"].pop_messages():
-                    clients[s]["last"] = now
+        # apply bullet hits for every player
+        if bullets:
+            for c in clients.values():
+                apply_bullet_hits_for_player(c["player"], bullets, clients)
 
-                    if cmd == CMD_INPUT and len(payload) == 6 :
-                        dx, dy, dsprint, dire ,attack,current_weapon= struct.unpack("!bbbbbb", payload)
-                        p = clients[s]["player"]
-                        if current_weapon == 0:
-                            p.current_weapon = p.current_weapon
-                        else : p.current_weapon =current_weapon
+        # timeouts
+        timeout_clients(clients, now, timeout_sec=10)
 
-                        if dire != 0:
-                            p.dir = int(dire)
+        # broadcast at 20Hz
+        if now - last_broadcast >= 0.05:
+            broadcast_state(CMD_STATE, clients, bullets)
+            last_broadcast = now
 
-                        p.attack=0
-                        if attack ==1:
-                            p.attack =1
-                            if p.current_weapon==2:
 
-                                if p.gun_cooldown == 0:
-                                    b_id = get_next_bullet_id(bullets)
-                                    new_bullet = Bullet(b_id,p.x, p.y, p.dir, BULLET_DISTANS ,p.id)
-                                    bullets.append(new_bullet)
-                                    p.gun_cooldown=BULLET_COOLDOWN
-                                else: p.gun_cooldown -=1
-                            if p.current_weapon ==1:
-                                dagger.attack(p, clients, new_place)
-
-                                
-                        speed = SPEED + (SPEED * dsprint)
-
-                        nx = clamp(p.x + dx * speed, 0, MAP_W)
-                        ny = clamp(p.y + dy * speed, 0, MAP_H)
-
-                        # axis-separated collision
-                        if not check_collision_with_stone(p, nx, p.y):
-                            p.x = nx
-                        if not check_collision_with_stone(p, p.x, ny):
-                            p.y = ny
-
-                        # lava damage + respawn
-                        if check_collision_with_lava(p, p.x, p.y):
-                            p.health -= 0.5
-                            if p.health <= 0:
-                                p.x, p.y = new_place()
-                                p.health = 100
-
-                        for b in bullets[:]:
-                            if b.player_id != p.id:
-                                if check_bullet_hit(p,b):
-                                    p.health -= BULLET_DAMEG
-
-                    # בסוף הלולאה הראשית, מחוץ ל-readable
-                    for b in bullets[:]:
-                        # קריאה לשם הפונקציה המדויק מהקלאס שלך
-                        is_dead = b.update_bullet()
-                        if is_dead:
-                            bullets.remove(b)
-
-            except Exception:
-                pid = None
-                try:
-                    pid = clients[s]["player"].id
-                except Exception:
-                    pass
-
-                print("DISCONNECT", pid)
-
-                try:
-                    s.close()
-                except Exception:
-                    pass
-                clients.pop(s, None)
-
-    # timeout dead clients
-    for s in list(clients.keys()):
-        if now - clients[s]["last"] > 10:
-            pid = clients[s]["player"].id
-            print("TIMEOUT", pid)
-            try:
-                s.close()
-            except Exception:
-                pass
-            clients.pop(s, None)
-
-    # broadcast at 20Hz
-    if now - last_broadcast >= 0.05:
-        broadcast_state(bullets)
-        last_broadcast = now
+if __name__ == "__main__":
+    main()
