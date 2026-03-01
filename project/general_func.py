@@ -1,5 +1,5 @@
 import math
-
+from SETTINGS import S
 
 def distance(x1,y1,x2,y2):
     return math.sqrt((x1-x2)**2 + (y1-y2)**2)
@@ -34,13 +34,3 @@ def vector(x1,y1,x2,y2):
     elif dx>0:
         dx = 1
     return(dx,slope)
-
-def draw_enemy(screen, enemys, cam_x, cam_y, ENEMY_SPRITES, DEFAULT_SPRITE):
-    for eid, e in enemys.items():
-        ex = int(e.x - cam_x - ENEMY_SIZE // 2)
-        ey = int(e.y - cam_y - ENEMY_SIZE // 2)
-
-        sprite = ENEMY_SPRITES.get(p.dir, DEFAULT_SPRITE)
-
-        screen.blit(sprite, (ex, ey))
-        #need to add the attack for monster

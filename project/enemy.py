@@ -7,7 +7,7 @@ from general_func import *
 import time
 
 
-class enemyData:
+class Enemy:
     def __init__(self,entity ,id , type,last_att):
         # entity
         self.entity = entity
@@ -44,9 +44,9 @@ class enemyData:
 
     def Big_check(self,arr_id, arr_pos):#An array of pos numbers and another array of ids
         #the lists are ordered
+        list_id_ip = []
         for i in arr_pos:
-            dis = distance(i[0], i[1],self.entity.x,self.entity.y)
-            list_id_ip = []
+            dis = distance(arr_pos[i][0], arr_pos[i][1],self.entity.x,self.entity.y)
             if dis <= S.MONSTERS[self.type]["see_radius"]:
                 list_id_ip.append(tuple[arr_id[i],arr_pos[i]])
             return order(list_id_ip)
@@ -61,19 +61,19 @@ class enemyData:
         return min_dis
 
     def check_att_redius(self,arr_pos_id):
-        if arr_pos == null:
+        if (arr_pos_id== ""):
             return 0
         else:
             arr_att = []
             for i in arr_pos_id:
                 dis = distance(i[0], i[1], self.entity.x, self.entity.y)
                 if dis <= S.MONSTERS[self.type]["att_radius"]:
-                    arr_att.append(tuple[arr_id[i], arr_pos[i]])
+                    arr_att.append(arr_pos_id[i])
         return arr_att
 
     def to_attck(self, arr_att):#check if enemy should attck
-        while true:
-            if arr_att == null:
+        while True:
+            if arr_att == "":
                 pass# if there is no one in the attack radius keep walking eithout changes
             else:
                 min_dis = distance(arr_att[0][0],arr_att[0][1],self.entity.x,self.entity.y)

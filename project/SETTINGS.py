@@ -8,4 +8,5 @@ class S:
     PLAYER_SIZE = 40
     BLACK = (0, 0, 0)
     GRASS = 'grass.png'
+    ENEMY_SIZE = 30
 
