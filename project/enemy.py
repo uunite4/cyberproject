@@ -7,7 +7,7 @@ from general_func import *
 import time
 
 
-class enemyData:
+class Enemy:
     def __init__(self,entity ,id , type,last_att):
         # entity
         self.entity = entity
@@ -42,11 +42,12 @@ class enemyData:
             return True
         return False
 
-    def Big_check(self,arr_id, arr_pos):#An array of numbers and another array
+    def Big_check(self,arr_id, arr_pos):#An array of pos numbers and another array of ids
         #the lists are ordered
+        list_id_ip = []
         for i in arr_pos:
             dis = distance(i[0], i[1],self.entity.x,self.entity.y)
-            list_id_ip = []
+
             if dis <= S.MONSTERS[self.type]["see_radius"]:
                 list_id_ip.append(tuple[arr_id[i],arr_pos[i]])
             return order(list_id_ip)
@@ -54,11 +55,36 @@ class enemyData:
 
     def small_check(self,arr_id,arr_pos):
         min_dis = distance(arr_pos[0][0],arr_pos[0][1],self.entity.x,self.entity.y)
+        min_p = arr_id[0]
         for i in arr_pos:
             dis = distance(i[0], i[1],self.entity.x,self.entity.y)
             if dis < min_dis:
                 min_dis = dis
-        return min_dis
+                min_p =
+        return min_dis,
+
+    def check_att_redius(self,arr_pos_id):
+        if (arr_pos_id== ""):
+            return 0
+        else:
+            arr_att = []
+            for i in arr_pos_id:
+                dis = distance(i[0], i[1], self.entity.x, self.entity.y)
+                if dis <= S.MONSTERS[self.type]["att_radius"]:
+                    arr_att.append(arr_pos_id[i])
+        return arr_att
+
+    def to_attck(self, arr_att):#check if enemy should attck
+        while True:
+            if arr_att == "":
+                pass# if there is no one in the attack radius keep walking eithout changes
+            else:
+                min_dis = distance(arr_att[0][0],arr_att[0][1],self.entity.x,self.entity.y)
+                for i in arr_att:
+                    dis = distance(i[0], i[1],self.entity.x,self.entity.y)
+                    if dis < min_dis:
+                        min_dis = dis
+                attack(min_dis)#not real function - need attack function from idan
 
     def in_view(self,x,y):
         ex,ey = self.entity.x, self.entity.y

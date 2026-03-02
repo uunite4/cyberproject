@@ -1,5 +1,5 @@
 import math
-
+from SETTINGS import S
 
 def distance(x1,y1,x2,y2):
     return math.sqrt((x1-x2)**2 + (y1-y2)**2)
@@ -20,8 +20,6 @@ def vector(x1,y1,x2,y2):
     if not its:
     (speed*first_variable, speed*second_variable*first_variable)
     """
-
-
     dx = x2-x1
     dy = y2-y1
     if dx==0:
