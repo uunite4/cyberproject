@@ -1,6 +1,9 @@
 import pygame
-import SETTINGS as S
+
+import Player
+import settings as S
 from Player import *
+import Player
 from map import *
 from Entity import *
 from general_func import *
@@ -43,41 +46,43 @@ class Enemy:
         return False
 
     def Big_check(self,arr_id, arr_pos):#An array of pos numbers and another array of ids
-        #the lists are ordered
+
         list_id_ip = []
-        for i in arr_pos:
-            dis = distance(i[0], i[1],self.entity.x,self.entity.y)
+        for i in range(len(arr_pos)):
+            dis = distance(arr_pos[i][0], arr_pos[i][1],self.entity.x,self.entity.y)
 
             if dis <= S.MONSTERS[self.type]["see_radius"]:
-                list_id_ip.append(tuple[arr_id[i],arr_pos[i]])
-            return order(list_id_ip)
+                list_id_ip.append(tuple(arr_id[i],dis))
+        arr_id, arr_ip = order(list_id_ip) #list_id_ip = [(id,dis),...]
+        return arr_id,arr_pos
+
 
 
     def small_check(self,arr_id,arr_pos):
         min_dis = distance(arr_pos[0][0],arr_pos[0][1],self.entity.x,self.entity.y)
         min_p = arr_id[0]
-        for i in arr_pos:
-            dis = distance(i[0], i[1],self.entity.x,self.entity.y)
+        for i in range(len(arr_pos)):
+            dis = distance(arr_pos[i][0], arr_pos[i][1],self.entity.x,self.entity.y)
             if dis < min_dis:
                 min_dis = dis
-                min_p =
-        return min_dis,
+                min_p = arr_id[i]
+        return min_p
 
-    def check_att_redius(self,arr_pos_id):
-        if (arr_pos_id== ""):
+    def check_att_radius(self,arr_pos_id):
+        if not arr_pos_id:
             return 0
         else:
             arr_att = []
             for i in arr_pos_id:
-                dis = distance(i[0], i[1], self.entity.x, self.entity.y)
-                if dis <= S.MONSTERS[self.type]["att_radius"]:
+                dis = i[1]
+                if dis <= s.MONSTERS[self.type]["att_radius"]:
                     arr_att.append(arr_pos_id[i])
         return arr_att
 
-    def to_attck(self, arr_att):#check if enemy should attck
+    def to_attack(self, arr_att):#check if enemy should attack
         while True:
-            if arr_att == "":
-                pass# if there is no one in the attack radius keep walking eithout changes
+            if not arr_att:
+                pass# if there is no one in the attack radius keep walking without changes
             else:
                 min_dis = distance(arr_att[0][0],arr_att[0][1],self.entity.x,self.entity.y)
                 for i in arr_att:

@@ -1,6 +1,5 @@
 import math
-from SETTINGS import S
-
+import settings as s
 def distance(x1,y1,x2,y2):
     return math.sqrt((x1-x2)**2 + (y1-y2)**2)
 
@@ -37,8 +36,8 @@ def vector(x1,y1,x2,y2):
 
 def draw_enemy(screen, enemys, cam_x, cam_y, ENEMY_SPRITES, DEFAULT_SPRITE):
     for eid, e in enemys.items():
-        ex = int(e.x - cam_x - ENEMY_SIZE // 2)
-        ey = int(e.y - cam_y - ENEMY_SIZE // 2)
+        ex = int(e.x - cam_x - s.ENEMY_SIZE // 2)
+        ey = int(e.y - cam_y - s.ENEMY_SIZE // 2)
 
         sprite = ENEMY_SPRITES.get(p.dir, DEFAULT_SPRITE)
 
