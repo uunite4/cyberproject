@@ -6,8 +6,8 @@ WINDOW_HEIGHT = 540
 PLAYER_VEL = 10
 PLAYER_SIZE = 40
 
-OVERLAP_WIDTH = 100
-SERVER_NUMBER = 2
+OVERLAP_WIDTH = 60
+SERVER_NUMBER = 4
 
 GENERAL_OVERLAP = {
     "width" : OVERLAP_WIDTH,
@@ -31,7 +31,8 @@ SERVERS = [
     {
         "x": i * SERVER_STEP,
         "ip": BASE_IP,
-        "port": BASE_PORT + i
+        "port": BASE_PORT + i,
+        "width": SERVER_WIDTH,
     }
     for i in range(SERVER_NUMBER)
 ]
@@ -47,10 +48,11 @@ CMDS = {
     "OVERLAP": 0x03,
     "SWITCH_SERVER": 0x04,
     "POS_DONT_RESPOND": 0x05,
-    "INIT_LB": 0x06
+    "INIT_LB": 0x06,
+    "LB_ADDING_PLAYER": 0x07
 }
 
 LOAD_BALANCER = {
     "ip": "127.0.0.1",
-    "port": 5050,
+    "port": 8050,
 }

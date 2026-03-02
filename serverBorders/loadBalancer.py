@@ -25,9 +25,11 @@ class MyServer:
     def on_receive(self, connection_id: int, data: bytes):
         cmd = struct.unpack_from('B', data, 0)[0]
         if (cmd == S.CMDS["INIT_LB"]):
+            print("GOT INIT")
             x,y, iServer = get_random_position()
+            print("DECIDED ON POS: ", x, y, " | SERVER INDEX: ", iServer)
             # send server index to client
-            pk2Client = struct.pack("!bb", S.CMDS["INIT_LB"], iServer)
+            pk2Client = struct.pack("!bbhh", S.CMDS["INIT_LB"], iServer, x, y)
             self.server.send(connection_id, pk2Client)
             # send pos to server
             pk2Server = struct.pack("!bhh", S.CMDS["LB_ADDING_PLAYER"], x, y)
@@ -35,10 +37,12 @@ class MyServer:
 
 
     def on_connect(self, connection_id: int):
-        print(f"{connection_id} connected")
+        pass
+        # print(f"{connection_id} connected")
 
     def on_disconnect(self, connection_id: int):
-        print(f"{connection_id} disconnected")
+        pass
+        # print(f"{connection_id} disconnected")
 
     async def run(self):
         await self.server.start()

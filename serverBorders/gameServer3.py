@@ -7,7 +7,7 @@ import struct
 class MyServer:
 
     def __init__(self):
-        self.serverNumber = 2
+        self.serverNumber = 3
         self.serverData = S.SERVERS[self.serverNumber - 1]
         self.nearOverlaps = getNearOverlaps(self.serverNumber - 1)
         self.player = {}

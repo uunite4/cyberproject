@@ -28,7 +28,11 @@ class MyClient:
         cmd = struct.unpack_from('B', data, 0)[0]
 
         if (cmd == S.CMDS["INIT_LB"]):
-            self.iControl = struct.unpack_from('!b', data, 1)
+            res, x, y = struct.unpack_from('!bhh', data, 1)
+            self.iControl = res
+            print("RESPONSE FROM LB (SERVER INDEX): ", self.iControl, "(X,Y): (", x, ",", y, ")")
+            self.player.x = x
+            self.player.y = y
 
         elif (cmd == S.CMDS["MOVE"]):
             moveOffPackt(data, self.player)
@@ -36,20 +40,18 @@ class MyClient:
         elif (cmd == S.CMDS["OVERLAP"]):
             # SEND POS TO SECOND SERVER
 
-            dir = struct.unpack_from('!b', data, 1)
+            dir = struct.unpack_from('!1s', data, 1)[0].decode("utf-8")
             if (dir == "r"):
                 self.iInActive = self.iControl + 1
             elif (dir == "l"):
                 self.iInActive = self.iControl - 1
 
             pk = struct.pack("!bhh", S.CMDS["POS_DONT_RESPOND"], self.player.x, self.player.y)
-            self.client.send(self.serverIDs["inactive"], pk)
+            self.client.send(self.connections[self.iInActive], pk)
 
         elif (cmd == S.CMDS["SWITCH_SERVER"]):
             # SWITCH BETWEEN CONTROL AND INACTIVE
-            # temp = self.serverIDs["control"]
-            self.serverIDs["control"] = self.serverIDs["inactive"]
-            self.iControl = None
+            self.iControl = self.iInActive
 
     # ----------
     # RUNNING
@@ -73,6 +75,7 @@ class MyClient:
             server_ip=S.LOAD_BALANCER["ip"],
             server_port=S.LOAD_BALANCER["port"]
         )
+
         pk = struct.pack("!b", S.CMDS["INIT_LB"])
         self.client.send(lb_id, pk)
 

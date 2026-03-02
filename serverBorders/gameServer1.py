@@ -9,7 +9,7 @@ class MyServer:
     def __init__(self):
         self.serverNumber = 1
         self.serverData = S.SERVERS[self.serverNumber - 1]
-        self.nearOverlaps = [getNearOverlaps(self.serverNumber - 1)]
+        self.nearOverlaps = getNearOverlaps(self.serverNumber - 1)
         self.player = {}
         self.server = QuicServer(
             ip=self.serverData["ip"],
@@ -28,12 +28,13 @@ class MyServer:
         cmd = struct.unpack_from('B', data, 0)[0]
 
         if (cmd == S.CMDS["LB_ADDING_PLAYER"]):
+            print("GOT LB PACKET")
             x, y = struct.unpack_from('!hh', data, 1)
             self.player = {
                 "x": x,
                 "y": y
             }
-            print(self.player)
+            print("PLAYERS INITIAL POS: ", self.player)
 
         elif (cmd == S.CMDS["MOVE"]):
             # CLIENT GAVE US DIRECTION, WE RETURN POS
@@ -58,14 +59,15 @@ class MyServer:
             inOverlaps = []
             for OverlapObj in self.nearOverlaps:
                 iOverlap = OverlapObj["overlapIndex"]
-                inOverlap = point_in_rect(self.player["x"], self.player["y"], S.OVERLAPS[iOverlap]["x"], 0, S.GENERAL_OVERLAP, S.WINDOW_HEIGHT)
+                inOverlap = point_in_rect(self.player["x"], self.player["y"], S.OVERLAPS[iOverlap]["x"], 0, S.GENERAL_OVERLAP["width"], S.WINDOW_HEIGHT)
                 inOverlaps.append(inOverlap)
 
             inServer = point_in_rect(self.player["x"], self.player["y"], self.serverData["x"], 0, self.serverData["width"], S.WINDOW_HEIGHT)
 
             for i, inOverlap in enumerate(inOverlaps):    # WILL ALWAYS BE ONLY 1 of them
                 if (inOverlap):
-                    pk = struct.pack('!bb', S.CMDS["OVERLAP"], self.nearOverlaps[i]["dir"])
+                    overlapDir = self.nearOverlaps[i]["dir"].encode("utf-8")
+                    pk = struct.pack('!b1s', S.CMDS["OVERLAP"], overlapDir)
                     self.server.send(connection_id, pk)
 
             if (not inServer):
@@ -80,10 +82,10 @@ class MyServer:
             print(f"GOT OVERLAP PACKET")
 
     def on_connect(self, connection_id: int):
-        print(f"{connection_id} connected")
+        pass
 
     def on_disconnect(self, connection_id: int):
-        print(f"{connection_id} disconnected")
+        pass
 
     async def run(self):
         await self.server.start()
@@ -98,12 +100,16 @@ def point_in_rect(px, py, rx, ry, w, h):
     )
 
 def getNearOverlaps(serverIndex):
+    nearOverlaps = []
     if serverIndex == 0:
-        return {"overlapIndex": serverIndex, "dir": "r"}
+        nearOverlaps.append({"overlapIndex": serverIndex, "dir": "r"})
     elif serverIndex == S.SERVER_NUMBER - 1:
-        return {"overlapIndex": serverIndex - 1, "dir": "l"}
+        nearOverlaps.append({"overlapIndex": serverIndex - 1, "dir": "l"})
     else:
-        return {"overlapIndex": serverIndex - 1, "dir": "l"}, {"overlapIndex": serverIndex, "dir": "r"}
+        nearOverlaps.append({"overlapIndex": serverIndex - 1, "dir": "l"})
+        nearOverlaps.append({"overlapIndex": serverIndex, "dir": "r"})
+
+    return nearOverlaps
 
 
 if __name__ == "__main__":
