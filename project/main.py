@@ -153,7 +153,7 @@ def main():
                         enemy.entity.x += w_speed
 
 
-        screen.fill(BLACK)
+        screen.fill(0,0,0)
         #draw_map()
         #draw_frame(screen, enemies, bullets, WIDTH, HEIGHT, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2,
         #           DAGGERS, DEFAULT_DAGGER)

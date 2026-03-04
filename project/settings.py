@@ -54,6 +54,7 @@ MONSTERS = {
         "size" : 30, #of sprite
     }
 }
+ENEMY_SIZE = 40
 #BLOCK_MAP = [
 #    '666666666666',
 #    '444557755444',
