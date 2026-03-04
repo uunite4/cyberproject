@@ -19,3 +19,4 @@ class Player:
     def draw(self, screen):
         playerRect = pygame.Rect(self.x, self.y, self.width, self.height)
         pygame.draw.rect(screen, (190, 190, 190), playerRect)
+

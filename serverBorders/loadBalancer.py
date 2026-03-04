@@ -1,5 +1,7 @@
 import asyncio
 import random
+import secrets
+import string
 
 from networking.wrappers.server_wrapper import QuicServer
 import SETTINGS as S
@@ -26,13 +28,13 @@ class MyServer:
         cmd = struct.unpack_from('B', data, 0)[0]
         if (cmd == S.CMDS["INIT_LB"]):
             print("GOT INIT")
-            x,y, iServer = get_random_position()
+            x,y, iServer, pid = get_random_position()
             print("DECIDED ON POS: ", x, y, " | SERVER INDEX: ", iServer)
             # send server index to client
-            pk2Client = struct.pack("!bbhh", S.CMDS["INIT_LB"], iServer, x, y)
+            pk2Client = struct.pack("!b16sbhh", S.CMDS["INIT_LB"], pid.encode("utf-8"), iServer, x, y)
             self.server.send(connection_id, pk2Client)
             # send pos to server
-            pk2Server = struct.pack("!bhh", S.CMDS["LB_ADDING_PLAYER"], x, y)
+            pk2Server = struct.pack("!b16shh", S.CMDS["LB_ADDING_PLAYER"], pid.encode("utf-8"), x, y)
             self.server.send(self.connections[iServer], pk2Server)
 
 
@@ -65,6 +67,7 @@ def point_in_rect(px, py, rx, ry, w, h):
     )
 
 def get_random_position():
+
     # Choose a random server
     server_index = random.randint(0, S.SERVER_NUMBER - 1)
     server = S.SERVERS[server_index]
@@ -83,7 +86,11 @@ def get_random_position():
     x = random.randint(left, right - 1)
     y = random.randint(0, S.WINDOW_HEIGHT - 1)
 
-    return x, y, server_index
+    return x, y, server_index, generateToken()
+
+def generateToken(length=16):
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 if __name__ == "__main__":
     s = MyServer()

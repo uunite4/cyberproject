@@ -12,10 +12,12 @@ class MyClient:
 
     def __init__(self):
         self.client = None
+        self.pid = None
         self.connections = []
         self.iControl = 0
         self.iInActive = None
         self.running = True
+        self.players = [] #list of other players which are relevent
         pygame.init()
         self.screen = pygame.display.set_mode((S.WINDOW_WIDTH, S.WINDOW_HEIGHT))
         pygame.display.set_caption("Game")
@@ -28,9 +30,11 @@ class MyClient:
         cmd = struct.unpack_from('B', data, 0)[0]
 
         if (cmd == S.CMDS["INIT_LB"]):
-            res, x, y = struct.unpack_from('!bhh', data, 1)
-            self.iControl = res
-            print("RESPONSE FROM LB (SERVER INDEX): ", self.iControl, "(X,Y): (", x, ",", y, ")")
+            pid, controlIndex, x, y = struct.unpack_from('!16sbhh', data, 1)
+            print(pid, controlIndex, x, y)
+            self.iControl = controlIndex
+            self.pid = pid.decode("utf-8")
+            print("RESPONSE FROM LB (SERVER INDEX): ", self.iControl, "(X,Y): (", x, ",", y, ")", "PID", self.pid)
             self.player.x = x
             self.player.y = y
 
@@ -46,12 +50,20 @@ class MyClient:
             elif (dir == "l"):
                 self.iInActive = self.iControl - 1
 
-            pk = struct.pack("!bhh", S.CMDS["POS_DONT_RESPOND"], self.player.x, self.player.y)
+            pk = struct.pack("!b16shh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x, self.player.y)
             self.client.send(self.connections[self.iInActive], pk)
 
         elif (cmd == S.CMDS["SWITCH_SERVER"]):
             # SWITCH BETWEEN CONTROL AND INACTIVE
             self.iControl = self.iInActive
+        elif (cmd == S.CMDS["RENDER"]):
+            # render the screen
+            count = struct.unpack_from('!h', data, 1)
+            self.players = []
+            for i in range(count):
+                x,y = struct.unpack_from('!hh', data, 2+i*2)
+                self.players.append((x,y))
+
 
     # ----------
     # RUNNING
@@ -68,6 +80,7 @@ class MyClient:
                 server_ip=server["ip"],
                 server_port=server["port"],
             )
+            print(server_id)
             self.connections.append(server_id)
 
         # connect to LB and send initial
@@ -75,10 +88,10 @@ class MyClient:
             server_ip=S.LOAD_BALANCER["ip"],
             server_port=S.LOAD_BALANCER["port"]
         )
-
+        print("hi")
         pk = struct.pack("!b", S.CMDS["INIT_LB"])
         self.client.send(lb_id, pk)
-
+        print("hi")
 
         # SEND INITIAL POS
         # pk = struct.pack("!bhh", S.CMDS["INIT_POS"], self.player.x, self.player.y)
@@ -92,7 +105,6 @@ class MyClient:
 
             # KEYS (GET INPUTS)
             inputs, pressed = getInputs()
-
             # SEND INPUTS
             if (pressed): sendInputs(self, inputs)
 
@@ -100,6 +112,9 @@ class MyClient:
             self.screen.fill((30, 30, 30))  # BG
             drawServers(self.screen)  # SERVERS (FRONTEND)
             self.player.draw(self.screen)  # PLAYER
+            for x,y in self.players:
+                draw_player(screen=self.screen, x=x, y=y)
+
 
             pygame.display.flip()
             await asyncio.sleep(1 / 60)
@@ -148,10 +163,15 @@ def getInputs():
 def sendInputs(self, inputs):
     xAxisDirection = inputs['d'] - inputs['a']
     yAxisDirection = inputs['s'] - inputs['w']
-    pk = struct.pack('!bbb', S.CMDS["MOVE"], xAxisDirection, yAxisDirection)  # b is signed byte
+    pk = struct.pack('!b16sbb', S.CMDS["MOVE"], self.pid.encode("utf-8"), xAxisDirection, yAxisDirection)  # b is signed byte
+    print(self.iControl)
     self.client.send(self.connections[self.iControl], pk)
 
+def draw_player(screen,x,y):
+    playerRect = pygame.Rect(x, y, 40, 40)
+    pygame.draw.rect(screen, (0, 190, 190), playerRect)
 
 if __name__ == "__main__":
     c = MyClient()
+    print("hi")
     asyncio.run(c.run())

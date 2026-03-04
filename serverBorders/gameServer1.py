@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 from networking.wrappers.server_wrapper import QuicServer
 import SETTINGS as S
@@ -10,7 +11,7 @@ class MyServer:
         self.serverNumber = 1
         self.serverData = S.SERVERS[self.serverNumber - 1]
         self.nearOverlaps = getNearOverlaps(self.serverNumber - 1)
-        self.player = {}
+        self.clients = {}
         self.server = QuicServer(
             ip=self.serverData["ip"],
             port=self.serverData["port"],
@@ -25,33 +26,37 @@ class MyServer:
     # RECEIVE DATA
     # ----------
     def on_receive(self, connection_id: int, data: bytes):
-        cmd = struct.unpack_from('B', data, 0)[0]
+        cmd, pid = struct.unpack_from('!b16s', data, 0)
+        pid = pid.decode("utf-8")
 
         if (cmd == S.CMDS["LB_ADDING_PLAYER"]):
             print("GOT LB PACKET")
-            x, y = struct.unpack_from('!hh', data, 1)
-            self.player = {
+            x, y  = struct.unpack_from('!hh', data, 17)
+            self.clients[pid] = {
                 "x": x,
                 "y": y
             }
-            print("PLAYERS INITIAL POS: ", self.player)
+            print("PLAYERS INITIAL POS: ", self.clients[pid]["x"], self.clients[pid]["y"])
 
         elif (cmd == S.CMDS["MOVE"]):
+
+            currentClient = self.clients[pid]
+
             # CLIENT GAVE US DIRECTION, WE RETURN POS
             print(f"GOT MOVE PACKET")
-            xDir, yDir = struct.unpack_from('bb', data, 1)
+            xDir, yDir = struct.unpack_from('!bb', data, 17)
             xVel = xDir * S.PLAYER_VEL
             yVel = yDir * S.PLAYER_VEL
-            self.player["x"] += xVel
-            self.player["y"] += yVel
+            currentClient["x"] += xVel
+            currentClient["y"] += yVel
 
-            if (self.player["x"] < 0): self.player["x"] = 0
-            if (self.player["x"] + S.PLAYER_SIZE > S.WINDOW_WIDTH): self.player["x"] = S.WINDOW_WIDTH - S.PLAYER_SIZE
-            if (self.player["y"] < 0): self.player["y"] = 0
-            if (self.player["y"] + S.PLAYER_SIZE > S.WINDOW_HEIGHT): self.player["y"] = S.WINDOW_HEIGHT - S.PLAYER_SIZE
+            if (currentClient["x"] < 0): currentClient["x"] = 0
+            if (currentClient["x"] + S.PLAYER_SIZE > S.WINDOW_WIDTH): currentClient["x"] = S.WINDOW_WIDTH - S.PLAYER_SIZE
+            if (currentClient["y"] < 0): currentClient["y"] = 0
+            if (currentClient["y"] + S.PLAYER_SIZE > S.WINDOW_HEIGHT): currentClient["y"] = S.WINDOW_HEIGHT - S.PLAYER_SIZE
 
             # SEND MOVE
-            pk = struct.pack('!bhh', S.CMDS["MOVE"], self.player["x"], self.player["y"])
+            pk = struct.pack('!bhh', S.CMDS["MOVE"], currentClient["x"], currentClient["y"])
             self.server.send(connection_id, pk)
 
             # NOW THAT WE UPDATED POSITION, WE CAN CHECK FOR RANGES
@@ -59,10 +64,10 @@ class MyServer:
             inOverlaps = []
             for OverlapObj in self.nearOverlaps:
                 iOverlap = OverlapObj["overlapIndex"]
-                inOverlap = point_in_rect(self.player["x"], self.player["y"], S.OVERLAPS[iOverlap]["x"], 0, S.GENERAL_OVERLAP["width"], S.WINDOW_HEIGHT)
+                inOverlap = point_in_rect(currentClient["x"], currentClient["y"], S.OVERLAPS[iOverlap]["x"], 0, S.GENERAL_OVERLAP["width"], S.WINDOW_HEIGHT)
                 inOverlaps.append(inOverlap)
 
-            inServer = point_in_rect(self.player["x"], self.player["y"], self.serverData["x"], 0, self.serverData["width"], S.WINDOW_HEIGHT)
+            inServer = point_in_rect(currentClient["x"], currentClient["y"], self.serverData["x"], 0, self.serverData["width"], S.WINDOW_HEIGHT)
 
             for i, inOverlap in enumerate(inOverlaps):    # WILL ALWAYS BE ONLY 1 of them
                 if (inOverlap):
@@ -74,8 +79,8 @@ class MyServer:
                 pk = struct.pack('!b', S.CMDS["SWITCH_SERVER"])
                 self.server.send(connection_id, pk)
         elif (cmd == S.CMDS["POS_DONT_RESPOND"]):
-            x, y = struct.unpack_from('!hh', data, 1)
-            self.player = {
+            x, y = struct.unpack_from('!hh', data, 17)
+            self.clients[pid] = {
                 "x": x,
                 "y": y
             }
@@ -91,7 +96,15 @@ class MyServer:
         await self.server.start()
         print("Server started")
 
-        await asyncio.Future()
+        lastBroadcast = time.time()
+
+        while True:
+            now = time.time()
+
+            # BROADCAST FROM RENDER
+            if now - lastBroadcast >= S.BROADCAST_INTERVAL:
+                await broadcast(self)
+                lastBroadcast = now
 
 def point_in_rect(px, py, rx, ry, w, h):
     return (
@@ -111,6 +124,22 @@ def getNearOverlaps(serverIndex):
 
     return nearOverlaps
 
+async def broadcast(self):
+    pk = build_state_payload(clients=self.clients)
+    if pk != b'\x08\x00\x00':
+        print(pk)
+    self.server.broadcast(pk)
+
+def build_state_payload(clients):
+    count = min(255, len(clients))
+    format = "!bh" + "hh" * count
+    payload = [S.CMDS["RENDER"], count]
+
+    for c in clients.values():
+        payload.append(int(c["x"]))
+        payload.append(int(c["y"]))
+
+    return struct.pack(format, *payload)
 
 if __name__ == "__main__":
     s = MyServer()
