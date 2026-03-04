@@ -44,7 +44,16 @@ BULLET_COOLDOWN = 10
 BULLET_DAMEG = 10
 BULLET_SIZE = 5
 
-
+MONSTERS = {
+    "GOBLIN" : { #some sort of monster
+        "health" : 200, #starter health
+        "speed" : 3,
+        "see_radius" : 5, #going to players in this range
+        "att_radius" : 3, #attack players in this range
+        "damage" : 20,
+        "size" : 30, #of sprite
+    }
+}
 #BLOCK_MAP = [
 #    '666666666666',
 #    '444557755444',
