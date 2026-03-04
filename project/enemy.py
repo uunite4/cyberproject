@@ -45,17 +45,19 @@ class Enemy:
             return True
         return False
 
-    def Big_check(self,arr_id, arr_pos):#An array of pos numbers and another array of ids
-
-        list_id_ip = []
+    def Big_check(self, arr_id, arr_pos):  # An array of pos numbers and another array of ids
+        list_dis = []
+        list_id = []
+        list_pos = []
         for i in range(len(arr_pos)):
-            dis = distance(arr_pos[i][0], arr_pos[i][1],self.entity.x,self.entity.y)
+            dis = distance(arr_pos[i][0], arr_pos[i][1], self.entity.x, self.entity.y)
 
             if dis <= S.MONSTERS[self.type]["see_radius"]:
-                list_id_ip.append(tuple(arr_id[i],dis))
-        arr_id, arr_ip = order(list_id_ip) #list_id_ip = [(id,dis),...]
-        return arr_id,arr_pos
-
+                list_id.append(arr_id[i])
+                list_pos.append(arr_pos[i])
+                list_dis.append(dis)
+        arr_idn, arr_posn = order(list_dis, list_id, list_pos)
+        return arr_idn, arr_posn
 
 
     def small_check(self,arr_id,arr_pos):
@@ -68,16 +70,18 @@ class Enemy:
                 min_p = arr_id[i]
         return min_p
 
-    def check_att_radius(self,arr_pos_id):
-        if not arr_pos_id:
-            return 0
+    def get_target(self,arr_id, arr_pos):
+        if not arr_pos:
+            return rand_pos(s.MONSTERS[self.type]["att_radius"],self), None
+            #calculate the square of the attack radius and find a random spot in it
         else:
             arr_att = []
-            for i in arr_pos_id:
-                dis = i[1]
+            for i in arr_pos:
+                dis = distance(arr_pos[i][0],arr_pos[i][1],self.entity.x,self.entity.y)
                 if dis <= s.MONSTERS[self.type]["att_radius"]:
-                    arr_att.append(arr_pos_id[i])
-        return arr_att
+                    return arr_pos[i][0],arr_pos[i][1], arr_id[i]
+            return rand_pos(s.MONSTERS[self.type]["att_radius"],self), None
+
 
     def to_attack(self, arr_att):#check if enemy should attack
         while True:
@@ -90,21 +94,3 @@ class Enemy:
                     if dis < min_dis:
                         min_dis = dis
                 attack(min_dis)#not real function - need attack function from idan
-
-    def in_view(self,x,y):
-        ex,ey = self.entity.x, self.entity.y
-        dir, slope = vector(ex,ey,x,y)
-        if dir==0:
-            while (ey < y and slope==-1) or (ey > y and slope==1):
-                if check_collision_with_stone(S.TILE_SIZE,ex,ey):
-                    return False
-                ey += slope*S.TILE_SIZE
-            return True
-        else:
-            jump = jumps(S.TILE_SIZE, slope)
-            while (ex < x and dir==-1) or (ex > x and dir==1):
-                if check_collision_with_stone(S.TILE_SIZE, ex, ey):
-                    return False
-                ex += dir * jump
-                ey += slope*dir*jump
-            return True
