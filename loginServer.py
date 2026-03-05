@@ -9,6 +9,14 @@ LOGIN_SERVER_PORT = 8080
 DB_PATH = r"C:\Users\USER\PycharmProjects\PythonProject\Cyber-Proj-main\loginServerBasics\game.db"
 
 
+def player_info_update(key, x_position, y_position, health, team, direaction):
+    with sqlite3.connect(DB_PATH, timeout=5) as conn:
+        curser = conn.cursor()
+        curser.execute("""UPDATE last save SET x position = ?,y position = ?, health = ?, team = ?, direaction = ? WHERE key = ?""",(x_position, y_position, health, team, direaction,key))
+        conn.commit()
+        conn.close()
+        print(f"Successfully updated stats for Player {key}")
+
 def get_unique_token():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
