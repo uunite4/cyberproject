@@ -72,25 +72,25 @@ class Enemy:
 
     def get_target(self,arr_id, arr_pos):
         if not arr_pos:
-            return rand_pos(s.MONSTERS[self.type]["att_radius"],self), None
-            #calculate the square of the attack radius and find a random spot in it
+            while True:
+                target = rand_pos(s.MONSTERS[self.type]["att_radius"],self)
+                if in_view(self.entity.x,self.entity.y,target[0],target[1]):
+                    return target[0],target[1],None
+                #calculate the square of the attack radius
+                #find a random spot in it
+                #check if the enemy see it
         else:
-            arr_att = []
             for i in arr_pos:
                 dis = distance(arr_pos[i][0],arr_pos[i][1],self.entity.x,self.entity.y)
                 if dis <= s.MONSTERS[self.type]["att_radius"]:
                     return arr_pos[i][0],arr_pos[i][1], arr_id[i]
-            return rand_pos(s.MONSTERS[self.type]["att_radius"],self), None
+                elif dis <= s.MONSTERS[self.type]["see_radius"]:
+                    return arr_pos[i][0],arr_pos[i][1], None
+            while True:
+                target = rand_pos(s.MONSTERS[self.type]["att_radius"], self)
+                if in_view(self.entity.x, self.entity.y, target[0], target[1]):
+                    return target[0], target[1], None
+                # calculate the square of the attack radius
+                # find a random spot in it
+                # check if the enemy see it
 
-
-    def to_attack(self, arr_att):#check if enemy should attack
-        while True:
-            if not arr_att:
-                pass# if there is no one in the attack radius keep walking without changes
-            else:
-                min_dis = distance(arr_att[0][0],arr_att[0][1],self.entity.x,self.entity.y)
-                for i in arr_att:
-                    dis = distance(i[0], i[1],self.entity.x,self.entity.y)
-                    if dis < min_dis:
-                        min_dis = dis
-                attack(min_dis)#not real function - need attack function from idan
