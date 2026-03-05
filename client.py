@@ -74,7 +74,7 @@ def main_menu():
             draw_text(f"Mode: {mode}", 50, 50)
             draw_text(f"Username: {username} {'|' if active_field == 'username' else ''}", 100, 150)
             draw_text(f"Password: {'*' * len(password)} {'|' if active_field == 'password' else ''}", 100, 200)
-            draw_text("Press TAB to switch, ENTER to submit", 100, 300)
+            draw_text("Press TAB to switch, ENTER to submit, ESC to go back", 100, 300)
 
             if status_msg[1] == "ERROR: with signup":
                 draw_text("SignUp failed!", 100, 400, color=(255, 0, 0))

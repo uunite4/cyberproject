@@ -9,6 +9,24 @@ LOGIN_SERVER_PORT = 8080
 DB_PATH = r"C:\Users\USER\PycharmProjects\PythonProject\Cyber-Proj-main\loginServerBasics\game.db"
 
 
+def get_unique_token():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    while True:
+        # 1. Generate a potential token
+        new_token = generateToken()
+
+        # 2. Ask the DB if anyone is already using it
+        cursor.execute("SELECT 1 FROM login WHERE token = ?", (new_token,))
+        exists = cursor.fetchone()
+
+        # 3. If 'exists' is None, the token is unique!
+        if not exists:
+            conn.close()
+            return new_token
+
+        # If it's NOT None, the loop runs again to try a different token
 def generateToken(length=16):
     alphabet = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphabet) for _ in range(length))
@@ -37,7 +55,7 @@ def handleSignup(username, password):
     if handleLogin(username, password) != 404:
         return "ALREADY FOUND"
 
-    token = generateToken()
+    token = get_unique_token()
     try:
         with sqlite3.connect(DB_PATH, timeout=5) as conn:
             cursor = conn.cursor()
