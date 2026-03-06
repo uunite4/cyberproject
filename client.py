@@ -1,5 +1,6 @@
 import pygame
 import socket
+import json
 
 # Visual Settings
 WIDTH, HEIGHT = 700, 500
@@ -96,7 +97,8 @@ def main_menu():
 
 
 def send_to_server(u, p, action):
-    data = f"{u}={p}={action}"
+    data = json.dumps({"username": u, "password": p, "action": action})
+
     try:
         s = socket.socket()
         s.settimeout(2) # <--- ADD THIS: Don't wait more than 2 seconds

@@ -2,7 +2,7 @@ import socket
 import secrets
 import string
 import sqlite3
-
+import json
 # --- CONFIGURATION ---
 LOGIN_SERVER_IP = "127.0.0.1"
 LOGIN_SERVER_PORT = 8080
@@ -94,14 +94,14 @@ def main():
             # Receive the data
             raw_data = clientSocket.recv(1024).decode()
             if not raw_data: continue  # Skip if empty
-
-            loginData = raw_data.split("=")
+            #still needs to make a new one also for the updating
+            # in general make a new system that will be hashed with quic and will not be easy manupulated like the seperation with = sign
+            loginData = json.loads(raw_data)
             # loginData[0] = username, [1] = password, [2] = action (LOGIN/SIGNUP)
 
-            username = loginData[0]
-            password = loginData[1]
-            action = loginData[2]           #not going to be ""
-
+            username = loginData["username"]
+            password = loginData["password"]    #not going to be ""
+            action = loginData["action"]
             response_packet = ""
 
 
