@@ -3,16 +3,20 @@ import secrets
 import string
 import sqlite3
 import json
+import hashlib
 # --- CONFIGURATION ---
 LOGIN_SERVER_IP = "127.0.0.1"
 LOGIN_SERVER_PORT = 8080
 DB_PATH = r"C:\Users\USER\PycharmProjects\PythonProject\Cyber-Proj-main\loginServerBasics\game.db"
 
+def hash_password(password):
+    # Returns a fixed-length string 'fingerprint' of the password
+    return hashlib.sha256(password.encode()).hexdigest()
 
 def player_info_update(key, x_position, y_position, health, team, direaction):
     with sqlite3.connect(DB_PATH, timeout=5) as conn:
         curser = conn.cursor()
-        curser.execute("""UPDATE last save SET x position = ?,y position = ?, health = ?, team = ?, direaction = ? WHERE key = ?""",(x_position, y_position, health, team, direaction,key))
+        curser.execute("""UPDATE last_save SET x position = ?,y position = ?, health = ?, team = ?, direaction = ? WHERE token = ?""",(x_position, y_position, health, team, direaction,key))
         conn.commit()
         conn.close()
         print(f"Successfully updated stats for Player {key}")
@@ -54,7 +58,8 @@ def handleLogin(username, password):
     with sqlite3.connect(DB_PATH, timeout=5) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute("SELECT token FROM login WHERE username = ? AND password = ?", (username, password))
+        pass_hash = hash_password(password)
+        cursor.execute("SELECT token FROM login WHERE username = ? AND password = ?", (username, pass_hash))
         user = cursor.fetchone()
         return user['token'] if user else 404
 
@@ -64,11 +69,12 @@ def handleSignup(username, password):
         return "ALREADY FOUND"
 
     token = get_unique_token()
+    pass_hash = hash_password(password)
     try:
         with sqlite3.connect(DB_PATH, timeout=5) as conn:
             cursor = conn.cursor()
             cursor.execute("INSERT INTO login (username, password, token) VALUES (?, ?, ?)",
-                           (username, password, token))
+                           (username, pass_hash, token))
             # Optional: cursor.execute("INSERT INTO PlayerData...")
             conn.commit()
             return token
