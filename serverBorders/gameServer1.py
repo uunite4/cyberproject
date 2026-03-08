@@ -1,9 +1,10 @@
 import asyncio
+import struct
 import time
 
-from networking.wrappers.server_wrapper import QuicServer
 import SETTINGS as S
-import struct
+from networking.wrappers.server_wrapper import QuicServer
+
 
 class MyServer:
 
@@ -31,7 +32,7 @@ class MyServer:
 
         if (cmd == S.CMDS["LB_ADDING_PLAYER"]):
             print("GOT LB PACKET")
-            x, y  = struct.unpack_from('!hh', data, 17)
+            x, y = struct.unpack_from('!hh', data, 17)
             self.clients[pid] = {
                 "x": x,
                 "y": y
@@ -51,9 +52,11 @@ class MyServer:
             currentClient["y"] += yVel
 
             if (currentClient["x"] < 0): currentClient["x"] = 0
-            if (currentClient["x"] + S.PLAYER_SIZE > S.WINDOW_WIDTH): currentClient["x"] = S.WINDOW_WIDTH - S.PLAYER_SIZE
+            if (currentClient["x"] + S.PLAYER_SIZE > S.WINDOW_WIDTH): currentClient[
+                "x"] = S.WINDOW_WIDTH - S.PLAYER_SIZE
             if (currentClient["y"] < 0): currentClient["y"] = 0
-            if (currentClient["y"] + S.PLAYER_SIZE > S.WINDOW_HEIGHT): currentClient["y"] = S.WINDOW_HEIGHT - S.PLAYER_SIZE
+            if (currentClient["y"] + S.PLAYER_SIZE > S.WINDOW_HEIGHT): currentClient[
+                "y"] = S.WINDOW_HEIGHT - S.PLAYER_SIZE
 
             # SEND MOVE
             pk = struct.pack('!bhh', S.CMDS["MOVE"], currentClient["x"], currentClient["y"])
@@ -64,12 +67,14 @@ class MyServer:
             inOverlaps = []
             for OverlapObj in self.nearOverlaps:
                 iOverlap = OverlapObj["overlapIndex"]
-                inOverlap = point_in_rect(currentClient["x"], currentClient["y"], S.OVERLAPS[iOverlap]["x"], 0, S.GENERAL_OVERLAP["width"], S.WINDOW_HEIGHT)
+                inOverlap = point_in_rect(currentClient["x"], currentClient["y"], S.OVERLAPS[iOverlap]["x"], 0,
+                                          S.GENERAL_OVERLAP["width"], S.WINDOW_HEIGHT)
                 inOverlaps.append(inOverlap)
 
-            inServer = point_in_rect(currentClient["x"], currentClient["y"], self.serverData["x"], 0, self.serverData["width"], S.WINDOW_HEIGHT)
+            inServer = point_in_rect(currentClient["x"], currentClient["y"], self.serverData["x"], 0,
+                                     self.serverData["width"], S.WINDOW_HEIGHT)
 
-            for i, inOverlap in enumerate(inOverlaps):    # WILL ALWAYS BE ONLY 1 of them
+            for i, inOverlap in enumerate(inOverlaps):  # WILL ALWAYS BE ONLY 1 of them
                 if (inOverlap):
                     overlapDir = self.nearOverlaps[i]["dir"].encode("utf-8")
                     pk = struct.pack('!b1s', S.CMDS["OVERLAP"], overlapDir)
@@ -87,30 +92,38 @@ class MyServer:
             print(f"GOT OVERLAP PACKET")
 
     def on_connect(self, connection_id: int):
-        pass
+        print(f"connected {connection_id}")
 
     def on_disconnect(self, connection_id: int):
-        pass
+        print(f"disconnected {connection_id}")
 
-    async def run(self):
-        await self.server.start()
-        print("Server started")
-
+    async def broadcast_loop(self):
         lastBroadcast = time.time()
 
         while True:
             now = time.time()
 
-            # BROADCAST FROM RENDER
             if now - lastBroadcast >= S.BROADCAST_INTERVAL:
-                await broadcast(self)
+                broadcast(self)
                 lastBroadcast = now
+
+            await asyncio.sleep(0.001)
+
+    async def run(self):
+        await self.server.start()
+        print("Server started")
+
+        asyncio.create_task(self.broadcast_loop())
+
+        await asyncio.Future()  # keep program running
+
 
 def point_in_rect(px, py, rx, ry, w, h):
     return (
-        rx <= px <= rx + w and
-        ry <= py <= ry + h
+            rx <= px <= rx + w and
+            ry <= py <= ry + h
     )
+
 
 def getNearOverlaps(serverIndex):
     nearOverlaps = []
@@ -124,11 +137,13 @@ def getNearOverlaps(serverIndex):
 
     return nearOverlaps
 
-async def broadcast(self):
+
+def broadcast(self):
     pk = build_state_payload(clients=self.clients)
     if pk != b'\x08\x00\x00':
         print(pk)
     self.server.broadcast(pk)
+
 
 def build_state_payload(clients):
     count = min(255, len(clients))
@@ -140,6 +155,7 @@ def build_state_payload(clients):
         payload.append(int(c["y"]))
 
     return struct.pack(format, *payload)
+
 
 if __name__ == "__main__":
     s = MyServer()

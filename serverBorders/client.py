@@ -17,7 +17,7 @@ class MyClient:
         self.iControl = 0
         self.iInActive = None
         self.running = True
-        self.players = [] #list of other players which are relevent
+        self.players = []  # list of other players which are relevent
         pygame.init()
         self.screen = pygame.display.set_mode((S.WINDOW_WIDTH, S.WINDOW_HEIGHT))
         pygame.display.set_caption("Game")
@@ -50,7 +50,8 @@ class MyClient:
             elif (dir == "l"):
                 self.iInActive = self.iControl - 1
 
-            pk = struct.pack("!b16shh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x, self.player.y)
+            pk = struct.pack("!b16shh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x,
+                             self.player.y)
             self.client.send(self.connections[self.iInActive], pk)
 
         elif (cmd == S.CMDS["SWITCH_SERVER"]):
@@ -58,12 +59,11 @@ class MyClient:
             self.iControl = self.iInActive
         elif (cmd == S.CMDS["RENDER"]):
             # render the screen
-            count = struct.unpack_from('!h', data, 1)
+            count = struct.unpack_from('!h', data, 1)[0]
             self.players = []
             for i in range(count):
-                x,y = struct.unpack_from('!hh', data, 2+i*2)
-                self.players.append((x,y))
-
+                x, y = struct.unpack_from('!hh', data, 2 + i * 2)
+                self.players.append((x, y))
 
     # ----------
     # RUNNING
@@ -74,6 +74,7 @@ class MyClient:
             on_receive=self.on_receive
         )
         print("hi")
+
         # Connect to all servers
         for server in S.SERVERS:
             server_id = await self.client.connect(
@@ -111,9 +112,8 @@ class MyClient:
             self.screen.fill((30, 30, 30))  # BG
             drawServers(self.screen)  # SERVERS (FRONTEND)
             self.player.draw(self.screen)  # PLAYER
-            for x,y in self.players:
+            for x, y in self.players:
                 draw_player(screen=self.screen, x=x, y=y)
-
 
             pygame.display.flip()
             await asyncio.sleep(1 / 60)
@@ -122,18 +122,19 @@ class MyClient:
 
 
 def drawServers(screen):
-
     for server in S.SERVERS:
-        sRect = pygame.Rect(server["x"], 0,  S.GENERAL_SERVER["width"], S.WINDOW_HEIGHT)
+        sRect = pygame.Rect(server["x"], 0, S.GENERAL_SERVER["width"], S.WINDOW_HEIGHT)
         pygame.draw.rect(screen, S.GENERAL_SERVER["color"], sRect)
 
     for overlap in S.OVERLAPS:
         oRect = pygame.Rect(overlap["x"], 0, S.GENERAL_OVERLAP["width"], S.WINDOW_HEIGHT)
         pygame.draw.rect(screen, S.GENERAL_OVERLAP["color"], oRect)
 
+
 def moveOffPackt(pkStruct, player):
     x, y = struct.unpack_from('!hh', pkStruct, 1)
     player.tp(x, y)
+
 
 def getInputs():
     inputs = {
@@ -159,16 +160,20 @@ def getInputs():
 
     return inputs, pressed
 
+
 def sendInputs(self, inputs):
     xAxisDirection = inputs['d'] - inputs['a']
     yAxisDirection = inputs['s'] - inputs['w']
-    pk = struct.pack('!b16sbb', S.CMDS["MOVE"], self.pid.encode("utf-8"), xAxisDirection, yAxisDirection)  # b is signed byte
+    pk = struct.pack('!b16sbb', S.CMDS["MOVE"], self.pid.encode("utf-8"), xAxisDirection,
+                     yAxisDirection)  # b is signed byte
     print(self.iControl)
     self.client.send(self.connections[self.iControl], pk)
 
-def draw_player(screen,x,y):
+
+def draw_player(screen, x, y):
     playerRect = pygame.Rect(x, y, 40, 40)
     pygame.draw.rect(screen, (0, 190, 190), playerRect)
+
 
 if __name__ == "__main__":
     c = MyClient()
