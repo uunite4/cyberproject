@@ -7,8 +7,9 @@ import string
 
 from wrappers.server_wrapper import QuicServer
 
-# DB_PATH = r"C:\Users\USER\PycharmProjects\PythonProject\Cyber-Proj-main\loginServerBasics\game.db"
-DB_PATH = r"C:\Users\Itay\PycharmProjects\cyberproject\quic\game.db"
+#DB_PATH = r"C:\Users\USER\PycharmProjects\PythonProject\Cyber-Proj-main\loginServerBasics\game.db"
+#DB_PATH = r"C:\Users\Itay\PycharmProjects\cyberproject\quic\game.db"
+DB_PATH = r"C:\Users\USER\PycharmProjects\cyberproject\quic\game.db"
 
 
 class LoginServer:
