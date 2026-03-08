@@ -1,6 +1,5 @@
 import asyncio
 import json
-import time
 
 import pygame
 
@@ -22,6 +21,10 @@ class LoginClient:
     def __init__(self):
         self.status_msg = None
         self.login_server_id = None
+
+        # event used to signal server response
+        self.response_event = asyncio.Event()
+
         self.client = QuicClient(
             cert_file="../certificate/cert.pem",
             on_receive=self.on_receive
@@ -30,7 +33,10 @@ class LoginClient:
     def on_receive(self, connection_id: int, data: bytes):
         if connection_id == self.login_server_id:
             self.status_msg = data.decode().split("=")
-            print(f"login sever: {self.status_msg}")
+            print(f"login server: {self.status_msg}")
+
+            # notify response received
+            self.response_event.set()
 
     def send_to_login_server(self, data):
         self.client.send(self.login_server_id, data)
@@ -92,8 +98,11 @@ class LoginClient:
                         elif event.key == pygame.K_RETURN:  # SEND TO SERVER
                             print("username: " + username)
                             print("password: " + password)
-                            status_msg = self.send_to_server(username, password,
-                                                             "LOGIN" if mode == "LOGIN_INPUT" else "SIGNUP")
+                            status_msg = await self.send_to_server(
+                                username,
+                                password,
+                                "LOGIN" if mode == "LOGIN_INPUT" else "SIGNUP"
+                            )
                         elif event.key == pygame.K_BACKSPACE:
                             if active_field == "username":
                                 username = username[:-1]
@@ -139,23 +148,24 @@ class LoginClient:
         img = font.render(text, True, color)
         screen.blit(img, (x, y))
 
-    def send_to_server(self, u, p, action):
+    async def send_to_server(self, u, p, action):
         data = json.dumps({"username": u, "password": p, "action": action})
+
+        # reset event before sending
+        self.response_event.clear()
         self.send_to_login_server(data.encode())
 
-        start_time = time.time()
+        try:
+            # wait for server response
+            await asyncio.wait_for(self.response_event.wait(), timeout=2)
 
-        # add timeout
-        while self.status_msg is None:
-
-            if time.time() - start_time > 2:
-                print(f"Connection Error")
-                return "CONNECTION_ERROR"
-
-            print('waiting')
+        except asyncio.TimeoutError:
+            print("Connection timeout")
+            return ["ERROR", "TIMEOUT", ""]
 
         status_msg = self.status_msg
         self.status_msg = None
+
         return status_msg
 
 
