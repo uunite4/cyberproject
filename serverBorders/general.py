@@ -1,8 +1,4 @@
- #   clients = {
-        "id" : {x : 102, y: 2134}
-
-    }
-#    clients[pid] = {
-        px, py, 3, group, 0),  # start facing south
-        "last": now
-    }
+arr = [1,23,4,521]
+index = None
+if index != None and arr[index] == 0:
+    print(arr)

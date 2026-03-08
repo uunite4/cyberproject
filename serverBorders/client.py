@@ -27,7 +27,7 @@ class MyClient:
     # RECEIVE DATA
     # ----------
     def on_receive(self, connection_id: int, data: bytes):
-        cmd = struct.unpack_from('B', data, 0)[0]
+        cmd = struct.unpack_from('!b', data, 0)[0]
 
         if (cmd == S.CMDS["INIT_LB"]):
             pid, controlIndex, x, y = struct.unpack_from('!16sbhh', data, 1)
@@ -59,11 +59,13 @@ class MyClient:
             self.iControl = self.iInActive
         elif (cmd == S.CMDS["RENDER"]):
             # render the screen
-            count = struct.unpack_from('!h', data, 1)[0]
-            self.players = []
-            for i in range(count):
-                x, y = struct.unpack_from('!hh', data, 2 + i * 2)
-                self.players.append((x, y))
+            if connection_id == self.connections[self.iControl] or (self.iInActive != None and connection_id == self.connections[self.iInActive]):
+                self.players = []
+                count = struct.unpack_from('!h', data, 1)[0]
+                for i in range(count):
+                    offset = 3+4*i
+                    x, y = struct.unpack_from('!hh', data, offset)
+                    self.players.append((x, y))
 
     # ----------
     # RUNNING
@@ -73,7 +75,6 @@ class MyClient:
             cert_file="../networking/certificate/cert.pem",
             on_receive=self.on_receive
         )
-        print("hi")
 
         # Connect to all servers
         for server in S.SERVERS:
@@ -82,16 +83,13 @@ class MyClient:
                 server_port=server["port"],
             )
             self.connections.append(server_id)
-        print("hi")
         # connect to LB and send initial
         lb_id = await self.client.connect(
             server_ip=S.LOAD_BALANCER["ip"],
             server_port=S.LOAD_BALANCER["port"]
         )
-        print("hi")
         pk = struct.pack("!b", S.CMDS["INIT_LB"])
         self.client.send(lb_id, pk)
-        print("hi")
 
         # SEND INITIAL POS
         # pk = struct.pack("!bhh", S.CMDS["INIT_POS"], self.player.x, self.player.y)
@@ -112,8 +110,11 @@ class MyClient:
             self.screen.fill((30, 30, 30))  # BG
             drawServers(self.screen)  # SERVERS (FRONTEND)
             self.player.draw(self.screen)  # PLAYER
+
+            if self.players != [] and len(self.players) >1: print(self.players)
             for x, y in self.players:
-                draw_player(screen=self.screen, x=x, y=y)
+                if x != self.player.x and y != self.player.y:
+                    draw_player(screen=self.screen, x=x, y=y)
 
             pygame.display.flip()
             await asyncio.sleep(1 / 60)
@@ -166,7 +167,6 @@ def sendInputs(self, inputs):
     yAxisDirection = inputs['s'] - inputs['w']
     pk = struct.pack('!b16sbb', S.CMDS["MOVE"], self.pid.encode("utf-8"), xAxisDirection,
                      yAxisDirection)  # b is signed byte
-    print(self.iControl)
     self.client.send(self.connections[self.iControl], pk)
 
 

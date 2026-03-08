@@ -83,6 +83,7 @@ class MyServer:
             if (not inServer):
                 pk = struct.pack('!b', S.CMDS["SWITCH_SERVER"])
                 self.server.send(connection_id, pk)
+                del self.clients[pid]
         elif (cmd == S.CMDS["POS_DONT_RESPOND"]):
             x, y = struct.unpack_from('!hh', data, 17)
             self.clients[pid] = {
@@ -140,13 +141,11 @@ def getNearOverlaps(serverIndex):
 
 def broadcast(self):
     pk = build_state_payload(clients=self.clients)
-    if pk != b'\x08\x00\x00':
-        print(pk)
     self.server.broadcast(pk)
 
 
 def build_state_payload(clients):
-    count = min(255, len(clients))
+    count = len(clients)
     format = "!bh" + "hh" * count
     payload = [S.CMDS["RENDER"], count]
 
