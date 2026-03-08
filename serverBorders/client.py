@@ -73,16 +73,15 @@ class MyClient:
             cert_file="../networking/certificate/cert.pem",
             on_receive=self.on_receive
         )
-
+        print("hi")
         # Connect to all servers
         for server in S.SERVERS:
             server_id = await self.client.connect(
                 server_ip=server["ip"],
                 server_port=server["port"],
             )
-            print(server_id)
             self.connections.append(server_id)
-
+        print("hi")
         # connect to LB and send initial
         lb_id = await self.client.connect(
             server_ip=S.LOAD_BALANCER["ip"],
@@ -173,5 +172,4 @@ def draw_player(screen,x,y):
 
 if __name__ == "__main__":
     c = MyClient()
-    print("hi")
     asyncio.run(c.run())
