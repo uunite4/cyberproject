@@ -5,6 +5,7 @@ import secrets
 import sqlite3
 import string
 
+from login.loginServer import player_info_update
 from wrappers.server_wrapper import QuicServer
 
 #DB_PATH = r"C:\Users\USER\PycharmProjects\PythonProject\Cyber-Proj-main\loginServerBasics\game.db"
@@ -29,61 +30,11 @@ class LoginServer:
 
         raw_data = data.decode()
         if not raw_data: return
+        if connection_id == self.loadbalancer_id:
+            self.handle_load_balancer(self, raw_data)
 
-        # still needs to make a new one also for the updating
-        # in general make a new system that will be hashed with quic and will not be easy manupulated like the seperation with = sign
-        loginData = json.loads(raw_data)
-        # loginData[0] = username, [1] = password, [2] = action (LOGIN/SIGNUP)
-
-        username = loginData["username"]
-        password = loginData["password"]  # not going to be ""
-        action = loginData["action"]
-        response_packet = ""
-
-        if action == "LOGIN":
-            print("login")
-            print(username + " is username")
-            print(password + " is password")
-            print(action + " is action")
-            userToken = self.handleLogin(username, password)
-            print(userToken)
-
-            if username == "":
-                response_packet = "ERROR=ERROR: username is empty= try again"
-            elif password == "":
-                response_packet = "ERROR=ERROR: password is empty= try again"
-            elif userToken == 404:
-                response_packet = "ERROR=ERROR: with login=NO USER FOUND"
-            else:
-                gameServerIP = self.sendTokenToLB(userToken)
-                response_packet = f"OK={userToken}={gameServerIP}"
-
-        elif action == "SIGNUP":
-            print("signup")
-            print(username + " is username")
-            print(password + " is password")
-            print(action + " is action")
-            userToken = self.handleSignup(username, password)
-            print(userToken)
-            if username == "":
-                response_packet = "ERROR=ERROR: username is empty= try again"
-            elif password == "":
-                response_packet = "ERROR=ERROR: password is empty= try again"
-            elif userToken == "ALREADY FOUND":
-                response_packet = "ERROR=ERROR: with signup=User already found"
-            else:
-                gameServerIP = self.sendTokenToLB(userToken)
-                response_packet = f"OK={userToken}={gameServerIP}"
-
-        # Send response and CLOSE this specific client connection
-
-        print(response_packet)
-
-        try:
-            self.server.send(connection_id, response_packet.encode())
-            print(f"Handled {action} for {username}. Response sent.")
-        except Exception as e:
-            print(f"Error handling request: {e}")
+        else:
+            handle_login_client()
 
     def on_connect(self, connection_id: int):
         print(f"{connection_id} connected")
@@ -94,6 +45,8 @@ class LoginServer:
     async def run(self):
         await self.server.start()
         print("Server started")
+
+        loadbalancer_id = await self.server.connect_to_server()
 
         try:
             await asyncio.Future()
@@ -174,6 +127,76 @@ class LoginServer:
     def generateToken(self, length=16):
         alphabet = string.ascii_letters + string.digits
         return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+    def handle_load_balancer(self, raw_data):
+        loginData = json.loads(raw_data)
+
+        key = loginData["key"]
+        x_position = loginData["x_position"]
+        y_position = loginData["y_position"]
+        health = loginData["health"]
+        team = loginData["team"]
+        direaction = loginData["direaction"]
+        self.player_info_update(key, x_position, y_position, health, team, direaction)
+        print("updated successfully!")
+
+
+def handle_login_client(self, raw_data, connection_id):
+       # still needs to make a new one also for the updating
+       # in general make a new system that will be hashed with quic and will not be easy manupulated like the seperation with = sign
+       loginData = json.loads(raw_data)
+       # loginData[0] = username, [1] = password, [2] = action (LOGIN/SIGNUP)
+
+       username = loginData["username"]
+       password = loginData["password"]  # not going to be ""
+       action = loginData["action"]
+       response_packet = ""
+
+       if action == "LOGIN":
+           print("login")
+           print(username + " is username")
+           print(password + " is password")
+           print(action + " is action")
+           userToken = self.handleLogin(username, password)
+           print(userToken)
+
+           if username == "":
+               response_packet = "ERROR=ERROR: username is empty= try again"
+           elif password == "":
+               response_packet = "ERROR=ERROR: password is empty= try again"
+           elif userToken == 404:
+               response_packet = "ERROR=ERROR: with login=NO USER FOUND"
+           else:
+               gameServerIP = self.sendTokenToLB(userToken)
+               response_packet = f"OK={userToken}={gameServerIP}"
+
+       elif action == "SIGNUP":
+           print("signup")
+           print(username + " is username")
+           print(password + " is password")
+           print(action + " is action")
+           userToken = self.handleSignup(username, password)
+           print(userToken)
+           if username == "":
+               response_packet = "ERROR=ERROR: username is empty= try again"
+           elif password == "":
+               response_packet = "ERROR=ERROR: password is empty= try again"
+           elif userToken == "ALREADY FOUND":
+               response_packet = "ERROR=ERROR: with signup=User already found"
+           else:
+               gameServerIP = self.sendTokenToLB(userToken)
+               response_packet = f"OK={userToken}={gameServerIP}"
+
+       # Send response and CLOSE this specific client connection
+
+       print(response_packet)
+
+       try:
+           self.server.send(connection_id, response_packet.encode())
+           print(f"Handled {action} for {username}. Response sent.")
+       except Exception as e:
+           print(f"Error handling request: {e}")
+
 
 
 if __name__ == '__main__':
