@@ -1,13 +1,26 @@
 from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 
+MAP_WIDTH = 192*40
+MAP_HEIGHT = 108*40
 WINDOW_WIDTH = 960
 WINDOW_HEIGHT = 540
-PLAYER_VEL = 10
-PLAYER_SIZE = 40
 BROADCAST_INTERVAL = 0.01
 
-OVERLAP_WIDTH = 60
+PLAYER_VEL = 10
+PLAYER_SIZE = 40
+PLAYER_HEALTH =100
+
+TILE_SIZE = 40
+BUILDING_SIZE = 40
+WIDTH = 192
+HEIGHT = 108
+#Obgects
+grass='C:\\Users\\raveh\PycharmProjects\cyberprojectActualMerging\sprites\grass.png'
+stone='C:\\Users\\raveh\PycharmProjects\cyberprojectActualMerging\sprites\stone.png'
+lava = 'C:\\Users\\raveh\PycharmProjects\cyberprojectActualMerging\sprites\lava.png'
+
+OVERLAP_WIDTH = 600
 SERVER_NUMBER = 4
 
 GENERAL_OVERLAP = {
@@ -16,7 +29,7 @@ GENERAL_OVERLAP = {
 }
 
 # Calculate server width so total span = WINDOW_WIDTH
-SERVER_WIDTH = (WINDOW_WIDTH + (SERVER_NUMBER - 1) * OVERLAP_WIDTH) // SERVER_NUMBER
+SERVER_WIDTH = (MAP_WIDTH + (SERVER_NUMBER - 1) * OVERLAP_WIDTH) // SERVER_NUMBER
 
 GENERAL_SERVER = {
     "width" : SERVER_WIDTH,

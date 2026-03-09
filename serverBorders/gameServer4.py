@@ -4,7 +4,7 @@ import time
 
 import SETTINGS as S
 from networking.wrappers.server_wrapper import QuicServer
-
+from map_data import *
 
 class MyServer:
 
@@ -46,17 +46,9 @@ class MyServer:
             # CLIENT GAVE US DIRECTION, WE RETURN POS
             print(f"GOT MOVE PACKET")
             xDir, yDir = struct.unpack_from('!bb', data, 17)
-            xVel = xDir * S.PLAYER_VEL
-            yVel = yDir * S.PLAYER_VEL
-            currentClient["x"] += xVel
-            currentClient["y"] += yVel
 
-            if (currentClient["x"] < 0): currentClient["x"] = 0
-            if (currentClient["x"] + S.PLAYER_SIZE > S.WINDOW_WIDTH): currentClient[
-                "x"] = S.WINDOW_WIDTH - S.PLAYER_SIZE
-            if (currentClient["y"] < 0): currentClient["y"] = 0
-            if (currentClient["y"] + S.PLAYER_SIZE > S.WINDOW_HEIGHT): currentClient[
-                "y"] = S.WINDOW_HEIGHT - S.PLAYER_SIZE
+            nx,ny = apply_movement(currentClient,xDir,yDir)
+            currentClient["x"], currentClient["y"] = nx, ny
 
             # SEND MOVE
             pk = struct.pack('!bhh', S.CMDS["MOVE"], currentClient["x"], currentClient["y"])
@@ -68,17 +60,18 @@ class MyServer:
             for OverlapObj in self.nearOverlaps:
                 iOverlap = OverlapObj["overlapIndex"]
                 inOverlap = point_in_rect(currentClient["x"], currentClient["y"], S.OVERLAPS[iOverlap]["x"], 0,
-                                          S.GENERAL_OVERLAP["width"], S.WINDOW_HEIGHT)
+                                          S.GENERAL_OVERLAP["width"], S.MAP_HEIGHT)
                 inOverlaps.append(inOverlap)
 
             inServer = point_in_rect(currentClient["x"], currentClient["y"], self.serverData["x"], 0,
-                                     self.serverData["width"], S.WINDOW_HEIGHT)
+                                     self.serverData["width"], S.MAP_HEIGHT)
 
             for i, inOverlap in enumerate(inOverlaps):  # WILL ALWAYS BE ONLY 1 of them
                 if (inOverlap):
                     overlapDir = self.nearOverlaps[i]["dir"].encode("utf-8")
                     pk = struct.pack('!b1s', S.CMDS["OVERLAP"], overlapDir)
                     self.server.send(connection_id, pk)
+                    print("in overlap")
 
             if (not inServer):
                 pk = struct.pack('!b', S.CMDS["SWITCH_SERVER"])
@@ -118,6 +111,55 @@ class MyServer:
 
         await asyncio.Future()  # keep program running
 
+def clamp(v, lo, hi):
+    return max(lo, min(hi, v))
+
+def apply_movement(currentClient, dx, dy):
+    speed = S.PLAYER_VEL
+
+    nx = clamp(currentClient["x"] + dx * speed, 0, S.MAP_WIDTH)
+    ny = clamp(currentClient["y"] + dy * speed, 0, S.MAP_HEIGHT)
+
+    # axis-separated collision
+    if not check_collision_with_stone(nx, currentClient["y"], S.PLAYER_SIZE):
+        currentClient["x"] = nx
+    if not check_collision_with_stone(currentClient["x"], ny, S.PLAYER_SIZE):
+        currentClient["y"] = ny
+    return currentClient["x"], currentClient["y"]
+
+def get_corners(x,y,size):
+    left, right, top, bottom = get_sides(x,y,size)
+    corners = [  # 4 corners
+        (left, top),
+        (right, top),
+        (left, bottom),
+        (right, bottom),
+    ]
+
+    return corners
+
+
+def get_sides(x,y, size):
+    left = x - size // 2  # player box left (pixels)
+    right = x + size // 2 - 1  # player box right (pixels)
+    top = y - size // 2  # player box top (pixels)
+    bottom = y + size // 2 - 1  # player box bottom (pixels)
+
+    return left,right,top,bottom
+
+def check_collision_with_stone(next_x, next_y, size):  # True = blocked (stone/outside)
+    corners = get_corners(next_x,next_y,size)
+
+    for px, py in corners:  # test each corner
+        tile_x = int(px // S.TILE_SIZE)  # pixel -> tile col
+        tile_y = int(py // S.TILE_SIZE)  # pixel -> tile row
+
+        if tile_x < 0 or tile_x >= S.WIDTH or tile_y < 0 or tile_y >= S.HEIGHT:
+            return True
+
+        if MAP[tile_y][tile_x] == "x":
+            return True
+    return False
 
 def point_in_rect(px, py, rx, ry, w, h):
     return (
