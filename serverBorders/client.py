@@ -29,7 +29,7 @@ class MyClient:
     # ----------
     def on_receive(self, connection_id: int, data: bytes):
         cmd = struct.unpack_from('!b', data, 0)[0]
-
+        print(cmd)
         if (cmd == S.CMDS["INIT_LB"]):
             pid, controlIndex, x, y = struct.unpack_from('!16sbhh', data, 1)
             print(pid, controlIndex, x, y)
@@ -139,7 +139,6 @@ class MyClient:
         xAxisDirection = inputs['d'] - inputs['a']
         yAxisDirection = inputs['s'] - inputs['w']
         pk = struct.pack('!b16sbb', S.CMDS["MOVE"], self.pid.encode("utf-8"), xAxisDirection, yAxisDirection)  # b is signed byte
-        print(self.iControl)
         self.client.send(self.connections[self.iControl], pk)
 
     def draw_frame(self, screen, map_w, map_h, DEFAULT_SPRITE1):
@@ -148,15 +147,19 @@ class MyClient:
         cam_x, cam_y = camera_from_pos(self.player.x, self.player.y, map_w, map_h)
 
         draw_map(screen, MAP, cam_x, cam_y, S.WINDOW_WIDTH, S.WINDOW_HEIGHT)
-        draw_players(screen, self.players, cam_x, cam_y, DEFAULT_SPRITE1)
+        draw_players(screen, self.player.x, self.player.y, self.players, cam_x, cam_y, DEFAULT_SPRITE1)
 
-def draw_players(screen, players, cam_x, cam_y, DEFAULT_SPRITE1):
+def draw_players(screen, x, y, players, cam_x, cam_y, DEFAULT_SPRITE1):
     for p in players:
         px = int(p["x"] - cam_x - S.PLAYER_SIZE // 2)
         py = int(p["y"] - cam_y - S.PLAYER_SIZE // 2)
 
         sprite =  DEFAULT_SPRITE1
         screen.blit(sprite, (px, py))
+    px = int(x - cam_x - S.PLAYER_SIZE // 2)
+    py = int(y - cam_y - S.PLAYER_SIZE // 2)
+    sprite = DEFAULT_SPRITE1
+    screen.blit(sprite, (px, py))
 
 def load(name: str, rotations_dir) -> pygame.Surface:
     path = os.path.join(rotations_dir, name)

@@ -6,6 +6,7 @@ import SETTINGS as S
 from networking.wrappers.server_wrapper import QuicServer
 from map_data import *
 
+
 class MyServer:
 
     def __init__(self):
@@ -35,20 +36,22 @@ class MyServer:
             x, y = struct.unpack_from('!hh', data, 17)
             self.clients[pid] = {
                 "x": x,
-                "y": y
+                "y": y,
+                "cid": connection_id,
             }
-            print("PLAYERS INITIAL POS: ", self.clients[pid]["x"], self.clients[pid]["y"])
-
+            print("PLAYERS INITIAL POS: ", self.clients[pid]["x"], self.clients[pid]["y"], "PLAYERS ID: ", pid)
+            print(self.clients)
         elif (cmd == S.CMDS["MOVE"]):
-
+            print(self.clients)
             currentClient = self.clients[pid]
 
             # CLIENT GAVE US DIRECTION, WE RETURN POS
             print(f"GOT MOVE PACKET")
             xDir, yDir = struct.unpack_from('!bb', data, 17)
 
-            nx,ny = apply_movement(currentClient,xDir,yDir)
+            nx, ny = apply_movement(currentClient, xDir, yDir)
             currentClient["x"], currentClient["y"] = nx, ny
+            currentClient["cid"] = connection_id
 
             # SEND MOVE
             pk = struct.pack('!bhh', S.CMDS["MOVE"], currentClient["x"], currentClient["y"])
@@ -81,7 +84,8 @@ class MyServer:
             x, y = struct.unpack_from('!hh', data, 17)
             self.clients[pid] = {
                 "x": x,
-                "y": y
+                "y": y,
+                "cid": connection_id
             }
             print(f"GOT OVERLAP PACKET")
 
@@ -111,8 +115,10 @@ class MyServer:
 
         await asyncio.Future()  # keep program running
 
+
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
+
 
 def apply_movement(currentClient, dx, dy):
     speed = S.PLAYER_VEL
@@ -127,8 +133,9 @@ def apply_movement(currentClient, dx, dy):
         currentClient["y"] = ny
     return currentClient["x"], currentClient["y"]
 
-def get_corners(x,y,size):
-    left, right, top, bottom = get_sides(x,y,size)
+
+def get_corners(x, y, size):
+    left, right, top, bottom = get_sides(x, y, size)
     corners = [  # 4 corners
         (left, top),
         (right, top),
@@ -139,16 +146,17 @@ def get_corners(x,y,size):
     return corners
 
 
-def get_sides(x,y, size):
+def get_sides(x, y, size):
     left = x - size // 2  # player box left (pixels)
     right = x + size // 2 - 1  # player box right (pixels)
     top = y - size // 2  # player box top (pixels)
     bottom = y + size // 2 - 1  # player box bottom (pixels)
 
-    return left,right,top,bottom
+    return left, right, top, bottom
+
 
 def check_collision_with_stone(next_x, next_y, size):  # True = blocked (stone/outside)
-    corners = get_corners(next_x,next_y,size)
+    corners = get_corners(next_x, next_y, size)
 
     for px, py in corners:  # test each corner
         tile_x = int(px // S.TILE_SIZE)  # pixel -> tile col
@@ -160,6 +168,7 @@ def check_collision_with_stone(next_x, next_y, size):  # True = blocked (stone/o
         if MAP[tile_y][tile_x] == "x":
             return True
     return False
+
 
 def point_in_rect(px, py, rx, ry, w, h):
     return (
@@ -182,8 +191,18 @@ def getNearOverlaps(serverIndex):
 
 
 def broadcast(self):
-    pk = build_state_payload(clients=self.clients)
-    self.server.broadcast(pk)
+    for pid, client in self.clients.items():
+        temp = copy_dic(self.clients)
+        del temp[pid]
+        pk = build_state_payload(temp)
+        self.server.send(client["cid"], pk)
+
+
+def copy_dic(dic):
+    ndic = {}
+    for k, v in dic.items():
+        ndic[k] = v
+    return ndic
 
 
 def build_state_payload(clients):

@@ -35,12 +35,12 @@ class MyServer:
             x, y = struct.unpack_from('!hh', data, 17)
             self.clients[pid] = {
                 "x": x,
-                "y": y
+                "y": y,
+                "cid":connection_id,
             }
-            print("PLAYERS INITIAL POS: ", self.clients[pid]["x"], self.clients[pid]["y"])
+            print("PLAYERS INITIAL POS: ", self.clients[pid]["x"], self.clients[pid]["y"], "PLAYERS ID: ", pid)
 
         elif (cmd == S.CMDS["MOVE"]):
-
             currentClient = self.clients[pid]
 
             # CLIENT GAVE US DIRECTION, WE RETURN POS
@@ -49,6 +49,7 @@ class MyServer:
 
             nx,ny = apply_movement(currentClient,xDir,yDir)
             currentClient["x"], currentClient["y"] = nx, ny
+            currentClient["cid"] = connection_id
 
             # SEND MOVE
             pk = struct.pack('!bhh', S.CMDS["MOVE"], currentClient["x"], currentClient["y"])
@@ -81,7 +82,8 @@ class MyServer:
             x, y = struct.unpack_from('!hh', data, 17)
             self.clients[pid] = {
                 "x": x,
-                "y": y
+                "y": y,
+                "cid":connection_id
             }
             print(f"GOT OVERLAP PACKET")
 
@@ -182,9 +184,17 @@ def getNearOverlaps(serverIndex):
 
 
 def broadcast(self):
-    pk = build_state_payload(clients=self.clients)
-    self.server.broadcast(pk)
+    for pid,client in self.clients.items():
+        temp = copy_dic(self.clients)
+        del temp[pid]
+        pk = build_state_payload(temp)
+        self.server.send(client["cid"],pk)
 
+def copy_dic(dic):
+    ndic = {}
+    for k,v in dic.items():
+        ndic[k] = v
+    return ndic
 
 def build_state_payload(clients):
     count = len(clients)
