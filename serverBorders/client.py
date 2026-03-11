@@ -29,7 +29,6 @@ class MyClient:
     # ----------
     def on_receive(self, connection_id: int, data: bytes):
         cmd = struct.unpack_from('!b', data, 0)[0]
-        print(cmd)
         if (cmd == S.CMDS["INIT_LB"]):
             pid, controlIndex, x, y = struct.unpack_from('!16sbhh', data, 1)
             print(pid, controlIndex, x, y)
@@ -38,6 +37,7 @@ class MyClient:
             print("RESPONSE FROM LB (SERVER INDEX): ", self.iControl, "(X,Y): (", x, ",", y, ")", "PID", self.pid)
             self.player.x = x
             self.player.y = y
+            self.player.dir = 3
 
         elif (cmd == S.CMDS["MOVE"]):
             moveOffPackt(data, self.player)
@@ -52,7 +52,7 @@ class MyClient:
             elif (dir == "l"):
                 self.iInActive = self.iControl - 1
 
-            pk = struct.pack("!b16shh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x, self.player.y)
+            pk = struct.pack("!b16shhh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x, self.player.y, self.player.dir)
             self.client.send(self.connections[self.iInActive], pk)
 
         elif (cmd == S.CMDS["SWITCH_SERVER"]):
@@ -68,9 +68,9 @@ class MyClient:
                 self.players = []
                 count = struct.unpack_from('!h', data, 1)[0]
                 for i in range(count):
-                    offset = 3+4*i
-                    x, y = struct.unpack_from('!hh', data, offset)
-                    self.players.append({"x":x,"y": y})
+                    offset = 3+6*i
+                    x, y, dir= struct.unpack_from('!hhh', data, offset)
+                    self.players.append({"x":x,"y": y, "dir": dir})
 
     # ----------
     # RUNNING
@@ -102,7 +102,8 @@ class MyClient:
 
         SPRITES1 = load_player_sprites(1)
         DEFAULT_SPRITE1 = SPRITES1[3]
-
+        SPRITES2 = load_player_sprites(2)
+        DEFAULT_SPRITE2 = SPRITES2[3]
 
 
         while self.running:
@@ -119,7 +120,7 @@ class MyClient:
 
 
             # DRAW
-            self.draw_frame(self.screen, S.MAP_WIDTH, S.MAP_HEIGHT, DEFAULT_SPRITE1)
+            self.draw_frame(self.screen, S.MAP_WIDTH, S.MAP_HEIGHT, DEFAULT_SPRITE1, SPRITES1)
             pygame.display.flip()
             """self.screen.fill((30, 30, 30))  # BG
             drawServers(self.screen)  # SERVERS (FRONTEND)
@@ -141,24 +142,24 @@ class MyClient:
         pk = struct.pack('!b16sbb', S.CMDS["MOVE"], self.pid.encode("utf-8"), xAxisDirection, yAxisDirection)  # b is signed byte
         self.client.send(self.connections[self.iControl], pk)
 
-    def draw_frame(self, screen, map_w, map_h, DEFAULT_SPRITE1):
+    def draw_frame(self, screen, map_w, map_h, DEFAULT_SPRITE1, SPRITES1):
         screen.fill((0, 0, 0))
 
         cam_x, cam_y = camera_from_pos(self.player.x, self.player.y, map_w, map_h)
 
         draw_map(screen, MAP, cam_x, cam_y, S.WINDOW_WIDTH, S.WINDOW_HEIGHT)
-        draw_players(screen, self.player.x, self.player.y, self.players, cam_x, cam_y, DEFAULT_SPRITE1)
+        draw_players(screen, self.player.x, self.player.y, self.player.dir, self.players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1)
 
-def draw_players(screen, x, y, players, cam_x, cam_y, DEFAULT_SPRITE1):
+def draw_players(screen, x, y, dir, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1):
     for p in players:
         px = int(p["x"] - cam_x - S.PLAYER_SIZE // 2)
         py = int(p["y"] - cam_y - S.PLAYER_SIZE // 2)
 
-        sprite =  DEFAULT_SPRITE1
+        sprite = SPRITES1.get(p["dir"], DEFAULT_SPRITE1)
         screen.blit(sprite, (px, py))
     px = int(x - cam_x - S.PLAYER_SIZE // 2)
     py = int(y - cam_y - S.PLAYER_SIZE // 2)
-    sprite = DEFAULT_SPRITE1
+    sprite = SPRITES1.get(dir, DEFAULT_SPRITE1)
     screen.blit(sprite, (px, py))
 
 def load(name: str, rotations_dir) -> pygame.Surface:
@@ -193,8 +194,8 @@ def camera_from_pos(x, y, map_w, map_h):
     return cam_x, cam_y
 
 def moveOffPackt(pkStruct, player):
-    x, y = struct.unpack_from('!hh', pkStruct, 1)
-    player.tp(x, y)
+    x, y, dir = struct.unpack_from('!hhh', pkStruct, 1)
+    player.tp(x, y, dir)
 
 
 def getInputs():

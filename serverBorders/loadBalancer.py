@@ -60,6 +60,7 @@ class MyServer:
                 port=server["port"],
             )
             self.connections.append(server_id)
+            print(server_id)
 
         await asyncio.Future()
 
