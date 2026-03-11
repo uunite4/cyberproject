@@ -1,3 +1,5 @@
+import asyncio
+import time
 import uuid
 from typing import Callable
 
@@ -5,6 +7,9 @@ from qh3 import QuicConnectionProtocol, QuicConfiguration, connect
 from qh3.quic.events import StreamDataReceived, ConnectionTerminated
 
 OnReceive = Callable[[int, bytes], None]
+
+IDLE_TIMEOUT_SECONDS = 60
+KEEP_ALIVE_INTERVAL_SECONDS = 20
 
 
 class _ClientProtocol(QuicConnectionProtocol):
@@ -14,6 +19,7 @@ class _ClientProtocol(QuicConnectionProtocol):
         self._connection_id = connection_id
         self._connection_cm = connection_cm
         self._stream_id = self._quic.get_next_available_stream_id()
+        self._ping_task = asyncio.create_task(self._keepalive())
 
     def send(self, data: bytes):
         self._quic.send_stream_data(self._stream_id, data, end_stream=False)
@@ -27,11 +33,18 @@ class _ClientProtocol(QuicConnectionProtocol):
             self._client._remove_connection(self._connection_id)
 
     async def close_protocol(self):
+        self._ping_task.cancel()
         self._client._remove_connection(self._connection_id)
 
         self._quic.close(error_code=0)
         self.transmit()
         await self._connection_cm.__aexit__(None, None, None)
+
+    async def _keepalive(self):
+        while True:
+            await asyncio.sleep(KEEP_ALIVE_INTERVAL_SECONDS)
+            self._quic.send_ping(time.monotonic_ns())
+            self.transmit()
 
 
 class QuicClient:
@@ -43,7 +56,7 @@ class QuicClient:
         self.lifetime_connections = 0
 
     async def connect(self, server_ip: str, server_port: int):
-        config = QuicConfiguration(is_client=True)
+        config = QuicConfiguration(is_client=True, idle_timeout=IDLE_TIMEOUT_SECONDS)
         config.load_verify_locations(cafile=self.cert_file)
         config.server_name = server_ip
 

@@ -42,6 +42,10 @@ class MyClient:
         elif (cmd == S.CMDS["MOVE"]):
             moveOffPackt(data, self.player)
 
+            if self.iInActive != None:
+                pk = struct.pack("!b16shhh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x, self.player.y, self.player.dir)
+                self.client.send(self.connections[self.iInActive], pk)
+
 
         elif (cmd == S.CMDS["OVERLAP"]):
             # SEND POS TO SECOND SERVER
@@ -52,8 +56,8 @@ class MyClient:
             elif (dir == "l"):
                 self.iInActive = self.iControl - 1
 
-            pk = struct.pack("!b16shhh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x, self.player.y, self.player.dir)
-            self.client.send(self.connections[self.iInActive], pk)
+            #pk = struct.pack("!b16shhh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x, self.player.y, self.player.dir)
+            #self.client.send(self.connections[self.iInActive], pk)
 
         elif (cmd == S.CMDS["SWITCH_SERVER"]):
             # SWITCH BETWEEN CONTROL AND INACTIVE

@@ -1,3 +1,5 @@
+import asyncio
+import time
 import uuid
 from typing import Callable
 
@@ -14,6 +16,9 @@ OnReceive = Callable[[int, bytes], None]
 OnConnect = Callable[[int], None]
 OnDisconnect = Callable[[int], None]
 
+IDLE_TIMEOUT_SECONDS = 60
+KEEP_ALIVE_INTERVAL_SECONDS = 20
+
 
 class _ServerProtocol(QuicConnectionProtocol):
     def __init__(self, *args, server: "QuicServer", connection_id: int, **kwargs):
@@ -21,6 +26,7 @@ class _ServerProtocol(QuicConnectionProtocol):
         self._server = server
         self._connection_id = connection_id
         self._stream_id = self._quic.get_next_available_stream_id()
+        self._ping_task = asyncio.create_task(self._keepalive())
 
     def send(self, data: bytes):
         self._quic.send_stream_data(self._stream_id, data, end_stream=False)
@@ -37,11 +43,18 @@ class _ServerProtocol(QuicConnectionProtocol):
             self.close_connection()
 
     def close_connection(self):
+        self._ping_task.cancel()
         self._server._remove_connection(self._connection_id)
 
         self._quic.close(error_code=0)
         self.transmit()
         self._server.on_disconnect(self._connection_id)
+
+    async def _keepalive(self):
+        while True:
+            await asyncio.sleep(KEEP_ALIVE_INTERVAL_SECONDS)
+            self._quic.send_ping(time.monotonic_ns())
+            self.transmit()
 
 
 class QuicServer:
