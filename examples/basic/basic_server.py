@@ -3,7 +3,7 @@ import asyncio
 from wrappers.server_wrapper import QuicServer
 
 BASIC_SERVER_IP = "127.0.0.1"
-BASIC_SERVER_PORT = 8000
+BASIC_SERVER_PORT = 8080
 
 
 class BasicServer:
@@ -12,8 +12,8 @@ class BasicServer:
         self.server = QuicServer(
             ip=BASIC_SERVER_IP,
             port=BASIC_SERVER_PORT,
-            cert_file="../../certificate/cert.pem",
-            key_file="../../certificate/key.pem",
+            cert_file="../../certificate/certs/server.crt",
+            key_file="../../certificate/certs/server.key",
             on_receive=self.on_receive,
             on_connect=self.on_connect,
             on_disconnect=self.on_disconnect,
