@@ -6,14 +6,14 @@ from Entity import *
 
 class Bullet(Entity):
     def __init__(self, bid, x, y , dir1,dis,pi):
-        super().__init__(x, y, dir1, dis, bid, "bullet")
+        super().__init__(x, y, dir1,bid, "bullet")
         self.player_id = pi
-
+        self.distance = dis
 
     def update_bullet(self):
         dx = 0
         dy = 0
-        if self.health >= 0:
+        if self.distance >= 0:
             if self.dir == 1:
                 dx =  1
                 dy = 0
@@ -41,7 +41,7 @@ class Bullet(Entity):
 
             self.x += dx * BULLET_SPEED
             self.y += dy * BULLET_SPEED
-            self.health -= 1
+            self.distance -= 1
             return False
         else: return True
     def update_from_server_bull(self,bx,by):

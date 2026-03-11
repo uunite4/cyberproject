@@ -11,13 +11,15 @@ from Entity import *
 # ---------------------------------
 class PlayerData(Entity):
     def __init__(self, pid, x, y , dir1,group, gcd):
-        super().__init__(x, y, dir1, PLAYER_HEALTH, pid, "player")
+        super().__init__(x, y, dir1, pid, "player")
+        self.health=100
         self.group = group
         self.color = (200, 50, 50)  # צבע ברירת מחדל, אפשר לקבל מהשרת
         self.healthBarx = 20
         self.healthBary = 20
         self.gun_cooldown = gcd
-        self.current_weapon = 1
+        self.weapons=['gu','da',0]
+        self.current_weapon = 0
         self.attack = 0
 
     def update_from_server(self, x, y, health, direction, attack, current_weapon, group):
@@ -34,8 +36,10 @@ def handle_input():
     keys = pygame.key.get_pressed()
     dx = int(keys[pygame.K_d]) - int(keys[pygame.K_a])
     dy = int(keys[pygame.K_s]) - int(keys[pygame.K_w])
+    pickup = int(keys[pygame.K_e])
     dspeed = int(keys[pygame.K_LSHIFT])
     shot = int(keys[pygame.K_SPACE])
+    fart = int(keys[pygame.K_f])
     if int(keys[pygame.K_1]):
         current_weapon=1
     elif int(keys[pygame.K_2]):
@@ -63,7 +67,7 @@ def handle_input():
         elif dy == 0:
             dire =0
 
-    return dx,dy ,dspeed,dire ,shot ,current_weapon
+    return dx,dy ,dspeed,dire ,shot ,current_weapon,pickup,fart
 def get_corners(x,y,size):
     left, right, top, bottom = get_sides(x,y,size)
     corners = [  # 4 corners
@@ -91,7 +95,7 @@ def check_collision_with_stone(self, next_x, next_y):  # True = blocked (stone/o
         if tile_x < 0 or tile_x >= WIDTH or tile_y < 0 or tile_y >= HEIGHT:
             return True
 
-        if MAP[tile_y][tile_x] == "x":
+        if MAP[tile_y][tile_x] == "S":
             return True
     return False
 def check_collision_with_lava(self, next_x, next_y):    # True = blocked (stone/outside)
@@ -104,7 +108,7 @@ def check_collision_with_lava(self, next_x, next_y):    # True = blocked (stone/
         if tile_x < 0 or tile_x >= WIDTH or tile_y < 0 or tile_y >= HEIGHT:
             return True
 
-        if MAP[tile_y][tile_x] == "b":
+        if MAP[tile_y][tile_x] == "L":
             return True
     return False
 def check_bullet_hit(p,b):

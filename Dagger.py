@@ -111,3 +111,5 @@ class Dagger:
             if self.inside(hitbox, target.x, target.y):
                 self.damage_player(target)
                 self.respawn_if_dead(target, new_place)
+                return True
+

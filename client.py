@@ -7,6 +7,7 @@ from Player import PlayerData, handle_input, health_bar_update, S_health_bar_upd
 from map import draw_map
 from Bullet import *
 from map_data import *
+from DroppedWeapon import *
 # ---------- network helpers ----------
 def qc3_pack(cmd: int, payload: bytes = b"") -> bytes:
     body = bytes([cmd]) + payload
@@ -112,9 +113,10 @@ def dir_to_vec(d: int) -> tuple[int, int]:
 # ---------- extracted logic (no state dict) ----------
 
 def send_input(sock) -> bool:
-    dx, dy, dspeed, dire, attack, current_weapon = handle_input()
+    dx, dy, dspeed, dire, attack, current_weapon ,pickup,fart= handle_input()
+
     try:
-        sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbbbb", dx, dy, dspeed, dire, attack, current_weapon)))
+        sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbbbbbb", dx, dy, dspeed, dire, attack, current_weapon,pickup,fart)))
         return True
     except BlockingIOError:
         return True
@@ -129,10 +131,13 @@ def welcome(payload):
     return struct.unpack("!III", payload)  # my_id, map_w, map_h
 
 
-def update_players(payload, players):
-    count = payload[0]
-    off = 1
+def update_players(payload,off, players):
+    if off >= len(payload):
+        return
+
+    count = payload[off]
     active_ids = set()
+    off += 1
 
     for _ in range(count):
         if off + 19 > len(payload):
@@ -183,18 +188,51 @@ def update_bullets(payload, off, bullets11):
     for bull_to_remove in list(bullets11.keys()):
         if bull_to_remove not in active_bull:
             del bullets11[bull_to_remove]
-
-
-def handle_cmd(payload, players, bullets):
-    if not payload:
+    return off
+def update_drop(payload,off, dropped):
+    if off >= len(payload):
         return
 
-    off, active_ids = update_players(payload, players)
+    count1 = payload[off]
+    off += 1
+
+    dropped_rn = set()
+
+    for _ in range(count1):
+        if off + 9 > len(payload):
+            break
+        item_id, x, y, type = struct.unpack("!IHHB", payload[off:off + 9])
+        off += 9
+        dropped_rn.add(item_id)
+
+        # עדכון או יצירת החפץ ברשימה של הקליינט
+        if item_id not in dropped:
+            # כאן אנחנו יוצרים את הישות החדשה (וודא שיש לך קלאס כזה בקליינט)
+            dropped[item_id] = DroppedWeapon(item_id, x, y, type)
+        else:
+            dropped[item_id].x = x
+            dropped[item_id].y = y
+
+        # מחיקת חפצים שכבר לא קיימים בשרת (מישהו הרים אותם)
+    for oid in list(dropped.keys()):
+        if oid not in dropped_rn:
+            del dropped[oid]
+    return off
+
+
+
+
+def handle_cmd(payload, players, bullets,dropped):
+    if not payload:
+        return
+    off =0
+    off = update_drop(payload,off, dropped)
+    off, active_ids = update_players(payload,off, players)
     remove_inactive_players(players, active_ids)
-    update_bullets(payload, off, bullets)
+    off = update_bullets(payload, off, bullets)
 
 
-def recv_network(sock, stream, players, bullets, my_id, map_w, map_h):
+def recv_network(sock, stream, players, bullets,dropped, my_id, map_w, map_h):
     try:
         data = sock.recv(4096)
         if not data:
@@ -208,7 +246,7 @@ def recv_network(sock, stream, players, bullets, my_id, map_w, map_h):
                     my_id, map_w, map_h = welcomed
 
             elif cmd == CMD_STATE:
-                handle_cmd(payload, players, bullets)
+                handle_cmd(payload, players, bullets,dropped)
 
         return True, my_id, map_w, map_h
 
@@ -225,6 +263,15 @@ def draw_bullets(screen, bullets, cam_x, cam_y):
         by = b.y - cam_y
         pygame.draw.circle(screen, "yellow", (bx, by), BULLET_SIZE)
 
+def draw_dropped(screen, dropped, DAGGERS,DEFAULT_DAGGER, cam_x, cam_y):
+    for _, d in dropped.items():
+        dx = d.x - cam_x
+        dy = d.y - cam_y
+        print (int(d.id), int(d.x), int(d.y), d.weapon_type)
+        if d.weapon_type == 1:
+            screen.blit(DAGGERS.get(3, DEFAULT_DAGGER), (dx, dy))
+        elif d.weapon_type == 2:
+            pygame.draw.circle(screen, "yellow", (dx, dy), BULLET_SIZE)
 
 def draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER):
     for pid, p in players.items():
@@ -251,7 +298,8 @@ def draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1
             S_health_bar_update(p.health, screen, px, py)
 
 
-def draw_frame(screen, players, bullets, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER):
+
+def draw_frame(screen, players, bullets,dropped, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER):
     screen.fill((0, 0, 0))
 
     if my_id is None or my_id not in players:
@@ -261,6 +309,7 @@ def draw_frame(screen, players, bullets, my_id, map_w, map_h, SPRITES1, DEFAULT_
     cam_x, cam_y = camera_from_pos(me.x, me.y, map_w, map_h)
 
     draw_map(screen, MAP, cam_x, cam_y, WINDOW_W, WINDOW_H)
+    draw_dropped(screen, dropped, DAGGERS, DEFAULT_DAGGER, cam_x, cam_y)
     draw_bullets(screen, bullets, cam_x, cam_y)
     draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER)
 
@@ -298,7 +347,7 @@ def run():
     map_h = MAP_H
     players = {}
     bullets = {}
-
+    dropped = {}
     running = True
     while running:
         # events
@@ -311,12 +360,12 @@ def run():
             running = False
 
         # network
-        ok, my_id, map_w, map_h = recv_network(sock, stream, players, bullets, my_id, map_w, map_h)
+        ok, my_id, map_w, map_h = recv_network(sock, stream, players, bullets,dropped, my_id, map_w, map_h)
         if not ok:
             running = False
 
         # draw
-        draw_frame(screen, players, bullets, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER)
+        draw_frame(screen, players, bullets,dropped, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER)
 
         pygame.display.flip()
         clock.tick(60)

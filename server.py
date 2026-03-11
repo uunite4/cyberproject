@@ -2,6 +2,7 @@ import socket
 import select
 import struct
 import itertools
+import math
 import time
 
 from Player import PlayerData, new_place, check_collision_with_stone, check_collision_with_lava, check_bullet_hit
@@ -9,7 +10,9 @@ from settings import *
 from map_data import *
 from Bullet import *
 from Dagger import *
-
+from DroppedWeapon import *
+dropped_items = []
+item_id_counter = itertools.count(0)
 
 # ----------------- helpers -----------------
 
@@ -131,7 +134,7 @@ def tick_cooldowns(clients):
 
 
 def apply_movement(p, dx, dy, dsprint):
-    speed = SPEED + (SPEED * dsprint)
+    speed = SPEED + (SPEED * dsprint*50)
 
     nx = clamp(p.x + dx * speed, 0, MAP_W)
     ny = clamp(p.y + dy * speed, 0, MAP_H)
@@ -147,8 +150,10 @@ def apply_lava_and_respawn(p):
     if check_collision_with_lava(p, p.x, p.y):
         p.health -= 0.5
         if p.health <= 0:
+            drop_weapons(p, dropped_items)
             p.x, p.y = new_place()
             p.health = 100
+
 
 
 def try_attack(p, attack, bullets, clients, dagger):
@@ -157,17 +162,65 @@ def try_attack(p, attack, bullets, clients, dagger):
         return
 
     p.attack = 1
-
-    if p.current_weapon == 2:
+    print (p.current_weapon)
+    if p.weapons[p.current_weapon-1] == 'gu':
         if p.gun_cooldown == 0:
             b_id = get_next_bullet_id(bullets)
             new_bullet = Bullet(b_id, p.x, p.y, p.dir, BULLET_DISTANS, p.id)
             bullets.append(new_bullet)
             p.gun_cooldown = BULLET_COOLDOWN
 
-    elif p.current_weapon == 1:
-        dagger.attack(p, clients, new_place)
+    #elif p.weapons[p.current_weapon-1] == 'da':# and dagger.attack(p, clients, new_place):
+     #   drop_weapons(p, dropped_items)
+      #  dagger.attack(p, clients, new_place)
 
+def drop_weapons(player, dropped_list):
+    for w_type in player.weapons:
+        if w_type != 0 :
+            new_id = next(item_id_counter)
+            if w_type == 'da':
+                w_type = 1
+            elif w_type == 'gu':
+                w_type = 2
+
+            angle = random.uniform(0, 2 * math.pi)
+            print (angle)
+            radius = 40
+            drop_x = player.x + math.cos(angle) * radius
+            drop_y = player.y + math.sin(angle) * radius
+
+            item = DroppedWeapon(new_id, drop_x,drop_y, w_type)
+            dropped_list.append(item)
+
+    player.weapons = [0, 0, 0]
+    player.current_weapon = 0
+
+def pickup_weapons(player, dropped_list):
+    min_dis = 80
+    closest_item = None
+    for wepon in dropped_list:
+        dis= ((player.x - wepon.x) ** 2 + (player.y - wepon.y) ** 2) ** 0.5
+        if dis < min_dis:
+
+            wt = 'da' if wepon.weapon_type == 1 else 'gu'
+
+
+            if wt not in player.weapons:
+                min_dis = dis
+                closest_item = wepon
+
+        if closest_item:
+            if closest_item.weapon_type == 1:
+                wt = 'da'
+            elif closest_item.weapon_type == 2:
+                wt = 'gu'
+
+            for i in range(len(player.weapons)-1):
+                if player.weapons[i] == 0:
+                    player.weapons[i] = wt
+                    dropped_list.remove(closest_item)
+                    print(f"Player {player.id} picked up {wt}")
+                    break
 
 def apply_bullet_hits_for_player(p, bullets, clients):
     for b in bullets[:]:
@@ -186,9 +239,9 @@ def apply_bullet_hits_for_player(p, bullets, clients):
                 p.health -= BULLET_DAMEG
                 bullets.remove(b)
                 if p.health <= 0:
+                    drop_weapons(p, dropped_items)
                     p.x, p.y = new_place()
                     p.health = 100
-
 
 def update_bullets(bullets):
     for b in bullets[:]:
@@ -196,15 +249,15 @@ def update_bullets(bullets):
         if is_dead:
             bullets.remove(b)
 
+#def fart():
 
 def handle_input_message(p, payload, bullets, clients, dagger):
-    if len(payload) != 6:
+    if len(payload) != 8:
         return
 
-    dx, dy, dsprint, dire, attack, current_weapon = struct.unpack("!bbbbbb", payload)
-
+    dx, dy, dsprint, dire, attack, current_weapon ,pickup,fart= struct.unpack("!bbbbbbbb", payload)
     # weapon switch
-    if current_weapon != 0:
+    if current_weapon != 0 and p.weapons[current_weapon-1] in p.weapons:
         p.current_weapon = current_weapon
 
     # direction update
@@ -214,10 +267,12 @@ def handle_input_message(p, payload, bullets, clients, dagger):
     # attack
     try_attack(p, attack, bullets, clients, dagger)
 
-    # movement + env
     apply_movement(p, dx, dy, dsprint)
     apply_lava_and_respawn(p)
 
+
+    if pickup==1:
+        pickup_weapons(p,dropped_items)
 
 def handle_client_read(sock, clients, bullets, dagger, now):
     try:
@@ -240,15 +295,29 @@ def handle_client_read(sock, clients, bullets, dagger, now):
 # ----------------- state broadcast -----------------
 
 def build_state_payload(clients, bullets):
-    count = min(255, len(clients))
+    icount = min(255, len(dropped_items))
     payload = bytearray()
+    payload.append(icount)
+
+    for i in range(icount):
+        item = dropped_items[i]
+        print (int(item.id), int(item.x), int(item.y), item.weapon_type)
+        payload += struct.pack("!IHHB", int(item.id), int(item.x), int(item.y), item.weapon_type)
+
+
+    count = min(255, len(clients))
+
     payload.append(count)
 
     for i, c in enumerate(clients.values()):
         if i >= count:
             break
         p = c["player"]
-
+        wepon = 0
+        if p.weapons[p.current_weapon - 1] == 'da':
+            wepon = 1
+        elif p.weapons[p.current_weapon - 1] == 'gu':
+            wepon = 2
         payload += struct.pack(
             "!IIIHHBBB",
             int(p.id),
@@ -257,7 +326,7 @@ def build_state_payload(clients, bullets):
             max(0, int(p.health)),
             int(p.dir),
             int(p.attack),
-            int(p.current_weapon),
+            int(wepon),
             int(p.group)
         )
 
@@ -268,6 +337,8 @@ def build_state_payload(clients, bullets):
     for i in range(bcount):
         b = bullets[i]
         payload += struct.pack("!iiHi", int(b.x), int(b.y), int(b.id), int(b.dir))
+
+
 
     return bytes(payload)
 
