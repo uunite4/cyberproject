@@ -37,6 +37,7 @@ class MyServer:
                 "x": x,
                 "y": y,
                 "dir": 3,
+                "hp": 100,
                 "cid":connection_id,
             }
             print("PLAYERS INITIAL POS: ", self.clients[pid]["x"], self.clients[pid]["y"], "PLAYERS ID: ", pid)
@@ -81,12 +82,13 @@ class MyServer:
                 self.server.send(connection_id, pk)
                 del self.clients[pid]
         elif (cmd == S.CMDS["POS_DONT_RESPOND"]):
-            x, y, dir = struct.unpack_from('!hhh', data, 17)
+            x, y, dir, health = struct.unpack_from('!hhhh', data, 17)
             self.clients[pid] = {
                 "x": x,
                 "y": y,
                 "dir":dir,
-                "cid":connection_id
+                "hp":health,
+                "cid":connection_id,
             }
             print(f"GOT OVERLAP PACKET")
 
@@ -201,13 +203,14 @@ def copy_dic(dic):
 
 def build_state_payload(clients):
     count = len(clients)
-    format = "!bh" + "hhh" * count
+    format = "!bh" + "hhhh" * count
     payload = [S.CMDS["RENDER"], count]
 
     for c in clients.values():
         payload.append(int(c["x"]))
         payload.append(int(c["y"]))
         payload.append(int(c["dir"]))
+        payload.append(int(c["hp"]))
 
     return struct.pack(format, *payload)
 

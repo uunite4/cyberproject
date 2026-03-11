@@ -3,8 +3,8 @@ import os
 import struct
 
 import pygame
-
 import Player
+#from Player import *
 import SETTINGS as S
 from networking.wrappers.client_wrapper import QuicClient
 from map import *
@@ -38,12 +38,13 @@ class MyClient:
             self.player.x = x
             self.player.y = y
             self.player.dir = 3
+            self.player.health = 100
 
         elif (cmd == S.CMDS["MOVE"]):
             moveOffPackt(data, self.player)
 
             if self.iInActive != None:
-                pk = struct.pack("!b16shhh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x, self.player.y, self.player.dir)
+                pk = struct.pack("!b16shhhh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x, self.player.y, self.player.dir, self.player.health)
                 self.client.send(self.connections[self.iInActive], pk)
 
 
@@ -73,8 +74,8 @@ class MyClient:
                 count = struct.unpack_from('!h', data, 1)[0]
                 for i in range(count):
                     offset = 3+6*i
-                    x, y, dir= struct.unpack_from('!hhh', data, offset)
-                    self.players.append({"x":x,"y": y, "dir": dir})
+                    x, y, dir, health= struct.unpack_from('!hhhh', data, offset)
+                    self.players.append({"x":x,"y": y, "dir": dir, "hp": health})
 
     # ----------
     # RUNNING
@@ -126,15 +127,6 @@ class MyClient:
             # DRAW
             self.draw_frame(self.screen, S.MAP_WIDTH, S.MAP_HEIGHT, DEFAULT_SPRITE1, SPRITES1)
             pygame.display.flip()
-            """self.screen.fill((30, 30, 30))  # BG
-            drawServers(self.screen)  # SERVERS (FRONTEND)
-            self.player.draw(self.screen)  # PLAYER
-
-            if self.players != [] and len(self.players) >1: print(self.players)
-            for dic in self.players:
-                x,y = dic["x"], dic["y"]
-                if x != self.player.x or y != self.player.y:
-                    draw_player(screen=self.screen, x=x, y=y)"""
 
             await asyncio.sleep(1 / 60)
 
@@ -152,19 +144,33 @@ class MyClient:
         cam_x, cam_y = camera_from_pos(self.player.x, self.player.y, map_w, map_h)
 
         draw_map(screen, MAP, cam_x, cam_y, S.WINDOW_WIDTH, S.WINDOW_HEIGHT)
-        draw_players(screen, self.player.x, self.player.y, self.player.dir, self.players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1)
+        draw_players(screen, self.player, self.players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1)
 
-def draw_players(screen, x, y, dir, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1):
+def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1):
     for p in players:
         px = int(p["x"] - cam_x - S.PLAYER_SIZE // 2)
         py = int(p["y"] - cam_y - S.PLAYER_SIZE // 2)
 
         sprite = SPRITES1.get(p["dir"], DEFAULT_SPRITE1)
         screen.blit(sprite, (px, py))
-    px = int(x - cam_x - S.PLAYER_SIZE // 2)
-    py = int(y - cam_y - S.PLAYER_SIZE // 2)
-    sprite = SPRITES1.get(dir, DEFAULT_SPRITE1)
+        S_health_bar_update(p["hp"], screen, px, py)
+    px = int(player.x - cam_x - S.PLAYER_SIZE // 2)
+    py = int(player.y - cam_y - S.PLAYER_SIZE // 2)
+    sprite = SPRITES1.get(player.dir, DEFAULT_SPRITE1)
     screen.blit(sprite, (px, py))
+    health_bar_update(player.health, screen)
+
+def health_bar_update(health,screen):
+    green1 =  (S.HEALTH_BAR_SIZE_X /100)*health
+    red1= S.HEALTH_BAR_SIZE_X - green1
+    pygame.draw.rect(screen, "green", (20, 20, green1, S.HEALTH_BAR_SIZE_Y))
+    pygame.draw.rect(screen, "red", (20+green1, 20, red1, S.HEALTH_BAR_SIZE_Y))
+
+def S_health_bar_update(health,screen,x,y):
+    green1 =  (S.S_HEALTH_BAR_SIZE_X /100)*health
+    red1= S.S_HEALTH_BAR_SIZE_X - green1
+    pygame.draw.rect(screen, "green", (x, y-40, green1, S.S_HEALTH_BAR_SIZE_Y))
+    pygame.draw.rect(screen, "red", (x+green1, y-40, red1, S.S_HEALTH_BAR_SIZE_Y))
 
 def load(name: str, rotations_dir) -> pygame.Surface:
     path = os.path.join(rotations_dir, name)
@@ -225,20 +231,6 @@ def getInputs():
         pressed = True
 
     return inputs, pressed
-
-def draw_player(screen, x, y):
-    playerRect = pygame.Rect(x, y, 40, 40)
-    pygame.draw.rect(screen, (0, 190, 190), playerRect)
-
-
-def drawServers(screen):
-    for server in S.SERVERS:
-        sRect = pygame.Rect(server["x"], 0, S.GENERAL_SERVER["width"], S.WINDOW_HEIGHT)
-        pygame.draw.rect(screen, S.GENERAL_SERVER["color"], sRect)
-
-    for overlap in S.OVERLAPS:
-        oRect = pygame.Rect(overlap["x"], 0, S.GENERAL_OVERLAP["width"], S.WINDOW_HEIGHT)
-        pygame.draw.rect(screen, S.GENERAL_OVERLAP["color"], oRect)
 
 
 if __name__ == "__main__":
