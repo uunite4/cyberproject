@@ -38,13 +38,14 @@ class MyClient:
             self.player.x = x
             self.player.y = y
             self.player.dir = 3
-            self.player.health = 100
+            self.player.health = S.PLAYER_HEALTH
 
         elif (cmd == S.CMDS["MOVE"]):
             moveOffPackt(data, self.player)
 
             if self.iInActive != None:
-                pk = struct.pack("!b16shhhh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x, self.player.y, self.player.dir, self.player.health)
+                pk = struct.pack("!b16shhhh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x, self.player.y,
+                                 self.player.dir, self.player.health)
                 self.client.send(self.connections[self.iInActive], pk)
 
 
@@ -76,6 +77,14 @@ class MyClient:
                     offset = 3+6*i
                     x, y, dir, health= struct.unpack_from('!hhhh', data, offset)
                     self.players.append({"x":x,"y": y, "dir": dir, "hp": health})
+        elif (cmd == S.CMDS["DAMAGE"]):
+            nhp = struct.unpack_from('!h', data, 1)[0]
+            self.player.health = nhp
+        elif (cmd == S.CMDS["RESPAWN"]):
+            x,y = struct.unpack_from('!hh', data, 1)
+            self.player.tp(x,y,3)
+            self.player.health = S.PLAYER_HEALTH
+
 
     # ----------
     # RUNNING
@@ -161,13 +170,13 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
     health_bar_update(player.health, screen)
 
 def health_bar_update(health,screen):
-    green1 =  (S.HEALTH_BAR_SIZE_X /100)*health
+    green1 =  (S.HEALTH_BAR_SIZE_X /S.PLAYER_HEALTH)*health
     red1= S.HEALTH_BAR_SIZE_X - green1
     pygame.draw.rect(screen, "green", (20, 20, green1, S.HEALTH_BAR_SIZE_Y))
     pygame.draw.rect(screen, "red", (20+green1, 20, red1, S.HEALTH_BAR_SIZE_Y))
 
 def S_health_bar_update(health,screen,x,y):
-    green1 =  (S.S_HEALTH_BAR_SIZE_X /100)*health
+    green1 =  (S.S_HEALTH_BAR_SIZE_X /S.PLAYER_HEALTH)*health
     red1= S.S_HEALTH_BAR_SIZE_X - green1
     pygame.draw.rect(screen, "green", (x, y-40, green1, S.S_HEALTH_BAR_SIZE_Y))
     pygame.draw.rect(screen, "red", (x+green1, y-40, red1, S.S_HEALTH_BAR_SIZE_Y))

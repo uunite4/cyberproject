@@ -64,7 +64,9 @@ CMDS = {
     "POS_DONT_RESPOND": 0x05,
     "INIT_LB": 0x06,
     "LB_ADDING_PLAYER": 0x07,
-    "RENDER": 0x08
+    "RENDER": 0x08,
+    "DAMAGE": 0x09,
+    "RESPAWN": 0x0A,
 }
 
 LOAD_BALANCER = {

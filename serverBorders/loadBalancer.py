@@ -7,7 +7,7 @@ from networking.wrappers.server_wrapper import QuicServer
 import SETTINGS as S
 import struct
 
-from serverBorders.gameServer2 import check_collision_with_stone
+from Player import *
 
 
 class MyServer:
@@ -91,7 +91,7 @@ def get_random_position():
         # Random position inside safe horizontal zone
         x = random.randint(left, right - 1)
         y = random.randint(0, S.MAP_HEIGHT - 1)
-        if not check_collision_with_stone(x,y,S.PLAYER_SIZE): #and collision with lava
+        if not check_collision_with_stone(x,y,S.PLAYER_SIZE) and not check_collision_with_lava(x,y,S.PLAYER_SIZE): #and collision with lava
             return x, y, server_index, generateToken()
 
 def generateToken(length=16):

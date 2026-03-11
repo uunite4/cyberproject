@@ -1,7 +1,8 @@
 import asyncio
 import struct
 import time
-
+import random
+from Player import *
 import SETTINGS as S
 from networking.wrappers.server_wrapper import QuicServer
 from map_data import *
@@ -37,7 +38,7 @@ class MyServer:
                 "x": x,
                 "y": y,
                 "dir": 3,
-                "hp": 100,
+                "hp": S.PLAYER_HEALTH,
                 "cid":connection_id,
             }
             print("PLAYERS INITIAL POS: ", self.clients[pid]["x"], self.clients[pid]["y"], "PLAYERS ID: ", pid)
@@ -57,6 +58,7 @@ class MyServer:
             # SEND MOVE
             pk = struct.pack('!bhhh', S.CMDS["MOVE"], currentClient["x"], currentClient["y"], currentClient["dir"])
             self.server.send(connection_id, pk)
+
 
             # NOW THAT WE UPDATED POSITION, WE CAN CHECK FOR RANGES
             # CHECK FOR OVERLAPS
@@ -134,40 +136,6 @@ def apply_movement(x,y, dx, dy):
         y = ny
     return x, y
 
-def get_corners(x,y,size):
-    left, right, top, bottom = get_sides(x,y,size)
-    corners = [  # 4 corners
-        (left, top),
-        (right, top),
-        (left, bottom),
-        (right, bottom),
-    ]
-
-    return corners
-
-
-def get_sides(x,y, size):
-    left = x - size // 2  # player box left (pixels)
-    right = x + size // 2 - 1  # player box right (pixels)
-    top = y - size // 2  # player box top (pixels)
-    bottom = y + size // 2 - 1  # player box bottom (pixels)
-
-    return left,right,top,bottom
-
-def check_collision_with_stone(next_x, next_y, size):  # True = blocked (stone/outside)
-    corners = get_corners(next_x,next_y,size)
-
-    for px, py in corners:  # test each corner
-        tile_x = int(px // S.TILE_SIZE)  # pixel -> tile col
-        tile_y = int(py // S.TILE_SIZE)  # pixel -> tile row
-
-        if tile_x < 0 or tile_x >= S.WIDTH or tile_y < 0 or tile_y >= S.HEIGHT:
-            return True
-
-        if MAP[tile_y][tile_x] == "x":
-            return True
-    return False
-
 def point_in_rect(px, py, rx, ry, w, h):
     return (
             rx <= px <= rx + w and
@@ -194,6 +162,39 @@ def broadcast(self):
         del temp[pid]
         pk = build_state_payload(temp)
         self.server.send(client["cid"],pk)
+        if check_collision_with_lava(client["x"], client["y"], S.PLAYER_SIZE):
+            client["hp"] -= 1
+            print(client["hp"])
+            if client["hp"] > 0:
+                pk = struct.pack('!bh', S.CMDS["DAMAGE"], client["hp"])
+            elif client["hp"] <= 0:
+                x, y = respawn(self.serverNumber-1)
+                print("DECIDED ON POS: ", x, y)
+                client["x"],client["y"],client["hp"] = x,y,S.PLAYER_HEALTH
+                # send information to client
+                pk = struct.pack("!bhh", S.CMDS["RESPAWN"], x, y)
+            self.server.send(client["cid"], pk)
+
+def respawn(server_number):
+
+    # Choose a random server
+    server = S.SERVERS[server_number]
+
+    left = server["x"]
+    right = server["x"] + S.SERVER_WIDTH
+
+    # Remove overlap zones
+    if server_number > 0:
+        left += S.OVERLAP_WIDTH
+    if server_number < S.SERVER_NUMBER - 1:
+        right -= S.OVERLAP_WIDTH
+    while True:
+        # Random position inside safe horizontal zone
+        x = random.randint(left, right - 1)
+        y = random.randint(0, S.MAP_HEIGHT - 1)
+        if not check_collision_with_stone(x,y,S.PLAYER_SIZE) and not check_collision_with_lava(x,y,S.PLAYER_SIZE): #and collision with lava
+            return x, y
+
 
 def copy_dic(dic):
     ndic = {}
