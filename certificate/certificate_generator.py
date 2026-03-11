@@ -152,5 +152,5 @@ if __name__ == "__main__":
     # generate_ca()
 
     regenerate_server_cert([
-        "192.168.68.108"
+        "127.0.0.1"
     ])

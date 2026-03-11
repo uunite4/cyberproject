@@ -21,7 +21,7 @@ class BasicServer:
 
     def on_receive(self, connection_id: int, data: bytes):
         print(f"{connection_id}: {data.decode()}")
-        self.server.send(connection_id, b'echo!')
+        # self.server.send(connection_id, b'echo!')
 
     def on_connect(self, connection_id: int):
         print(f"{connection_id} connected")
@@ -29,14 +29,18 @@ class BasicServer:
     def on_disconnect(self, connection_id: int):
         print(f"{connection_id} disconnected")
 
+    async def loop(self):
+        while True:
+            self.server.broadcast(b"broadcast")
+            await asyncio.sleep(15)
+
     async def run(self):
         await self.server.start()
         print("Server started")
 
         try:
-            while True:
-                self.server.broadcast(b"broadcast")
-                await asyncio.sleep(1)
+            asyncio.create_task(self.loop())
+            await asyncio.Future()
 
         except asyncio.CancelledError:
             print("Server shutting down...")

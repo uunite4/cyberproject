@@ -7,25 +7,30 @@ from wrappers.client_wrapper import QuicClient
 class BasicClient:
 
     def __init__(self):
+        self.server_id = None
         self.client = QuicClient(
-            cert_file="../../certificate/cert.pem",
+            cert_file="../../certificate/certs/ca.crt",
             on_receive=self.on_receive
         )
 
     def on_receive(self, connection_id: int, data: bytes):
         print(f"{connection_id}: {data.decode()}")
 
+    async def loop(self):
+        while True:
+            self.client.send(self.server_id, b'hi server')
+            await asyncio.sleep(15)
+
     async def run(self):
-        server_id = await self.client.connect(
+        self.server_id = await self.client.connect(
             server_ip=BASIC_SERVER_IP,
             server_port=BASIC_SERVER_PORT,
         )
         print('connected to server')
 
         try:
-            while True:
-                self.client.send(server_id, b'hi server')
-                await asyncio.sleep(1)
+            asyncio.create_task(self.loop())
+            await asyncio.Future()
 
         except asyncio.CancelledError:
             print("Client shutting down...")
