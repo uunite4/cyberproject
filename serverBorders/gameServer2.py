@@ -48,9 +48,9 @@ class MyServer:
 
             # CLIENT GAVE US DIRECTION, WE RETURN POS
             print(f"GOT MOVE PACKET")
-            xDir, yDir = struct.unpack_from('!bb', data, 17)
+            xDir, yDir, sprint = struct.unpack_from('!bbb', data, 17)
 
-            nx,ny = apply_movement(currentClient["x"],currentClient["y"],xDir,yDir)
+            nx,ny = apply_movement(currentClient["x"],currentClient["y"],xDir,yDir,sprint)
             currentClient["dir"] = get_dir(nx-currentClient["x"],ny-currentClient["y"])
             currentClient["x"], currentClient["y"] = nx, ny
             currentClient["cid"] = connection_id
@@ -123,8 +123,8 @@ class MyServer:
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
 
-def apply_movement(x,y, dx, dy):
-    speed = S.PLAYER_VEL
+def apply_movement(x,y, dx, dy, sprint):
+    speed = S.PLAYER_VEL + sprint*S.PLAYER_VEL
 
     nx = clamp(x + dx * speed, 0, S.MAP_WIDTH)
     ny = clamp(y + dy * speed, 0, S.MAP_HEIGHT)

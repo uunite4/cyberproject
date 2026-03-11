@@ -144,7 +144,7 @@ class MyClient:
     def sendInputs(self, inputs):
         xAxisDirection = inputs['d'] - inputs['a']
         yAxisDirection = inputs['s'] - inputs['w']
-        pk = struct.pack('!b16sbb', S.CMDS["MOVE"], self.pid.encode("utf-8"), xAxisDirection, yAxisDirection)  # b is signed byte
+        pk = struct.pack('!b16sbbb', S.CMDS["MOVE"], self.pid.encode("utf-8"), xAxisDirection, yAxisDirection, inputs["sf"])  # b is signed byte
         self.client.send(self.connections[self.iControl], pk)
 
     def draw_frame(self, screen, map_w, map_h, DEFAULT_SPRITE1, SPRITES1):
@@ -223,6 +223,7 @@ def getInputs():
         "a": 0,
         "s": 0,
         "d": 0,
+        "sf": 0,
     }
     pressed = False
     keys = pygame.key.get_pressed()
@@ -237,6 +238,9 @@ def getInputs():
         pressed = True
     if keys[pygame.K_d]:
         inputs["d"] = 1
+        pressed = True
+    if keys[pygame.K_LSHIFT]:
+        inputs["sf"] = 1
         pressed = True
 
     return inputs, pressed
