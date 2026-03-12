@@ -44,12 +44,6 @@ class MyClient:
         elif (cmd == S.CMDS["MOVE"]):
             moveOffPackt(data, self.player)
 
-            if self.iInActive != None:
-                pk = struct.pack("!b16shhhh?", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x, self.player.y,
-                                 self.player.dir, self.player.health, self.player.att)
-                self.client.send(self.connections[self.iInActive], pk)
-
-
         elif (cmd == S.CMDS["OVERLAP"]):
             # SEND POS TO SECOND SERVER
 
@@ -59,8 +53,12 @@ class MyClient:
             elif (dir == "l"):
                 self.iInActive = self.iControl - 1
 
-            #pk = struct.pack("!b16shhh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x, self.player.y, self.player.dir)
-            #self.client.send(self.connections[self.iInActive], pk)
+            print(self.iInActive)
+
+            pk = struct.pack("!b16shhhh?", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x,
+                             self.player.y,
+                             self.player.dir, self.player.health, self.player.att)
+            self.client.send(self.connections[self.iInActive], pk)
 
         elif (cmd == S.CMDS["OUT_OF_OVERLAP"]):
             # SEND TO INACTIVE SERVER TO REMOVE ME
@@ -156,7 +154,7 @@ class MyClient:
     def sendInputs(self, inputs):
         xAxisDirection = inputs['d'] - inputs['a']
         yAxisDirection = inputs['s'] - inputs['w']
-        pk = struct.pack('!b16sbbbb', S.CMDS["MOVE"], self.pid.encode("utf-8"), xAxisDirection, yAxisDirection, inputs["sf"], inputs["sp"])  # b is signed byte
+        pk = struct.pack('!b16sbbb', S.CMDS["MOVE"], self.pid.encode("utf-8"), xAxisDirection, yAxisDirection, inputs["sf"])  # b is signed byte
         self.client.send(self.connections[self.iControl], pk)
 
     def draw_frame(self, screen, map_w, map_h, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS):
@@ -168,6 +166,7 @@ class MyClient:
         draw_players(screen, self.player, self.players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS)
 
 def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS):
+    # DRAW OTHER PLAYERS
     for p in players:
         px = int(p["x"] - cam_x - S.PLAYER_SIZE // 2)
         py = int(p["y"] - cam_y - S.PLAYER_SIZE // 2)
@@ -177,12 +176,14 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
         S_health_bar_update(p["hp"], screen, px, py)
 
         if p["att"]: #daggers
+            print("A PLAYER IS ATTACKING")
             d = p["dir"]
             vx, vy = dir_to_vec(d)
             dagger_x = int((p.x + vx * S.TILE_SIZE) - cam_x - S.TILE_SIZE // 2)
             dagger_y = int((p.y + vy * S.TILE_SIZE) - cam_y - S.TILE_SIZE // 2)
             screen.blit(DAGGERS.get(d, DEFAULT_DAGGER), (dagger_x, dagger_y))
 
+    # DRAW OWN PLAYER
     px = int(player.x - cam_x - S.PLAYER_SIZE // 2)
     py = int(player.y - cam_y - S.PLAYER_SIZE // 2)
     sprite = SPRITES1.get(player.dir, DEFAULT_SPRITE1)

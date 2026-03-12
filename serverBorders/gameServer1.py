@@ -113,7 +113,7 @@ class MyServer:
             del self.clients[pid]
 
         elif (cmd == S.CMDS["ATTACK"]):
-            sp = struct.unpack_from('!b', data, 17)
+            sp = struct.unpack_from('!b', data, 17)[0]
             if (sp == 1):
                 self.clients[pid]["att"] = True
 
