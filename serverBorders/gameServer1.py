@@ -2,6 +2,8 @@ import asyncio
 import struct
 import time
 import random
+from xmlrpc.client import boolean
+
 from Player import *
 import SETTINGS as S
 from networking.wrappers.server_wrapper import QuicServer
@@ -87,7 +89,7 @@ class MyServer:
             if (counter == 0 and inServer and currentClient["inOverlap"] == True):
                 # NOT IN OVERLAP (and was before)
                 pk = struct.pack('!b', S.CMDS["OUT_OF_OVERLAP"])
-                self.server.send((connection_id, pk))
+                self.server.send(connection_id, pk)
                 currentClient["inOverlap"] = False
 
             if (not inServer):
@@ -99,6 +101,7 @@ class MyServer:
             self.clients[pid] = {
                 "x": x,
                 "y": y,
+                "inOverlap": True,
                 "dir":dir,
                 "hp":health,
                 "att": att,
@@ -232,7 +235,7 @@ def build_state_payload(clients):
         payload.append(int(c["y"]))
         payload.append(int(c["dir"]))
         payload.append(int(c["hp"]))
-        payload.append(int(c["att"]))
+        payload.append(bool(c["att"]))
 
     return struct.pack(format, *payload)
 
