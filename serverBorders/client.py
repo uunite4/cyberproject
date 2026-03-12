@@ -62,6 +62,12 @@ class MyClient:
             #pk = struct.pack("!b16shhh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x, self.player.y, self.player.dir)
             #self.client.send(self.connections[self.iInActive], pk)
 
+        elif (cmd == S.CMDS["OUT_OF_OVERLAP"]):
+            # SEND TO INACTIVE SERVER TO REMOVE ME
+            pk = struct.pack("!b16s", S.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
+            self.client.send(self.connections[self.iInActive], pk)
+            self.iInActive = None
+
         elif (cmd == S.CMDS["SWITCH_SERVER"]):
             # SWITCH BETWEEN CONTROL AND INACTIVE
             if self.iInActive != None:
@@ -171,7 +177,7 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
         S_health_bar_update(p["hp"], screen, px, py)
 
         if p["att"]: #daggers
-            d = p.dir
+            d = p["dir"]
             vx, vy = dir_to_vec(d)
             dagger_x = int((p.x + vx * S.TILE_SIZE) - cam_x - S.TILE_SIZE // 2)
             dagger_y = int((p.y + vy * S.TILE_SIZE) - cam_y - S.TILE_SIZE // 2)
@@ -232,7 +238,7 @@ def load_player_sprites(group):
         8: load("north-east.png", rotations_dir),
     }
 def load_dagger_sprites() -> dict[int, pygame.Surface]:
-    base_path = os.path.join(os.path.dirname(__file__), "C:\\Users\\raveh\PycharmProjects\cyberprojectActualMerging\sprites\DAGGER-NORTH.png")
+    base_path = os.path.join(os.path.dirname(__file__), "..\sprites\DAGGER-NORTH.png")
     base = pygame.image.load(base_path).convert_alpha()
 
     if base.get_width() != S.TILE_SIZE or base.get_height() != S.TILE_SIZE:

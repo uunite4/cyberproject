@@ -8,7 +8,7 @@ WINDOW_HEIGHT = 540
 BROADCAST_INTERVAL = 0.01
 
 PLAYER_VEL = 5
-PLAYER_SIZE = 40
+PLAYER_SIZE = 38
 PLAYER_HEALTH =100
 
 TILE_SIZE = 40
@@ -16,9 +16,9 @@ BUILDING_SIZE = 40
 WIDTH = 192
 HEIGHT = 108
 #Obgects
-grass='C:\\Users\\raveh\PycharmProjects\cyberprojectActualMerging\sprites\grass.png'
-stone='C:\\Users\\raveh\PycharmProjects\cyberprojectActualMerging\sprites\stone.png'
-lava = 'C:\\Users\\raveh\PycharmProjects\cyberprojectActualMerging\sprites\lava.png'
+grass='..\sprites\grass.png'
+stone='..\sprites\stone.png'
+lava = '..\sprites\lava.png'
 
 OVERLAP_WIDTH = 600
 SERVER_NUMBER = 4
@@ -68,6 +68,8 @@ CMDS = {
     "DAMAGE": 0x09,
     "RESPAWN": 0x0A,
     "ATTACK": 0x0B,
+    "OUT_OF_OVERLAP": 0x0C,
+    "REMOVE_ME": 0x0D,
 }
 
 LOAD_BALANCER = {
