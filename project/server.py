@@ -9,6 +9,7 @@ from settings import *
 from map_data import MAP
 from Bullet import *
 from Dagger import *
+from enemy import *
 
 
 # ----------------- helpers -----------------
@@ -123,6 +124,36 @@ def timeout_clients(clients, now, timeout_sec=10):
 
 # ----------------- game logic -----------------
 
+def player_pos(player_list):
+    ids = []
+    positions = []
+
+    for player in player_list:
+        # 1. Add the ID to the id list
+        ids.append(player.pid)
+
+        # 2. Add the (x, y) coordinates as a tuple to the positions list
+        positions.append((player.x, player.y))
+
+    return ids, positions
+
+def enemy_treatment(enemies, players, ticks):
+    if ticks >=5:
+        list_id, list_pos = player_pos(players)  # lists of all the players in the server
+        for enemy in enemies:
+            see_id_list, see_pos_list = enemy.Big_check(list_id, list_pos) #return ordred 2 lists of see radius
+        ticks = 0
+    return ticks, see_id_list, see_pos_list
+
+
+def apply_movement_enemy(see_id_list, see_pos_list):
+    target_x, target_y, id = enemy.get_target(see_id_list, see_pos_list)
+    if id is None:
+        return target_x, target_y, None
+    else:
+        return target_x, target_y, id,
+
+
 def tick_cooldowns(clients):
     for c in clients.values():
         p = c["player"]
@@ -196,6 +227,22 @@ def update_bullets(bullets):
         if is_dead:
             bullets.remove(b)
 
+def create_new_ai(payload, enemies):
+    count = payload[0]
+    off = 1
+
+    for _ in range(count):
+        if off + 15 > len(payload):
+            break
+
+        x, y, health, id, speed, dir, type = struct.unpack(
+            "!IHHHHBBB", payload[off:off + 15]
+        )
+        off += 15
+    if type == "GOBLIN":
+        obj = Entity(x, y, dir, health, id, type)
+        newenemy = Enemy(obj,id, type)
+        enemies.append(newenemy)
 
 def handle_input_message(p, payload, bullets, clients, dagger):
     if len(payload) != 6:
@@ -219,7 +266,7 @@ def handle_input_message(p, payload, bullets, clients, dagger):
     apply_lava_and_respawn(p)
 
 
-def handle_client_read(sock, clients, bullets, dagger, now):
+def handle_client_read(sock, clients,enemies, bullets, dagger, now):
     try:
         data = sock.recv(4096)
         if not data:
@@ -232,6 +279,8 @@ def handle_client_read(sock, clients, bullets, dagger, now):
             if cmd == CMD_INPUT:
                 p = clients[sock]["player"]
                 handle_input_message(p, payload, bullets, clients, dagger)
+            if cmd == CMD_CREATE:
+                create_new_ai(payload, enemies)
 
     except Exception:
         disconnect_client(sock, clients)
@@ -305,9 +354,12 @@ def main():
     dagger = Dagger()
     bullets = []
 
+    enemies = {}
+
     last_broadcast = time.time()
     print(f"QC3 Server listening on {HOST}:{PORT}")
 
+    count_ticks = 0
     while True:
         now = time.time()
 
@@ -322,10 +374,17 @@ def main():
             if s is server:
                 accept_new_client(server, clients, id_gen, now)
             else:
-                handle_client_read(s, clients, bullets, dagger, now)
+                handle_client_read(s, clients, enemies, bullets, dagger, now)
 
         # world updates
         update_bullets(bullets)
+
+        #enemy
+        count_ticks += 1
+        count_ticks, see_id_list, see_pos_list = enemy_treatment(enemies, clients, count_ticks)
+        x , y, id =apply_movement_enemy(see_id_list, see_pos_list)
+        if id is not None:
+            enemy_attack()
 
         # apply bullet hits for every player
         if bullets:

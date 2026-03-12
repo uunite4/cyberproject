@@ -11,7 +11,7 @@ import time
 
 
 class Enemy:
-    def __init__(self,entity ,id , type,last_att):
+    def __init__(self,entity ,id , type):
         # entity
         self.entity = entity
 
@@ -70,27 +70,30 @@ class Enemy:
                 min_p = arr_id[i]
         return min_p
 
-    def get_target(self,arr_id, arr_pos):
-        if not arr_pos:
-            while True:
-                target = rand_pos(s.MONSTERS[self.type]["att_radius"],self)
-                if in_view(self.entity.x,self.entity.y,target[0],target[1]):
-                    return target[0],target[1],None
-                #calculate the square of the attack radius
-                #find a random spot in it
-                #check if the enemy see it
-        else:
-            for i in arr_pos:
-                dis = distance(arr_pos[i][0],arr_pos[i][1],self.entity.x,self.entity.y)
-                if dis <= s.MONSTERS[self.type]["att_radius"]:
-                    return arr_pos[i][0],arr_pos[i][1], arr_id[i]
-                elif dis <= s.MONSTERS[self.type]["see_radius"]:
-                    return arr_pos[i][0],arr_pos[i][1], None
-            while True:
-                target = rand_pos(s.MONSTERS[self.type]["att_radius"], self)
-                if in_view(self.entity.x, self.entity.y, target[0], target[1]):
-                    return target[0], target[1], None
-                # calculate the square of the attack radius
-                # find a random spot in it
-                # check if the enemy see it
+    def get_target(self, arr_id, arr_pos):
+        for i in arr_pos:
+            dis = distance(arr_pos[i][0], arr_pos[i][1], self.entity.x, self.entity.y)
+            if dis <= s.MONSTERS[self.type]["att_radius"] and in_view(self.entity.x, self.entity.y, arr_pos[i][0],arr_pos[i][1]):
+                return arr_pos[i][0], arr_pos[i][1], arr_id[i]
+            elif dis > s.MONSTERS[self.type]["att_radius"] and in_view(self.entity.x, self.entity.y, arr_pos[i][0],arr_pos[i][1]):
+                return arr_pos[i][0], arr_pos[i][1], None
+        while True:
+            target = rand_pos(s.MONSTERS[self.type]["att_radius"], self)
+            if in_view(self.entity.x, self.entity.y, target[0], target[1]):
+                return target[0], target[1], None
+        # calculate the square of the attack radius
+        # find a random spot in it
+        # check if the enemy see it
+
+
+    def update_from_server_enemy(self,entity, id, type):
+        # entity
+        self.entity = entity
+
+        # other
+        self.id = id
+        self.health = S.MONSTERS[type]["health"]
+        self.type = type
+        self.last_att = time.time()
+
 

@@ -38,15 +38,6 @@ def vector(x1,y1,x2,y2):
         dx = 1
     return(dx,slope)
 
-def draw_enemy(screen, enemys, cam_x, cam_y, ENEMY_SPRITES, DEFAULT_SPRITE):
-    for eid, e in enemys.items():
-        ex = int(e.x - cam_x - s.ENEMY_SIZE // 2)
-        ey = int(e.y - cam_y - s.ENEMY_SIZE // 2)
-
-        sprite = ENEMY_SPRITES.get(e.dir, DEFAULT_SPRITE)
-
-        screen.blit(sprite, (ex, ey))
-        #need to add the attack for monster
 def jumps(size,slope):
     ab = abs(slope)
     if ab==0:
