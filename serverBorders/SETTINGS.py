@@ -67,6 +67,7 @@ CMDS = {
     "RENDER": 0x08,
     "DAMAGE": 0x09,
     "RESPAWN": 0x0A,
+    "ATTACK": 0x0B,
 }
 
 LOAD_BALANCER = {

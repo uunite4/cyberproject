@@ -40,6 +40,7 @@ class MyServer:
                 "dir": 3,
                 "hp": S.PLAYER_HEALTH,
                 "cid":connection_id,
+                "att": False,
             }
             print("PLAYERS INITIAL POS: ", self.clients[pid]["x"], self.clients[pid]["y"], "PLAYERS ID: ", pid)
 
@@ -84,15 +85,20 @@ class MyServer:
                 self.server.send(connection_id, pk)
                 del self.clients[pid]
         elif (cmd == S.CMDS["POS_DONT_RESPOND"]):
-            x, y, dir, health = struct.unpack_from('!hhhh', data, 17)
+            x, y, dir, health, att = struct.unpack_from('!hhhh?', data, 17)
             self.clients[pid] = {
                 "x": x,
                 "y": y,
                 "dir":dir,
                 "hp":health,
+                "att": att,
                 "cid":connection_id,
             }
             print(f"GOT OVERLAP PACKET")
+        elif (cmd == S.CMDS["ATTACK"]):
+            sp = struct.unpack_from('!b', data, 17)
+            if (sp == 1):
+                self.clients[pid]["att"] = True
 
     def on_connect(self, connection_id: int):
         print(f"connected {connection_id}")
@@ -204,7 +210,7 @@ def copy_dic(dic):
 
 def build_state_payload(clients):
     count = len(clients)
-    format = "!bh" + "hhhh" * count
+    format = "!bh" + "hhhh?" * count #the ? is for boolean
     payload = [S.CMDS["RENDER"], count]
 
     for c in clients.values():
@@ -212,6 +218,7 @@ def build_state_payload(clients):
         payload.append(int(c["y"]))
         payload.append(int(c["dir"]))
         payload.append(int(c["hp"]))
+        payload.append(int(c["att"]))
 
     return struct.pack(format, *payload)
 
@@ -236,7 +243,7 @@ def get_dir(dx,dy):
         elif dy < 0:
             dire = 7
         elif dy == 0:
-            dire =0
+            dire = 3
     return dire
 
 if __name__ == "__main__":

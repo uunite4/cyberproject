@@ -39,13 +39,14 @@ class MyClient:
             self.player.y = y
             self.player.dir = 3
             self.player.health = S.PLAYER_HEALTH
+            self.player.att = False
 
         elif (cmd == S.CMDS["MOVE"]):
             moveOffPackt(data, self.player)
 
             if self.iInActive != None:
-                pk = struct.pack("!b16shhhh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x, self.player.y,
-                                 self.player.dir, self.player.health)
+                pk = struct.pack("!b16shhhh?", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x, self.player.y,
+                                 self.player.dir, self.player.health, self.player.att)
                 self.client.send(self.connections[self.iInActive], pk)
 
 
@@ -74,9 +75,9 @@ class MyClient:
                 self.players = []
                 count = struct.unpack_from('!h', data, 1)[0]
                 for i in range(count):
-                    offset = 3+6*i
-                    x, y, dir, health= struct.unpack_from('!hhhh', data, offset)
-                    self.players.append({"x":x,"y": y, "dir": dir, "hp": health})
+                    offset = 3+9*i
+                    x, y, dir, health, att = struct.unpack_from('!hhhh?', data, offset)
+                    self.players.append({"x":x,"y": y, "dir": dir, "hp": health, "att": att})
         elif (cmd == S.CMDS["DAMAGE"]):
             nhp = struct.unpack_from('!h', data, 1)[0]
             self.player.health = nhp
@@ -118,6 +119,8 @@ class MyClient:
         DEFAULT_SPRITE1 = SPRITES1[3]
         SPRITES2 = load_player_sprites(2)
         DEFAULT_SPRITE2 = SPRITES2[3]
+        DAGGERS = load_dagger_sprites()
+        DEFAULT_DAGGER = DAGGERS[3]
 
 
         while self.running:
@@ -127,14 +130,17 @@ class MyClient:
                     self.running = False
 
             # KEYS (GET INPUTS)
-            inputs, pressed = getInputs()
+            inputs, pressedM, pressedA = getInputs()
             # SEND INPUTS
-            if (pressed):
+            if (pressedA): #attack related inputs
+                pk = struct.pack('!b16sb', S.CMDS["ATTACK"], self.pid.encode("utf-8"), inputs["sp"])  # b is signed byte
+                self.client.send(self.connections[self.iControl], pk)
+            if (pressedM): #movement related inputs
                 self.sendInputs(inputs)
 
 
             # DRAW
-            self.draw_frame(self.screen, S.MAP_WIDTH, S.MAP_HEIGHT, DEFAULT_SPRITE1, SPRITES1)
+            self.draw_frame(self.screen, S.MAP_WIDTH, S.MAP_HEIGHT, DEFAULT_SPRITE1, SPRITES1 , DEFAULT_DAGGER, DAGGERS)
             pygame.display.flip()
 
             await asyncio.sleep(1 / 60)
@@ -144,18 +150,18 @@ class MyClient:
     def sendInputs(self, inputs):
         xAxisDirection = inputs['d'] - inputs['a']
         yAxisDirection = inputs['s'] - inputs['w']
-        pk = struct.pack('!b16sbbb', S.CMDS["MOVE"], self.pid.encode("utf-8"), xAxisDirection, yAxisDirection, inputs["sf"])  # b is signed byte
+        pk = struct.pack('!b16sbbbb', S.CMDS["MOVE"], self.pid.encode("utf-8"), xAxisDirection, yAxisDirection, inputs["sf"], inputs["sp"])  # b is signed byte
         self.client.send(self.connections[self.iControl], pk)
 
-    def draw_frame(self, screen, map_w, map_h, DEFAULT_SPRITE1, SPRITES1):
+    def draw_frame(self, screen, map_w, map_h, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS):
         screen.fill((0, 0, 0))
 
         cam_x, cam_y = camera_from_pos(self.player.x, self.player.y, map_w, map_h)
 
         draw_map(screen, MAP, cam_x, cam_y, S.WINDOW_WIDTH, S.WINDOW_HEIGHT)
-        draw_players(screen, self.player, self.players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1)
+        draw_players(screen, self.player, self.players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS)
 
-def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1):
+def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS):
     for p in players:
         px = int(p["x"] - cam_x - S.PLAYER_SIZE // 2)
         py = int(p["y"] - cam_y - S.PLAYER_SIZE // 2)
@@ -163,11 +169,32 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
         sprite = SPRITES1.get(p["dir"], DEFAULT_SPRITE1)
         screen.blit(sprite, (px, py))
         S_health_bar_update(p["hp"], screen, px, py)
+
+        if p["att"]: #daggers
+            d = p.dir
+            vx, vy = dir_to_vec(d)
+            dagger_x = int((p.x + vx * S.TILE_SIZE) - cam_x - S.TILE_SIZE // 2)
+            dagger_y = int((p.y + vy * S.TILE_SIZE) - cam_y - S.TILE_SIZE // 2)
+            screen.blit(DAGGERS.get(d, DEFAULT_DAGGER), (dagger_x, dagger_y))
+
     px = int(player.x - cam_x - S.PLAYER_SIZE // 2)
     py = int(player.y - cam_y - S.PLAYER_SIZE // 2)
     sprite = SPRITES1.get(player.dir, DEFAULT_SPRITE1)
     screen.blit(sprite, (px, py))
     health_bar_update(player.health, screen)
+
+def dir_to_vec(d: int) -> tuple[int, int]:
+    vectors = {
+        1: (1, 0),
+        2: (1, 1),
+        3: (0, 1),
+        4: (-1, 1),
+        5: (-1, 0),
+        6: (-1, -1),
+        7: (0, -1),
+        8: (1, -1)
+    }
+    return vectors.get(d, (0, 0))
 
 def health_bar_update(health,screen):
     green1 =  (S.HEALTH_BAR_SIZE_X /S.PLAYER_HEALTH)*health
@@ -204,6 +231,27 @@ def load_player_sprites(group):
         7: load("north.png", rotations_dir),
         8: load("north-east.png", rotations_dir),
     }
+def load_dagger_sprites() -> dict[int, pygame.Surface]:
+    base_path = os.path.join(os.path.dirname(__file__), "C:\\Users\\raveh\PycharmProjects\cyberprojectActualMerging\sprites\DAGGER-NORTH.png")
+    base = pygame.image.load(base_path).convert_alpha()
+
+    if base.get_width() != S.TILE_SIZE or base.get_height() != S.TILE_SIZE:
+        base = pygame.transform.scale(base, (S.TILE_SIZE, S.TILE_SIZE))
+
+    # base = NORTH (dir 7)
+    return {
+        7: base,
+        8: rot(base, -45),
+        1: rot(base, -90),
+        2: rot(base, -135),
+        3: rot(base, 180),
+        4: rot(base, 135),
+        5: rot(base, 90),
+        6: rot(base, 45),
+    }
+
+def rot(img, deg):
+    return pygame.transform.rotate(img, deg)
 
 def camera_from_pos(x, y, map_w, map_h):
     cam_x = int(x - S.WINDOW_WIDTH // 2)
@@ -224,26 +272,29 @@ def getInputs():
         "s": 0,
         "d": 0,
         "sf": 0,
+        "sp": 0,
     }
-    pressed = False
+    pressedM, pressedA = False, False
     keys = pygame.key.get_pressed()
     if keys[pygame.K_w]:
         inputs["w"] = 1
-        pressed = True
+        pressedM = True
     if keys[pygame.K_s]:
         inputs["s"] = 1
-        pressed = True
+        pressedM = True
     if keys[pygame.K_a]:
         inputs["a"] = 1
-        pressed = True
+        pressedM = True
     if keys[pygame.K_d]:
         inputs["d"] = 1
-        pressed = True
+        pressedM = True
     if keys[pygame.K_LSHIFT]:
         inputs["sf"] = 1
-        pressed = True
+    if keys[pygame.K_SPACE]:
+        inputs["sp"] = 1
+        pressedA = True
 
-    return inputs, pressed
+    return inputs, pressedM, pressedA
 
 
 if __name__ == "__main__":

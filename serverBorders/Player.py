@@ -8,6 +8,7 @@ class Player:
         self.y = y
         self.dir = dir
         self.health = health
+        self.att = False
 
         self.width = 40
         self.height = 40
