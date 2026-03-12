@@ -1,5 +1,7 @@
 import asyncio
+import sys
 import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import struct
 
 import pygame
@@ -39,7 +41,7 @@ class MyClient:
             self.player.y = y
             self.player.dir = 3
             self.player.health = S.PLAYER_HEALTH
-            self.player.att = False
+            self.player.att = 0
 
         elif (cmd == S.CMDS["MOVE"]):
             moveOffPackt(data, self.player)
@@ -55,7 +57,7 @@ class MyClient:
 
             print(self.iInActive)
 
-            pk = struct.pack("!b16shhhh?", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x,
+            pk = struct.pack("!b16shhhhb", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x,
                              self.player.y,
                              self.player.dir, self.player.health, self.player.att)
             self.client.send(self.connections[self.iInActive], pk)
@@ -80,7 +82,7 @@ class MyClient:
                 count = struct.unpack_from('!h', data, 1)[0]
                 for i in range(count):
                     offset = 3+9*i
-                    x, y, dir, health, att = struct.unpack_from('!hhhh?', data, offset)
+                    x, y, dir, health, att = struct.unpack_from('!hhhhb', data, offset)
                     self.players.append({"x":x,"y": y, "dir": dir, "hp": health, "att": att})
         elif (cmd == S.CMDS["DAMAGE"]):
             nhp = struct.unpack_from('!h', data, 1)[0]
@@ -136,9 +138,14 @@ class MyClient:
             # KEYS (GET INPUTS)
             inputs, pressedM, pressedA = getInputs()
             # SEND INPUTS
-            if (pressedA): #attack related inputs
+            if inputs["sp"] == 1:
+                self.player.att = 1
                 pk = struct.pack('!b16sb', S.CMDS["ATTACK"], self.pid.encode("utf-8"), inputs["sp"])  # b is signed byte
                 self.client.send(self.connections[self.iControl], pk)
+            elif self.player.att == 1:
+                pk = struct.pack('!b16sb', S.CMDS["ATTACK"], self.pid.encode("utf-8"), inputs["sp"])  # b is signed byte
+                self.client.send(self.connections[self.iControl], pk)
+                self.player.att = 0
             if (pressedM): #movement related inputs
                 self.sendInputs(inputs)
 
@@ -175,12 +182,12 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
         screen.blit(sprite, (px, py))
         S_health_bar_update(p["hp"], screen, px, py)
 
-        if p["att"]: #daggers
+        if p["att"]==1: #daggers
             print("A PLAYER IS ATTACKING")
             d = p["dir"]
             vx, vy = dir_to_vec(d)
-            dagger_x = int((p.x + vx * S.TILE_SIZE) - cam_x - S.TILE_SIZE // 2)
-            dagger_y = int((p.y + vy * S.TILE_SIZE) - cam_y - S.TILE_SIZE // 2)
+            dagger_x = int((p["x"] + vx * S.TILE_SIZE) - cam_x - S.TILE_SIZE // 2)
+            dagger_y = int((p["y"] + vy * S.TILE_SIZE) - cam_y - S.TILE_SIZE // 2)
             screen.blit(DAGGERS.get(d, DEFAULT_DAGGER), (dagger_x, dagger_y))
 
     # DRAW OWN PLAYER
@@ -188,6 +195,14 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
     py = int(player.y - cam_y - S.PLAYER_SIZE // 2)
     sprite = SPRITES1.get(player.dir, DEFAULT_SPRITE1)
     screen.blit(sprite, (px, py))
+    if player.att == 1:  # daggers
+        print("A PLAYER IS ATTACKING")
+        d = player.dir
+        vx, vy = dir_to_vec(d)
+        dagger_x = int((player.x + vx * S.TILE_SIZE) - cam_x - S.TILE_SIZE // 2)
+        dagger_y = int((player.y + vy * S.TILE_SIZE) - cam_y - S.TILE_SIZE // 2)
+        screen.blit(DAGGERS.get(d, DEFAULT_DAGGER), (dagger_x, dagger_y))
+
     health_bar_update(player.health, screen)
 
 def dir_to_vec(d: int) -> tuple[int, int]:
