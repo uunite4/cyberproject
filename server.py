@@ -5,11 +5,12 @@ import itertools
 import math
 import time
 
-from Player import PlayerData, new_place, check_collision_with_stone, check_collision_with_lava, check_bullet_hit
+from Player import PlayerData, new_place, check_collision_with_stone, check_collision_with_lava, check_bullet_hit,check_fart_hit
 from settings import *
 from map_data import *
 from Bullet import *
 from Dagger import *
+from Fart import *
 from DroppedWeapon import *
 dropped_items = []
 item_id_counter = itertools.count(0)
@@ -81,7 +82,7 @@ def accept_new_client(server_sock, clients, id_gen, now):
 
     clients[conn] = {
         "stream": QC3Stream(),
-        "player": PlayerData(pid, px, py, 3, group, 0),  # start facing south
+        "player": PlayerData(pid, px, py, 3, group, 0,0,0 ),  # start facing south
         "last": now
     }
 
@@ -126,25 +127,52 @@ def timeout_clients(clients, now, timeout_sec=10):
 
 # ----------------- game logic -----------------
 
-def tick_cooldowns(clients):
+def tick_cooldowns(clients,farts):
     for c in clients.values():
         p = c["player"]
         if hasattr(p, "gun_cooldown") and p.gun_cooldown > 0:
             p.gun_cooldown -= 1
 
+        if hasattr(p, "f_cooldown") and p.f_cooldown > 0:
+            p.f_cooldown -= 1
 
-def apply_movement(p, dx, dy, dsprint):
-    speed = SPEED + (SPEED * dsprint*50)
+        if hasattr(p, "t_cooldown") and p.t_cooldown > 0:
+            p.t_cooldown -= 1
 
-    nx = clamp(p.x + dx * speed, 0, MAP_W)
-    ny = clamp(p.y + dy * speed, 0, MAP_H)
+    for f in farts:
+        if hasattr(f, "duration") and f.duration > 0:
+            f.duration -= 1
+
+def dir_to_vec(d: int) -> tuple[int, int]:
+    vectors = {
+        1: (1, 0),
+        2: (1, 1),
+        3: (0, 1),
+        4: (-1, 1),
+        5: (-1, 0),
+        6: (-1, -1),
+        7: (0, -1),
+        8: (1, -1)
+    }
+    return vectors.get(d, (0, 0))
+
+def apply_movement(p, dx, dy, dsprint,teleport):
+    if teleport and p.t_cooldown == 0:
+        p.t_cooldown = TELEPORT_COOLDOWN
+        speed =SPEED*200
+        dx,dy =dir_to_vec(p.dir)
+        nx = clamp(p.x + dx * speed, 0, MAP_W)
+        ny = clamp(p.y + dy * speed, 0, MAP_H)
+    else:
+        speed = SPEED + (SPEED * dsprint*50)
+        nx = clamp(p.x + dx * speed, 0, MAP_W)
+        ny = clamp(p.y + dy * speed, 0, MAP_H)
 
     # axis-separated collision
     if not check_collision_with_stone(p, nx, p.y):
         p.x = nx
     if not check_collision_with_stone(p, p.x, ny):
         p.y = ny
-
 
 def apply_lava_and_respawn(p):
     if check_collision_with_lava(p, p.x, p.y):
@@ -154,23 +182,35 @@ def apply_lava_and_respawn(p):
             p.x, p.y = new_place()
             p.health = 100
 
-
-
-def try_attack(p, attack, bullets, clients, dagger):
+def try_attack(p, attack, bullets,farts, clients, dagger ,fartp):
     p.attack = 0
+    if fartp==1:
+        if p.f_cooldown==0:
+            p.fartp = 1
+            f_id = p.id
+            new_fart = Fart(f_id, p.x, p.y,p.dir,FART_TIME)
+            farts.append(new_fart)
+            p.f_cooldown = FART_COOLDOWN
+
     if attack != 1:
         return
 
     p.attack = 1
-    print (p.current_weapon)
-    if p.weapons[p.current_weapon-1] == 'gu':
+
+
+    if p.weapons[p.current_weapon-1] == 'gu' and attack ==1:
         if p.gun_cooldown == 0:
             b_id = get_next_bullet_id(bullets)
             new_bullet = Bullet(b_id, p.x, p.y, p.dir, BULLET_DISTANS, p.id)
             bullets.append(new_bullet)
             p.gun_cooldown = BULLET_COOLDOWN
 
-    #elif p.weapons[p.current_weapon-1] == 'da':# and dagger.attack(p, clients, new_place):
+    elif p.weapons[p.current_weapon-1] == 'h' and attack ==1:
+        p.weapons[p.current_weapon - 1] = 0
+        p.health = 100
+
+
+        #elif p.weapons[p.current_weapon-1] == 'da':# and dagger.attack(p, clients, new_place):
      #   drop_weapons(p, dropped_items)
       #  dagger.attack(p, clients, new_place)
 
@@ -192,7 +232,7 @@ def drop_weapons(player, dropped_list):
             item = DroppedWeapon(new_id, drop_x,drop_y, w_type)
             dropped_list.append(item)
 
-    player.weapons = [0, 0, 0]
+    player.weapons = INVENTORI
     player.current_weapon = 0
 
 def pickup_weapons(player, dropped_list):
@@ -249,14 +289,37 @@ def update_bullets(bullets):
         if is_dead:
             bullets.remove(b)
 
-#def fart():
+def fart(farts,p,clients):
+    for f in farts[:]:
+        low, high = get_angle_from_dir(f.dir)
+        shooter_group = id_to_group(f.id, clients)
+        # לא פוגע בעצמו
+        if f.id == p.id:
+            continue
+        if shooter_group is None:
+            continue
+        if shooter_group != p.group:
+            if check_fart_hit(p, f,low,high):
+                p.health -= FART_DAMEG
+                if p.health <= 0:
+                    p.x, p.y = new_place()
+                    p.health = 100
 
-def handle_input_message(p, payload, bullets, clients, dagger):
-    if len(payload) != 8:
+def update_fart(farts,c):
+    for f in farts[:]:
+        if f.duration<= 0:
+            for p in c.values():
+                if p["player"].id == f.id:
+                    p["player"].fartp = 0
+            farts.remove(f)
+
+def handle_input_message(p, payload, bullets,farts, clients, dagger):
+    if len(payload) != 9:
         return
 
-    dx, dy, dsprint, dire, attack, current_weapon ,pickup,fart= struct.unpack("!bbbbbbbb", payload)
+    dx, dy, dsprint, dire, attack, current_weapon ,pickup,fartp,teleport= struct.unpack("!bbbbbbbbb", payload)
     # weapon switch
+
     if current_weapon != 0 and p.weapons[current_weapon-1] in p.weapons:
         p.current_weapon = current_weapon
 
@@ -265,16 +328,16 @@ def handle_input_message(p, payload, bullets, clients, dagger):
         p.dir = int(dire)
 
     # attack
-    try_attack(p, attack, bullets, clients, dagger)
+    try_attack(p, attack, bullets,farts, clients, dagger,fartp)
 
-    apply_movement(p, dx, dy, dsprint)
+    apply_movement(p, dx, dy, dsprint,teleport)
     apply_lava_and_respawn(p)
 
 
     if pickup==1:
         pickup_weapons(p,dropped_items)
 
-def handle_client_read(sock, clients, bullets, dagger, now):
+def handle_client_read(sock, clients, bullets,farts, dagger, now):
     try:
         data = sock.recv(4096)
         if not data:
@@ -286,7 +349,7 @@ def handle_client_read(sock, clients, bullets, dagger, now):
         for cmd, payload in clients[sock]["stream"].pop_messages():
             if cmd == CMD_INPUT:
                 p = clients[sock]["player"]
-                handle_input_message(p, payload, bullets, clients, dagger)
+                handle_input_message(p, payload, bullets,farts, clients, dagger)
 
     except Exception:
         disconnect_client(sock, clients)
@@ -319,7 +382,7 @@ def build_state_payload(clients, bullets):
         elif p.weapons[p.current_weapon - 1] == 'gu':
             wepon = 2
         payload += struct.pack(
-            "!IIIHHBBB",
+            "!IIIHHBBBBII",
             int(p.id),
             int(p.x),
             int(p.y),
@@ -327,7 +390,10 @@ def build_state_payload(clients, bullets):
             int(p.dir),
             int(p.attack),
             int(wepon),
-            int(p.group)
+            int(p.group),
+            int(p.fartp),
+            int(p.f_cooldown),
+            int(p.t_cooldown)
         )
 
     # bullets (limit to 255 to keep one byte length safe)
@@ -375,7 +441,7 @@ def main():
 
     dagger = Dagger()
     bullets = []
-
+    farts = []
     last_broadcast = time.time()
     print(f"QC3 Server listening on {HOST}:{PORT}")
 
@@ -387,13 +453,13 @@ def main():
         readable, _, _ = select.select(rlist, [], [], 0.02)
 
         # cooldowns tick each loop
-        tick_cooldowns(clients)
+        tick_cooldowns(clients,farts)
 
         for s in readable:
             if s is server:
                 accept_new_client(server, clients, id_gen, now)
             else:
-                handle_client_read(s, clients, bullets, dagger, now)
+                handle_client_read(s, clients, bullets,farts, dagger, now)
 
         # world updates
         update_bullets(bullets)
@@ -403,6 +469,11 @@ def main():
             for c in clients.values():
                 apply_bullet_hits_for_player(c["player"], bullets, clients)
 
+        update_fart(farts,clients)
+
+        if farts:
+            for c in clients.values():
+                fart( farts, c["player"], clients)
         # timeouts
         timeout_clients(clients, now, timeout_sec=10)
 

@@ -1,4 +1,5 @@
-
+from operator import truediv
+import math
 import pygame
 import struct
 import random
@@ -6,11 +7,9 @@ from settings import *
 from map_data import *
 from Entity import *
 
-# ---------------------------------
-# PlayerData - מחזיק את הנתונים האמיתיים מהשרת
-# ---------------------------------
+
 class PlayerData(Entity):
-    def __init__(self, pid, x, y , dir1,group, gcd):
+    def __init__(self, pid, x, y , dir1,group, gcd,fc,tc):
         super().__init__(x, y, dir1, pid, "player")
         self.health=100
         self.group = group
@@ -18,11 +17,14 @@ class PlayerData(Entity):
         self.healthBarx = 20
         self.healthBary = 20
         self.gun_cooldown = gcd
-        self.weapons=['gu','da',0]
+        self.weapons=['gu','da','h',0]
         self.current_weapon = 0
         self.attack = 0
+        self.fartp=0
+        self.f_cooldown = fc
+        self.t_cooldown = tc
 
-    def update_from_server(self, x, y, health, direction, attack, current_weapon, group):
+    def update_from_server(self, x, y, health, direction, attack, current_weapon, group,fartp,fcool,tcool):
         self.x = x
         self.y = y
         self.health = health
@@ -31,6 +33,9 @@ class PlayerData(Entity):
         self.attack = attack
         self.current_weapon = current_weapon
         self.group = group
+        self.fartp = fartp
+        self.f_cooldown = fcool
+        self.t_cooldown = tcool
 
 def handle_input():
     keys = pygame.key.get_pressed()
@@ -40,11 +45,28 @@ def handle_input():
     dspeed = int(keys[pygame.K_LSHIFT])
     shot = int(keys[pygame.K_SPACE])
     fart = int(keys[pygame.K_f])
+    teleport = int(keys[pygame.K_q])
+    #===
     if int(keys[pygame.K_1]):
         current_weapon=1
     elif int(keys[pygame.K_2]):
         current_weapon=2
+    elif int(keys[pygame.K_2]):
+        current_weapon=2
+    elif int(keys[pygame.K_3]):
+        current_weapon=3
+    elif int(keys[pygame.K_4]):
+        current_weapon=4
+    elif int(keys[pygame.K_5]):
+        current_weapon=5
+    elif int(keys[pygame.K_6]):
+        current_weapon = 6
+    elif int(keys[pygame.K_7]):
+        current_weapon=7
+    elif int(keys[pygame.K_8]):
+        current_weapon=8
     else: current_weapon=0
+    #++++=
     if dx == 1:
         if dy == 1:
             dire = 2
@@ -67,7 +89,7 @@ def handle_input():
         elif dy == 0:
             dire =0
 
-    return dx,dy ,dspeed,dire ,shot ,current_weapon,pickup,fart
+    return dx,dy ,dspeed,dire ,shot ,current_weapon,pickup,fart,teleport
 def get_corners(x,y,size):
     left, right, top, bottom = get_sides(x,y,size)
     corners = [  # 4 corners
@@ -117,6 +139,30 @@ def check_bullet_hit(p,b):
     if left <= b.x <= right and top <= b.y <= bottom:
         return True
     return False
+def check_fart_hit(p,f,low , high):
+    corners = get_corners(p.x, p.y, PLAYER_SIZE)
+
+    for cx, cy in corners:
+
+        dx = cx - f.x
+        dy = cy - f.y
+        dist_sq = dx ** 2 + dy ** 2
+
+        if dist_sq <= f.radius ** 2:
+
+            angle = math.atan2(dy, dx)
+            if angle < 0: angle += 2 * math.pi
+
+            if low > high:
+                if angle >= low or angle <= high: return True
+            else:
+                if low <= angle <= high: return True
+
+    return False
+
+
+
+    return True
 def new_place():
     while True:
         px =random.randint(1,1000)#len(MAP)-1)

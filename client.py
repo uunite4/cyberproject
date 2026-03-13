@@ -2,12 +2,14 @@ import os
 import socket
 import struct
 import sys
-
+import math
 from Player import PlayerData, handle_input, health_bar_update, S_health_bar_update
 from map import draw_map
 from Bullet import *
 from map_data import *
 from DroppedWeapon import *
+
+poopb=pygame.image.load(poop).convert_alpha()
 # ---------- network helpers ----------
 def qc3_pack(cmd: int, payload: bytes = b"") -> bytes:
     body = bytes([cmd]) + payload
@@ -95,6 +97,24 @@ def load_dagger_sprites() -> dict[int, pygame.Surface]:
         6: rot(base, 45),
     }
 
+def load_fart_sprites() -> dict[int, pygame.Surface]:
+    base_path = os.path.join(os.path.dirname(__file__), "FARTS.png")
+    base = pygame.image.load(base_path).convert_alpha()
+
+    if base.get_width() != TILE_SIZE or base.get_height() != TILE_SIZE:
+        base = pygame.transform.scale(base, (TILE_SIZE, TILE_SIZE))
+
+    # base = NORTH (dir 7)
+    return {
+        2: base,
+        3: rot(base, -45),
+        4: rot(base, -90),
+        5: rot(base, -135),
+        6: rot(base, 180),
+        7: rot(base, 135),
+        8: rot(base, 90),
+        1: rot(base, 45),
+    }
 
 def dir_to_vec(d: int) -> tuple[int, int]:
     vectors = {
@@ -113,10 +133,10 @@ def dir_to_vec(d: int) -> tuple[int, int]:
 # ---------- extracted logic (no state dict) ----------
 
 def send_input(sock) -> bool:
-    dx, dy, dspeed, dire, attack, current_weapon ,pickup,fart= handle_input()
+    dx, dy, dspeed, dire, attack, current_weapon ,pickup,fart,teleport= handle_input()
 
     try:
-        sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbbbbbb", dx, dy, dspeed, dire, attack, current_weapon,pickup,fart)))
+        sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbbbbbbb", dx, dy, dspeed, dire, attack, current_weapon,pickup,fart,teleport)))
         return True
     except BlockingIOError:
         return True
@@ -124,12 +144,10 @@ def send_input(sock) -> bool:
         print("Send error:", e)
         return False
 
-
 def welcome(payload):
     if len(payload) != 12:
         return None
     return struct.unpack("!III", payload)  # my_id, map_w, map_h
-
 
 def update_players(payload,off, players):
     if off >= len(payload):
@@ -140,27 +158,23 @@ def update_players(payload,off, players):
     off += 1
 
     for _ in range(count):
-        if off + 19 > len(payload):
+        if off + 28 > len(payload):
             break
 
-        pid, x, y, health, pdire, patt, pweapon, pgroup = struct.unpack(
-            "!IIIHHBBB", payload[off:off + 19]
-        )
-        off += 19
+        pid, x, y, health, pdire, patt, pweapon, pgroup,fartp ,fcool,tcool= struct.unpack("!IIIHHBBBBII", payload[off:off + 28])
+        off += 28
         active_ids.add(pid)
 
         if pid not in players:
-            players[pid] = PlayerData(pid, x, y, pdire, pgroup, 0)
+            players[pid] = PlayerData(pid, x, y, pdire, pgroup, 0,fcool,tcool)
 
-        players[pid].update_from_server(x, y, health, pdire, patt, pweapon, pgroup)
+        players[pid].update_from_server(x, y, health, pdire, patt, pweapon, pgroup,fartp,fcool,tcool)
     return off, active_ids
-
 
 def remove_inactive_players(players, active_ids):
     for pid_to_remove in list(players.keys()):
         if pid_to_remove not in active_ids:
             del players[pid_to_remove]
-
 
 def update_bullets(payload, off, bullets11):
     if off >= len(payload):
@@ -189,6 +203,7 @@ def update_bullets(payload, off, bullets11):
         if bull_to_remove not in active_bull:
             del bullets11[bull_to_remove]
     return off
+
 def update_drop(payload,off, dropped):
     if off >= len(payload):
         return
@@ -219,9 +234,6 @@ def update_drop(payload,off, dropped):
             del dropped[oid]
     return off
 
-
-
-
 def handle_cmd(payload, players, bullets,dropped):
     if not payload:
         return
@@ -230,7 +242,6 @@ def handle_cmd(payload, players, bullets,dropped):
     off, active_ids = update_players(payload,off, players)
     remove_inactive_players(players, active_ids)
     off = update_bullets(payload, off, bullets)
-
 
 def recv_network(sock, stream, players, bullets,dropped, my_id, map_w, map_h):
     try:
@@ -256,7 +267,6 @@ def recv_network(sock, stream, players, bullets,dropped, my_id, map_w, map_h):
         print("Network error:", e)
         return False, my_id, map_w, map_h
 
-
 def draw_bullets(screen, bullets, cam_x, cam_y):
     for _, b in bullets.items():
         bx = b.x - cam_x
@@ -273,7 +283,7 @@ def draw_dropped(screen, dropped, DAGGERS,DEFAULT_DAGGER, cam_x, cam_y):
         elif d.weapon_type == 2:
             pygame.draw.circle(screen, "yellow", (dx, dy), BULLET_SIZE)
 
-def draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER):
+def draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER,FARTS,DEFAULT_FARTS):
     for pid, p in players.items():
         px = int(p.x - cam_x - PLAYER_SIZE // 2)
         py = int(p.y - cam_y - PLAYER_SIZE // 2)
@@ -292,14 +302,30 @@ def draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1
             dagger_y = int((p.y + vy * TILE_SIZE) - cam_y - TILE_SIZE // 2)
             screen.blit(DAGGERS.get(d, DEFAULT_DAGGER), (dagger_x, dagger_y))
 
+        if p.fartp ==1:
+            d = p.dir if p.dir != 0 else 3
+            vx, vy = dir_to_vec(d)
+            vx,vy=vx*(-1),vy*(-1)
+            fart_x = int((p.x + vx * TILE_SIZE) - cam_x - TILE_SIZE // 2)
+            fart_y = int((p.y + vy * TILE_SIZE) - cam_y - TILE_SIZE // 2)
+            screen.blit(FARTS.get(d, DEFAULT_FARTS), (fart_x, fart_y))
+
         if pid == my_id:
             health_bar_update(p.health, screen)
+            if p.f_cooldown == 0:
+                x = WINDOW_W - 50
+                y = WINDOW_H - 50
+                screen.blit(poopb, (x, y))
+
+            if p.t_cooldown == 0:
+                x = WINDOW_W - 80
+                y = WINDOW_H - 50
+                screen.blit(poopb, (x, y))
+
         else:
             S_health_bar_update(p.health, screen, px, py)
 
-
-
-def draw_frame(screen, players, bullets,dropped, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER):
+def draw_frame(screen, players, bullets,dropped, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER,FARTS,DEFAULT_FARTS):
     screen.fill((0, 0, 0))
 
     if my_id is None or my_id not in players:
@@ -311,7 +337,7 @@ def draw_frame(screen, players, bullets,dropped, my_id, map_w, map_h, SPRITES1, 
     draw_map(screen, MAP, cam_x, cam_y, WINDOW_W, WINDOW_H)
     draw_dropped(screen, dropped, DAGGERS, DEFAULT_DAGGER, cam_x, cam_y)
     draw_bullets(screen, bullets, cam_x, cam_y)
-    draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER)
+    draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER,FARTS,DEFAULT_FARTS)
 
 
 # ---------- main ----------
@@ -329,7 +355,8 @@ def run():
     DEFAULT_SPRITE2 = SPRITES2[3]
     DAGGERS = load_dagger_sprites()
     DEFAULT_DAGGER = DAGGERS[3]
-
+    FARTS = load_fart_sprites()
+    DEFAULT_FARTS = FARTS[3]
     # connect
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((SERVER_IP, PORT))
@@ -365,7 +392,7 @@ def run():
             running = False
 
         # draw
-        draw_frame(screen, players, bullets,dropped, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER)
+        draw_frame(screen, players, bullets,dropped, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER,FARTS,DEFAULT_FARTS)
 
         pygame.display.flip()
         clock.tick(60)

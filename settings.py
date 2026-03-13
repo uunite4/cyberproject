@@ -37,6 +37,8 @@ pesel= 'imges\statue.png'
 marble = 'imges\marble.png'
 bitmikdash = 'imges\statue.png'
 ostone='imges\\blackstone.png'
+poop = 'poop.png'
+
 #===========
 HEALTH_BAR_SIZE_X = 120
 HEALTH_BAR_SIZE_Y = 30
@@ -49,3 +51,12 @@ BULLET_COOLDOWN = 10
 BULLET_DAMEG = 10
 BULLET_SIZE = 5
 #+=====
+FART_RUADIOS=100
+FART_TIME=200
+FART_COOLDOWN = 2000
+FART_DAMEG = 0.3
+#-------
+TELEPORT_RANGE = 200
+TELEPORT_COOLDOWN = 1000
+#=====-=-=-=
+INVENTORI = [0,0,0,0,0,0,0,0,0,0]
