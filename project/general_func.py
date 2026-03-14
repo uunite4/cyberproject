@@ -49,11 +49,21 @@ def jumps(size,slope):
 
 def rand_pos(radius,enemy):
     r = radius
-    ex = enemy.entity.x
-    ey = enemy.entity.y
+    ex = int(enemy.entity.x)
+    ey = int(enemy.entity.y)
     rand_x = random.randint(ex - r, ex + r)
     rand_y = random.randint(ey - r, ey + r)
     return rand_x,rand_y
+
+def rand_pos2(radius,enemy):
+    while True:
+        r = radius
+        ex = int(enemy.entity.x+200)
+        ey = int(enemy.entity.y+200)
+        rand_x = random.randint(ex - r, ex + r)
+        rand_y = random.randint(ey - r, ey + r)
+        if rand_y>0 and rand_y<108*40 and rand_x>0 and rand_x<192*40:
+            return rand_x,rand_y
 
 def next_pos(sx,sy,tx,ty,speed): #start x,y ; target x,y ; speed
     dir,slope = vector(sx,sy,tx,ty)

@@ -70,21 +70,30 @@ class Enemy:
                 min_p = arr_id[i]
         return min_p
 
-    def get_target(self, arr_id, arr_pos):
-        for i in arr_pos:
-            dis = distance(arr_pos[i][0], arr_pos[i][1], self.entity.x, self.entity.y)
-            if dis <= s.MONSTERS[self.type]["att_radius"] and in_view(self.entity.x, self.entity.y, arr_pos[i][0],arr_pos[i][1]):
-                return arr_pos[i][0], arr_pos[i][1], arr_id[i]
-            elif dis > s.MONSTERS[self.type]["att_radius"] and in_view(self.entity.x, self.entity.y, arr_pos[i][0],arr_pos[i][1]):
-                return arr_pos[i][0], arr_pos[i][1], None
+    def get_target(self, arr_id, arr_pos, memory):
+        for i, pos in enumerate(arr_pos):
+            dis = distance(pos[0], pos[1], self.entity.x, self.entity.y)
+
+            # Check if this player is within attack radius and in view
+            if in_view(self.entity.x, self.entity.y, pos[0], pos[1]):
+                if dis <= s.MONSTERS[self.type]["att_radius"]:
+                    return pos[0], pos[1], arr_id[i]
+                else:
+                    # In view but too far? Return the pos but no ID (target to walk towards)
+                    return pos[0], pos[1], None
+
+        if memory:
+            tx, ty = memory
+            dis = distance(self.entity.x, self.entity.y, tx, ty)
+
+            # If we are more than 10 pixels away, keep this target
+            if dis > 10:
+                return tx, ty, None
+        # If no players are found/visible, pick a random spot to wander
         while True:
             target = rand_pos(s.MONSTERS[self.type]["att_radius"], self)
             if in_view(self.entity.x, self.entity.y, target[0], target[1]):
                 return target[0], target[1], None
-        # calculate the square of the attack radius
-        # find a random spot in it
-        # check if the enemy see it
-
 
     def update_from_server_enemy(self,entity, id, type):
         # entity

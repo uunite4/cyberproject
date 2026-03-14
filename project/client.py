@@ -134,16 +134,6 @@ def send_input(sock) -> bool:
     except Exception as e:
         print("Send error:", e)
         return False
-def send_newenemy_input(sock,x ,y, health, speed, eid,type) -> bool:
-    dir = 1
-    try:
-        packed_data = struct.pack("!hhb5sbb", x, y, health, eid.encode('ascii'), speed, dir, type)
-        sock.sendall(qc3_pack(CMD_CREATE, packed_data))
-    except BlockingIOError:
-        return True
-    except Exception as e:
-        print("Send error:", e)
-        return False
 
 
 def welcome(payload):
@@ -162,7 +152,7 @@ def update_players(payload, players):
             break
 
         pid, x, y, health, pdire, patt, pweapon, pgroup = struct.unpack(
-            "!IHHHHBBB", payload[off:off + 15]
+            "!IhhhhBBB", payload[off:off + 15]
         )
         off += 15
         active_ids.add(pid)
@@ -179,39 +169,36 @@ def remove_inactive_players(players, active_ids):
         if pid_to_remove not in active_ids:
             del players[pid_to_remove]
 
+
 def update_enemys(payload, off, enemies):
+    enemies.clear()
     if off >= len(payload):
         return off
-
+    print("update")
     count1 = payload[off]
     off += 1
 
-    active_enemy_ids = set()
-
     for _ in range(count1):
-        if off + 11 > len(payload):
+        if off + 15 > len(payload):
             break
 
-        eid, x, y, health, edire, etype = struct.unpack(
-            "!IHHBBB", payload[off:off + 11]
+        eid, x, y, health, edire ,elast_att, etype = struct.unpack(
+            "!5shhhhBB", payload[off:off + 15]
         )
-        off += 11
-        active_enemy_ids.add(eid)
+        off += 15
 
-        if eid not in enemies:
-            obj = Entity(x ,y, edire,health,eid, "enemy")
-            enemies[eid] = Enemy(obj, eid, etype)
-        enemies[eid].update_from_server_enemy(x,y, eid, etype)
+        if etype == 1:
+            etype = "GOBLIN"
 
-    for eid_to_remove in list(enemies.keys()):
-        if eid_to_remove not in active_enemy_ids:
-            del enemies[eid_to_remove]
-    return off, active_enemy_ids
-
+        eid = eid.decode('ascii').strip('\x00')
+        obj = Entity(x, y, edire, health, eid, etype)
+        enemies[eid] = Enemy(obj, eid, etype)
+        enemies[eid].last_att = elast_att
+    return off
 
 def update_bullets(payload, off, bullets11):
     if off >= len(payload):
-        return
+        return off
 
     count1 = payload[off]
     off += 1
@@ -235,17 +222,21 @@ def update_bullets(payload, off, bullets11):
     for bull_to_remove in list(bullets11.keys()):
         if bull_to_remove not in active_bull:
             del bullets11[bull_to_remove]
-
+    return off
 
 def handle_cmd(payload, players, enemies, bullets):
     if not payload:
+        print("no payload")
         return
-
-    off, active_ids = update_players(payload, players)
-    remove_inactive_players(players, active_ids)
-    update_bullets(payload, off, bullets)
-    update_enemys(payload,off, enemies)
-
+    try:
+        off, active_ids = update_players(payload, players)
+        print("player")
+        remove_inactive_players(players, active_ids)
+        off = update_enemys(payload, off, enemies)
+        update_bullets(payload, off, bullets)
+    except Exception as e:
+        print(f"Unpack Error Details: {e}")  # This will tell us if it's a 'struct' error or 'index' error
+        print(f"Payload length received: {len(payload)}")
 
 def recv_network(sock, stream, players, enemies, bullets, my_id, map_w, map_h):
     try:
@@ -254,6 +245,7 @@ def recv_network(sock, stream, players, enemies, bullets, my_id, map_w, map_h):
             return True, my_id, map_w, map_h
 
         stream.feed(data)
+
         for cmd, payload in stream.pop_messages():
             if cmd == CMD_WELCOME:
                 welcomed = welcome(payload)
@@ -293,6 +285,7 @@ def draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1
             sprite = SPRITES2.get(p.dir, DEFAULT_SPRITE2)
 
         screen.blit(sprite, (px, py))
+        print("player", p.x, p.y)
 
         if p.attack == 1 and p.current_weapon == 1:
             d = p.dir if p.dir != 0 else 3
@@ -307,13 +300,14 @@ def draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1
             S_health_bar_update(p.health, screen, px, py)
 
 def draw_enemy(screen, enemys, cam_x, cam_y, ENEMY_SPRITES, DEFAULT_SPRITE):
-    print(enemys)
+    #print(enemys)
     for eid, e in enemys.items():
-        ex = int(e.x - cam_x - s.ENEMY_SIZE // 2)
-        ey = int(e.y - cam_y - s.ENEMY_SIZE // 2)
-        sprite = ENEMY_SPRITES.get(e.dir, DEFAULT_SPRITE)
+        ex = int(e.entity.x - cam_x - s.ENEMY_SIZE // 2)
+        ey = int(e.entity.y - cam_y - s.ENEMY_SIZE // 2)
+        sprite = ENEMY_SPRITES.get(e.entity.dir, DEFAULT_SPRITE)
 
         screen.blit(sprite, (ex, ey))
+        print(e.entity.x,e.entity.y)
         #need to add the attack for monster
 
 def draw_frame(screen, players,enemies, bullets, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER, ENEMY_SPRITES, DEFAULT_SPRITE_ENEMY):
@@ -324,31 +318,11 @@ def draw_frame(screen, players,enemies, bullets, my_id, map_w, map_h, SPRITES1, 
 
     me = players[my_id]
     cam_x, cam_y = camera_from_pos(me.x, me.y, map_w, map_h)
-
     draw_map(screen, MAP, cam_x, cam_y, WINDOW_W, WINDOW_H)
     draw_bullets(screen, bullets, cam_x, cam_y)
     draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER)
     draw_enemy(screen, enemies, cam_x, cam_y, ENEMY_SPRITES, DEFAULT_SPRITE_ENEMY)
 
-
-def generate_id(length=5) -> str:
-    # We manually define the "pool" of characters
-    # This is exactly what string.ascii_letters + string.digits does
-    chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-    # Pick 5 random characters and join them
-    new_id = "".join(random.choice(chars) for _ in range(length))
-    return new_id
-
-def keep_ai_count(sock, type, list):
-    while len(list) < 100:
-        while True:
-            x = random.randint(0, MAP_W)
-            y = random.randint(0, MAP_H)
-            if not check_collision_with_stone(x, y, 40):
-                break
-        send_newenemy_input(sock,x,y, type.health, type.speed, generate_id(), type)
-    return list
 
 # ---------- main ----------
 def run():
@@ -402,9 +376,6 @@ def run():
         ok, my_id, map_w, map_h = recv_network(sock, stream, players, enemies, bullets, my_id, map_w, map_h)
         if not ok:
             running = False
-
-        #is there enough enemies?
-        enemies = keep_ai_count(sock, "GOBLIN", enemies)
 
         # draw
         draw_frame(screen, players, enemies, bullets, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER,SPRITES1ENEMY,DEFAULT_SPRITES1ENEMY)

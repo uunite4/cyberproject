@@ -128,30 +128,33 @@ def player_pos(player_list):
     ids = []
     positions = []
 
-    for player in player_list:
+    for player_data in player_list.values():
+        # Access the 'player' object stored inside the dictionary
+        player = player_data["player"]
         # 1. Add the ID to the id list
-        ids.append(player.pid)
+        ids.append(player.id)
 
         # 2. Add the (x, y) coordinates as a tuple to the positions list
         positions.append((player.x, player.y))
 
     return ids, positions
 
-def enemy_treatment(enemies, players, ticks):
-    if ticks >=5:
-        list_id, list_pos = player_pos(players)  # lists of all the players in the server
-        for enemy in enemies:
-            see_id_list, see_pos_list = enemy.Big_check(list_id, list_pos) #return ordred 2 lists of see radius
-        ticks = 0
-    return ticks, see_id_list, see_pos_list
+def enemy_treatment(enemies, players, memory_list):
+    final_list_pos = []
+    list_id, list_pos = player_pos(players)  # lists of all the players in the server
+    # RIGHT: e is the actual Enemy object
+    for eid, e in enemies.items():
+        see_id_list, see_pos_list = e.Big_check(list_id, list_pos) #return ordred 2 lists of see radius
 
+        last_target = memory_list.get(eid)
+        target_x, target_y, id = e.get_target(see_id_list, see_pos_list, last_target)
+        memory_list[eid] = (target_x, target_y)
 
-def apply_movement_enemy(see_id_list, see_pos_list):
-    target_x, target_y, id = enemy.get_target(see_id_list, see_pos_list)
-    if id is None:
-        return target_x, target_y, None
-    else:
-        return target_x, target_y, id,
+        final_x, final_y = next_pos(e.entity.x, e.entity.y, target_x, target_y, S.MONSTERS[e.type]["speed"])
+        if final_y<0: final_y = 0
+        e.entity.x, e.entity.y = final_x, final_y
+        #final_list_pos.append((final_x, final_y))
+    return memory_list
 
 
 def tick_cooldowns(clients):
@@ -226,23 +229,23 @@ def update_bullets(bullets):
         is_dead = b.update_bullet()  # שם הפונקציה שלך
         if is_dead:
             bullets.remove(b)
-
-def create_new_ai(payload, enemies):
-    count = payload[0]
-    off = 1
-
-    for _ in range(count):
-        if off + 15 > len(payload):
-            break
-
-        x, y, health, id, speed, dir, type = struct.unpack(
-            "!IHHHHBBB", payload[off:off + 15]
-        )
-        off += 15
-    if type == "GOBLIN":
-        obj = Entity(x, y, dir, health, id, type)
-        newenemy = Enemy(obj,id, type)
-        enemies.append(newenemy)
+#
+# def create_new_ai(payload, enemies):
+#     count = payload[0]
+#     off = 1
+#
+#     for _ in range(count):
+#         if off + 15 > len(payload):
+#             break
+#
+#         x, y, health, id, speed, dir, type = struct.unpack(
+#             "!IHHHHBBB", payload[off:off + 15]
+#         )
+#         off += 15
+#     if type == "GOBLIN":
+#         obj = Entity(x, y, dir, health, id, type)
+#         newenemy = Enemy(obj,id, type)
+#         enemies.append(newenemy)
 
 def handle_input_message(p, payload, bullets, clients, dagger):
     if len(payload) != 6:
@@ -279,27 +282,51 @@ def handle_client_read(sock, clients,enemies, bullets, dagger, now):
             if cmd == CMD_INPUT:
                 p = clients[sock]["player"]
                 handle_input_message(p, payload, bullets, clients, dagger)
-            if cmd == CMD_CREATE:
-                create_new_ai(payload, enemies)
 
     except Exception:
         disconnect_client(sock, clients)
 
+def generate_id(length=5) -> str:
+    # We manually define the "pool" of characters
+    # This is exactly what string.ascii_letters + string.digits does
+    chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+    # Pick 5 random characters and join them
+    new_id = "".join(random.choice(chars) for _ in range(length))
+    return new_id
+
+
+def keep_ai_count(type, list):
+    i=0
+    while len(list) < 1:
+        i+=1
+        while True:
+            x = random.randint(0, MAP_W)
+            y = random.randint(0, MAP_H)
+            if not check_collision_with_stone(x, y, 40):
+                dir = 1
+                id = generate_id()
+                obj = Entity(x, y, dir, S.MONSTERS[type]["health"], id, type)
+                list[i] = Enemy(obj, id, type)
+            if len(list) == 1:
+                return list
+    return list
 
 # ----------------- state broadcast -----------------
 
-def build_state_payload(clients, bullets):
-    count = min(255, len(clients))
+def build_state_payload(clients, enemies, bullets):
+    p_count = min(255, len(clients))
     payload = bytearray()
-    payload.append(count)
+    payload.append(p_count)
+
 
     for i, c in enumerate(clients.values()):
-        if i >= count:
+        if i >= p_count:
             break
         p = c["player"]
 
         payload += struct.pack(
-            "!IHHHHBBB",
+            "!IhhhhBBB",
             int(p.id),
             int(p.x),
             int(p.y),
@@ -308,6 +335,28 @@ def build_state_payload(clients, bullets):
             int(p.attack),
             int(p.current_weapon),
             int(p.group)
+        )
+
+    # 2. Pack Enemies
+    e_count = min(255, len(enemies))
+    payload.append(e_count)
+    for i, e in enumerate(enemies.values()):
+        if i >= e_count:
+            break
+        e.last_att=0
+        if e.type == "GOBLIN":
+            etype = 1
+        else:
+            etype = 0
+        payload += struct.pack(
+            "!5shhhhBB",
+            e.id.encode('ascii'),  # Convert string 'irgnx' to bytes,
+            int(e.entity.x),
+            int(e.entity.y),
+            max(0, int(e.health)),
+            int(e.entity.dir),
+            int(e.last_att),
+            etype,
         )
 
     # bullets (limit to 255 to keep one byte length safe)
@@ -321,8 +370,8 @@ def build_state_payload(clients, bullets):
     return bytes(payload)
 
 
-def broadcast_state(server_cmd, clients, bullets):
-    payload = build_state_payload(clients, bullets)
+def broadcast_state(server_cmd, clients,enemies, bullets):
+    payload = build_state_payload(clients, enemies, bullets)
     packet = qc3_pack(server_cmd, payload)
 
     dead = []
@@ -355,6 +404,7 @@ def main():
     bullets = []
 
     enemies = {}
+    memory_list ={}#list of the last targets the enemy got - prevent ADHD
 
     last_broadcast = time.time()
     print(f"QC3 Server listening on {HOST}:{PORT}")
@@ -362,6 +412,9 @@ def main():
     count_ticks = 0
     while True:
         now = time.time()
+
+        #is there enough enemies?
+        enemies = keep_ai_count( "GOBLIN", enemies)
 
         # read sockets
         rlist = [server] + list(clients.keys())
@@ -380,11 +433,7 @@ def main():
         update_bullets(bullets)
 
         #enemy
-        count_ticks += 1
-        count_ticks, see_id_list, see_pos_list = enemy_treatment(enemies, clients, count_ticks)
-        x , y, id =apply_movement_enemy(see_id_list, see_pos_list)
-        if id is not None:
-            enemy_attack()
+        memory_list = enemy_treatment(enemies, clients, memory_list)
 
         # apply bullet hits for every player
         if bullets:
@@ -396,7 +445,7 @@ def main():
 
         # broadcast at 20Hz
         if now - last_broadcast >= 0.05:
-            broadcast_state(CMD_STATE, clients, bullets)
+            broadcast_state(CMD_STATE, clients,enemies, bullets)
             last_broadcast = now
 
 
