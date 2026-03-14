@@ -139,12 +139,17 @@ class MyClient:
             inputs, pressedM, pressedA = getInputs()
             # SEND INPUTS
             if inputs["sp"] == 1:
-                self.player.att = 1
-                pk = struct.pack('!b16sb', S.CMDS["ATTACK"], self.pid.encode("utf-8"), inputs["sp"])  # b is signed byte
-                self.client.send(self.connections[self.iControl], pk)
+                if self.player.att == 0:
+                    pk = struct.pack('!b16sb', S.CMDS["ATTACK"], self.pid.encode("utf-8"), inputs["sp"])  # b is signed byte
+                    self.client.send(self.connections[self.iControl], pk)
+                    if self.iInActive != None:
+                        self.client.send(self.connections[self.iInActive], pk)
+                    self.player.att = 1
             elif self.player.att == 1:
                 pk = struct.pack('!b16sb', S.CMDS["ATTACK"], self.pid.encode("utf-8"), inputs["sp"])  # b is signed byte
                 self.client.send(self.connections[self.iControl], pk)
+                if self.iInActive != None:
+                    self.client.send(self.connections[self.iInActive], pk)
                 self.player.att = 0
             if (pressedM): #movement related inputs
                 self.sendInputs(inputs)
@@ -196,7 +201,6 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
     sprite = SPRITES1.get(player.dir, DEFAULT_SPRITE1)
     screen.blit(sprite, (px, py))
     if player.att == 1:  # daggers
-        print("A PLAYER IS ATTACKING")
         d = player.dir
         vx, vy = dir_to_vec(d)
         dagger_x = int((player.x + vx * S.TILE_SIZE) - cam_x - S.TILE_SIZE // 2)

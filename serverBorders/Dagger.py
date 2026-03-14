@@ -2,7 +2,7 @@
 
 # Dagger.py
 import time
-from settings import PLAYER_SIZE
+from SETTINGS import PLAYER_SIZE
 
 
 class Dagger:
@@ -43,15 +43,15 @@ class Dagger:
     # Hitbox
     # --------------------
     def build_hitbox(self, attacker):
-        dx, dy = self.dir_vector(attacker.dir)
+        dx, dy = self.dir_vector(attacker["dir"])
 
         # normalize diagonal
         if dx != 0 and dy != 0:
             dx *= 0.7071
             dy *= 0.7071
 
-        fx = attacker.x + dx * self.reach
-        fy = attacker.y + dy * self.reach
+        fx = attacker["x"] + dx * self.reach
+        fy = attacker["y"] + dy * self.reach
 
         half = self.width // 2
 
@@ -80,30 +80,30 @@ class Dagger:
     # --------------------
     # MAIN ATTACK FUNCTION
     # --------------------
-    def attack(self, attacker, clients, new_place):
+    def attack(self, attacker, clients):
 
-        if not self.ready(attacker.id):
-            return
+        if not self.ready(attacker["cid"]):
+            return [False] * len(clients)
 
-        self.trigger_cooldown(attacker.id)
+        self.trigger_cooldown(attacker["cid"])
 
         hitbox = self.build_hitbox(attacker)
 
-        for data in clients.values():
-            target = data["player"]
+        arr = []
 
-            if target.id == attacker.id:
-                continue
-            if target.group == attacker.group:
-                continue
-            if target.health <= 0:
+        for target in clients.values():
+
+            if target["cid"] == attacker["cid"]:
+                arr.append(False)
                 continue
 
             target_box = player_rect(target)
-
             if rects_overlap(hitbox, target_box):
-                self.damage_player(target)
-                self.respawn_if_dead(target, new_place)
+                arr.append(True)
+                target["hp"] -= self.damage
+            else:
+                arr.append(False)
+        return arr
 
 
 
@@ -114,4 +114,4 @@ def rects_overlap(a, b):
 def player_rect(p):
     half = PLAYER_SIZE // 2
     # player is centered at (p.x, p.y)
-    return (p.x - half, p.y - half, p.x + half - 1, p.y + half - 1)
+    return (p["x"] - half, p["y"] - half, p["x"] + half - 1, p["y"] + half - 1)

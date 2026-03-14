@@ -3,7 +3,7 @@ import struct
 import time
 import random
 from xmlrpc.client import boolean
-
+import Dagger
 from Player import *
 import SETTINGS as S
 from networking.wrappers.server_wrapper import QuicServer
@@ -124,12 +124,13 @@ class MyServer:
 
     async def broadcast_loop(self):
         lastBroadcast = time.time()
+        dagger = Dagger.Dagger()
 
         while True:
             now = time.time()
 
             if now - lastBroadcast >= S.BROADCAST_INTERVAL:
-                broadcast(self)
+                broadcast(self, dagger)
                 lastBroadcast = now
 
             await asyncio.sleep(0.001)
@@ -178,15 +179,30 @@ def getNearOverlaps(serverIndex):
     return nearOverlaps
 
 
-def broadcast(self):
+def broadcast(self, dagger):
+    hp_change = [False] * len(self.clients)
+    i = 0
     for pid,client in self.clients.items():
         temp = copy_dic(self.clients)
         del temp[pid]
         pk = build_state_payload(temp)
         self.server.send(client["cid"],pk)
+        #health related changes
+        if client["att"] == 1:
+            print("player attacking", i)
+            arr = dagger.attack(client, self.clients)
+            j=0
+            for boo in arr:
+                if boo:
+                    hp_change[j] = True
+                j += 1
         if check_collision_with_lava(client["x"], client["y"], S.PLAYER_SIZE):
             client["hp"] -= 1
-            print(client["hp"])
+            hp_change[i] = True
+        i += 1
+    i = 0
+    for client in self.clients.values():
+        if hp_change[i]:
             if client["hp"] > 0:
                 pk = struct.pack('!bh', S.CMDS["DAMAGE"], client["hp"])
             elif client["hp"] <= 0:
@@ -196,6 +212,7 @@ def broadcast(self):
                 # send information to client
                 pk = struct.pack("!bhh", S.CMDS["RESPAWN"], x, y)
             self.server.send(client["cid"], pk)
+        i += 1
 
 def respawn(server_number):
 
