@@ -70,6 +70,7 @@ CMDS = {
     "ATTACK": 0x0B,
     "OUT_OF_OVERLAP": 0x0C,
     "REMOVE_ME": 0x0D,
+    "HP_DONT_RESPOND": 0x0E,
 }
 
 LOAD_BALANCER = {

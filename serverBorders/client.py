@@ -71,6 +71,8 @@ class MyClient:
         elif (cmd == S.CMDS["SWITCH_SERVER"]):
             # SWITCH BETWEEN CONTROL AND INACTIVE
             if self.iInActive != None:
+                pk = struct.pack("!b16s", S.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
+                self.client.send(self.connections[self.iControl], pk)
                 self.iControl = self.iInActive
                 self.iInActive = None
             else:
@@ -87,10 +89,17 @@ class MyClient:
         elif (cmd == S.CMDS["DAMAGE"]):
             nhp = struct.unpack_from('!h', data, 1)[0]
             self.player.health = nhp
+            if self.iInActive != None:
+                pk = struct.pack("!b16shhhhb", S.CMDS["HP_DONT_RESPOND"], self.pid.encode("utf-8"), nhp)
+                self.client.send(self.connections[self.iInActive], pk)
         elif (cmd == S.CMDS["RESPAWN"]):
             x,y = struct.unpack_from('!hh', data, 1)
             self.player.tp(x,y,3)
             self.player.health = S.PLAYER_HEALTH
+            if self.iInActive != None:
+                pk = struct.pack("!b16s", S.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
+                self.client.send(self.connections[self.iInActive], pk)
+
 
 
     # ----------

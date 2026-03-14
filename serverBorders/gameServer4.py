@@ -43,13 +43,14 @@ class MyServer:
                 "dir": 3,
                 "hp": S.PLAYER_HEALTH,
                 "cid":connection_id,
+                "imOverlap": False,
                 "att": 0,
             }
             print("PLAYERS INITIAL POS: ", self.clients[pid]["x"], self.clients[pid]["y"], "PLAYERS ID: ", pid)
 
         elif (cmd == S.CMDS["MOVE"]):
             currentClient = self.clients[pid]
-
+            currentClient["imOverlap"] = False
             # CLIENT GAVE US DIRECTION, WE RETURN POS
             print(f"GOT MOVE PACKET")
             xDir, yDir, sprint = struct.unpack_from('!bbb', data, 17)
@@ -102,13 +103,16 @@ class MyServer:
                 "x": x,
                 "y": y,
                 "inOverlap": True,
+                "imOverlap": True,
                 "dir":dir,
                 "hp":health,
                 "att": att,
                 "cid":connection_id,
             }
             print(f"GOT OVERLAP PACKET")
-
+        elif (cmd == S.CMDS["HP_DONT_RESPOND"]):
+            nhp = struct.unpack_from('!h', data, 17)[0]
+            self.clients[pid]["hp"] = nhp
         elif (cmd == S.CMDS["REMOVE_ME"]):
             del self.clients[pid]
 
@@ -202,7 +206,7 @@ def broadcast(self, dagger):
         i += 1
     i = 0
     for client in self.clients.values():
-        if hp_change[i]:
+        if hp_change[i] and not client["imOverlap"]:
             if client["hp"] > 0:
                 pk = struct.pack('!bh', S.CMDS["DAMAGE"], client["hp"])
             elif client["hp"] <= 0:
