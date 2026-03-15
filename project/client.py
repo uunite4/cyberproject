@@ -174,7 +174,6 @@ def update_enemys(payload, off, enemies):
     enemies.clear()
     if off >= len(payload):
         return off
-    print("update")
     count1 = payload[off]
     off += 1
 
@@ -182,7 +181,7 @@ def update_enemys(payload, off, enemies):
         if off + 15 > len(payload):
             break
 
-        eid, x, y, health, edire ,elast_att, etype = struct.unpack(
+        eid, x, y, health, edire ,isenemy_att, etype = struct.unpack(
             "!5shhhhBB", payload[off:off + 15]
         )
         off += 15
@@ -193,8 +192,7 @@ def update_enemys(payload, off, enemies):
         eid = eid.decode('ascii').strip('\x00')
         obj = Entity(x, y, edire, health, eid, etype)
         enemies[eid] = Enemy(obj, eid, etype)
-        enemies[eid].last_att = elast_att
-    return off
+    return off, isenemy_att
 
 def update_bullets(payload, off, bullets11):
     if off >= len(payload):
@@ -230,9 +228,8 @@ def handle_cmd(payload, players, enemies, bullets):
         return
     try:
         off, active_ids = update_players(payload, players)
-        print("player")
         remove_inactive_players(players, active_ids)
-        off = update_enemys(payload, off, enemies)
+        off,isenemy_att = update_enemys(payload, off, enemies)
         update_bullets(payload, off, bullets)
     except Exception as e:
         print(f"Unpack Error Details: {e}")  # This will tell us if it's a 'struct' error or 'index' error

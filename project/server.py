@@ -14,10 +14,13 @@ from enemy import *
 
 # ----------------- helpers -----------------
 
-def id_to_group(player_id, clients):
+def id_to_group(player_id, clients, enemies):
     for data in clients.values():
         if data["player"].id == player_id:
             return data["player"].group
+    for e in enemies.values():
+        if e.id == player_id:
+            return "enemy"
     return None
 
 
@@ -139,10 +142,8 @@ def player_pos(player_list):
 
     return ids, positions
 
-def enemy_treatment(enemies, players, memory_list):
-    final_list_pos = []
+def enemy_treatment(enemies, players, memory_list, bullets,id_gen):
     list_id, list_pos = player_pos(players)  # lists of all the players in the server
-    # RIGHT: e is the actual Enemy object
     for eid, e in enemies.items():
         see_id_list, see_pos_list = e.Big_check(list_id, list_pos) #return ordred 2 lists of see radius
 
@@ -150,14 +151,29 @@ def enemy_treatment(enemies, players, memory_list):
         target_x, target_y, id = e.get_target(see_id_list, see_pos_list, last_target)
         memory_list[eid] = (target_x, target_y)
 
+
         final_x, final_y = next_pos2(e.entity.x, e.entity.y, target_x, target_y, S.MONSTERS[e.type]["speed"])
         if final_y<0: final_y = 0
         if not check_collision_with_stone(final_x, e.entity.y, S.ENEMY_SIZE):
             e.entity.x = final_x
         if not check_collision_with_stone(e.entity.x, final_y, S.ENEMY_SIZE):
-            e.entity.y = final_y        #final_list_pos.append((final_x, final_y))
-    return memory_list
+            e.entity.y = final_y
+        isenemy_att = attack_bullet(id, e, target_x, target_y,bullets ,id_gen)
+    return isenemy_att ,memory_list
 
+def attack_bullet(target_id, e, target_x, target_y,bullets ,id_gen):
+    now = time.time()
+    isenemy_att=0
+    if target_id is not None:
+        isenemy_att =1
+        # Check if 1.5 seconds have passed since the last attack
+        if now - e.last_att > 0.5:
+            new_bullet = Bullet(next(id_gen), e.entity.x, e.entity.y, e.entity.dir, BULLET_DISTANS, e.id)
+            bullets.append(new_bullet)
+
+            # Update last_att so they don't shoot again immediately
+            e.last_att = now
+    return isenemy_att
 
 def tick_cooldowns(clients):
     for c in clients.values():
@@ -205,9 +221,9 @@ def try_attack(p, attack, bullets, clients, dagger):
         dagger.attack(p, clients, new_place)
 
 
-def apply_bullet_hits_for_player(p, bullets, clients):
+def apply_bullet_hits_for_player(p, bullets, clients,enemies):
     for b in bullets[:]:
-        shooter_group = id_to_group(b.player_id, clients)
+        shooter_group = id_to_group(b.player_id, clients, enemies)
 
         # לא פוגע בעצמו
         if b.player_id == p.id:
@@ -231,24 +247,6 @@ def update_bullets(bullets):
         is_dead = b.update_bullet()  # שם הפונקציה שלך
         if is_dead:
             bullets.remove(b)
-#
-# def create_new_ai(payload, enemies):
-#     count = payload[0]
-#     off = 1
-#
-#     for _ in range(count):
-#         if off + 15 > len(payload):
-#             break
-#
-#         x, y, health, id, speed, dir, type = struct.unpack(
-#             "!IHHHHBBB", payload[off:off + 15]
-#         )
-#         off += 15
-#     if type == "GOBLIN":
-#         obj = Entity(x, y, dir, health, id, type)
-#         newenemy = Enemy(obj,id, type)
-#         enemies.append(newenemy)
-
 def handle_input_message(p, payload, bullets, clients, dagger):
     if len(payload) != 6:
         return
@@ -316,7 +314,7 @@ def keep_ai_count(type, list):
 
 # ----------------- state broadcast -----------------
 
-def build_state_payload(clients, enemies, bullets):
+def build_state_payload(clients, enemies, bullets, isenemy_att):
     p_count = min(255, len(clients))
     payload = bytearray()
     payload.append(p_count)
@@ -345,7 +343,6 @@ def build_state_payload(clients, enemies, bullets):
     for i, e in enumerate(enemies.values()):
         if i >= e_count:
             break
-        e.last_att=0
         if e.type == "GOBLIN":
             etype = 1
         else:
@@ -357,7 +354,7 @@ def build_state_payload(clients, enemies, bullets):
             int(e.entity.y),
             max(0, int(e.health)),
             int(e.entity.dir),
-            int(e.last_att),
+            isenemy_att,
             etype,
         )
 
@@ -372,8 +369,8 @@ def build_state_payload(clients, enemies, bullets):
     return bytes(payload)
 
 
-def broadcast_state(server_cmd, clients,enemies, bullets):
-    payload = build_state_payload(clients, enemies, bullets)
+def broadcast_state(server_cmd, clients,enemies, bullets, isenemy_att):
+    payload = build_state_payload(clients, enemies, bullets, isenemy_att)
     packet = qc3_pack(server_cmd, payload)
 
     dead = []
@@ -435,19 +432,20 @@ def main():
         update_bullets(bullets)
 
         #enemy
-        memory_list = enemy_treatment(enemies, clients, memory_list)
+        isenemy_att, memory_list = enemy_treatment(enemies, clients, memory_list, bullets, id_gen)
 
         # apply bullet hits for every player
         if bullets:
             for c in clients.values():
-                apply_bullet_hits_for_player(c["player"], bullets, clients)
+                apply_bullet_hits_for_player(c["player"], bullets, clients,enemies)
 
         # timeouts
         timeout_clients(clients, now, timeout_sec=10)
 
+
         # broadcast at 20Hz
         if now - last_broadcast >= 0.05:
-            broadcast_state(CMD_STATE, clients,enemies, bullets)
+            broadcast_state(CMD_STATE, clients,enemies, bullets, isenemy_att)
             last_broadcast = now
 
 
