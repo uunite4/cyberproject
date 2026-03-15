@@ -10,6 +10,8 @@ from map_data import *
 from DroppedWeapon import *
 
 poopb=pygame.image.load(poop).convert_alpha()
+inventoryb = pygame.image.load(inventory1).convert_alpha()
+selectb = pygame.image.load(select1).convert_alpha()
 # ---------- network helpers ----------
 def qc3_pack(cmd: int, payload: bytes = b"") -> bytes:
     body = bytes([cmd]) + payload
@@ -76,6 +78,22 @@ def load_player_sprites(group):
         7: load("north.png", rotations_dir),
         8: load("north-east.png", rotations_dir),
     }
+
+def load_inventory_sprites(i):
+    if i == 1:
+        i = poopb
+    elif i == 2 :
+        i = poopb
+    elif i == 3:
+        i = poopb
+    elif i == 4:
+        i = poopb
+    elif i == 5:
+        i = poopb
+    elif i == 6:
+        i = poopb
+    else : i = poopb
+    return  i
 
 
 def load_dagger_sprites() -> dict[int, pygame.Surface]:
@@ -158,17 +176,31 @@ def update_players(payload,off, players):
     off += 1
 
     for _ in range(count):
-        if off + 28 > len(payload):
+        if off + 31 > len(payload):
             break
 
-        pid, x, y, health, pdire, patt, pweapon, pgroup,fartp ,fcool,tcool= struct.unpack("!IIIHHBBBBII", payload[off:off + 28])
-        off += 28
+        pid, x, y, health, pdire, patt, pweapon, pgroup,fartp ,fcool,tcool,invesibel,cw,la= struct.unpack("!IIIHHBBBBIIBBB", payload[off:off + 31])
+        off += 31
         active_ids.add(pid)
+        #!@#$%^&*()_
+        print (pweapon)
+        count = payload[off]
+        wepons = list()
+        off += 1
+        for _ in range(count):
+            if off + 1 > len(payload):
+                break
+            W = struct.unpack("!B", payload[off:off + 1])[0]
+            off += 1
+            wepons.append(W)
+
+
+
 
         if pid not in players:
             players[pid] = PlayerData(pid, x, y, pdire, pgroup, 0,fcool,tcool)
 
-        players[pid].update_from_server(x, y, health, pdire, patt, pweapon, pgroup,fartp,fcool,tcool)
+        players[pid].update_from_server(x, y, health, pdire, patt, pweapon, pgroup,fartp,fcool,tcool,invesibel,wepons,cw,la)
     return off, active_ids
 
 def remove_inactive_players(players, active_ids):
@@ -282,7 +314,16 @@ def draw_dropped(screen, dropped, DAGGERS,DEFAULT_DAGGER, cam_x, cam_y):
             screen.blit(DAGGERS.get(3, DEFAULT_DAGGER), (dx, dy))
         elif d.weapon_type == 2:
             pygame.draw.circle(screen, "yellow", (dx, dy), BULLET_SIZE)
-
+        elif d.weapon_type == 3:
+            pygame.draw.circle(screen, "red", (dx, dy), BULLET_SIZE)
+        elif d.weapon_type == 4:
+            pygame.draw.circle(screen, "green", (dx, dy), BULLET_SIZE)
+        elif d.weapon_type == 5:
+            pygame.draw.circle(screen, "black", (dx, dy), BULLET_SIZE)
+        elif d.weapon_type == 6:
+            pygame.draw.circle(screen, "blue", (dx, dy), BULLET_SIZE)
+        elif d.weapon_type == 7:
+            pygame.draw.circle(screen, "white", (dx, dy), BULLET_SIZE)
 def draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER,FARTS,DEFAULT_FARTS):
     for pid, p in players.items():
         px = int(p.x - cam_x - PLAYER_SIZE // 2)
@@ -292,8 +333,8 @@ def draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1
             sprite = SPRITES1.get(p.dir, DEFAULT_SPRITE1)
         else:
             sprite = SPRITES2.get(p.dir, DEFAULT_SPRITE2)
-
-        screen.blit(sprite, (px, py))
+        if p.invesebel==0:
+            screen.blit(sprite, (px, py))
 
         if p.attack == 1 and p.current_weapon == 1:
             d = p.dir if p.dir != 0 else 3
@@ -325,6 +366,50 @@ def draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1
         else:
             S_health_bar_update(p.health, screen, px, py)
 
+        if p.laser_event == 1:
+            # 1. חישוב וקטור הכיוון ונקודת ההתחלה (טיפה אחרי מרכז השחקן)
+            vx, vy = dir_to_vec(p.dir)
+            offset = 20  # המרחק שבו הלייזר מתחיל מהשחקן
+
+            # מרכז השחקן על המסך
+            center_x = px + PLAYER_SIZE // 2
+            center_y = py + PLAYER_SIZE // 2
+
+            # נקודת ההתחלה של הלייזר (מוזזת ב-offset)
+            start_x = center_x + vx * offset
+            start_y = center_y + vy * offset
+
+            # נקודת הסיום (לפי הטווח המקסימלי)
+            end_x = start_x + vx * LASER_DIS
+            end_y = start_y + vy * LASER_DIS
+
+            # --- שלב א': ציור ה"מסגרת" האדומה (החלק החיצוני) ---
+            # מציירים קו אדום עבה
+            pygame.draw.line(screen, (255, 0, 0), (start_x, start_y), (end_x, end_y), 7)
+            # מציירים עיגול אדום בבסיס (טיפה יותר גדול מהלבן)
+            pygame.draw.circle(screen, (255, 0, 0), (int(start_x), int(start_y)), 8)
+
+            flicker = random.randint(-1, 2)  # רעידה אקראית
+            pygame.draw.line(screen, (255, 0, 0), (start_x, start_y), (end_x, end_y), 7 + flicker)
+            pygame.draw.line(screen, (255, 255, 255), (start_x, start_y), (end_x, end_y), 3)
+            pygame.draw.circle(screen, (255, 255, 255), (int(start_x), int(start_y)), 5)
+
+def draw_inventori(screen,players,m):
+    x = (WINDOW_W//2)-40*4
+    y = WINDOW_H - 50
+    for pid, p in players.items():
+        if pid == m:
+            screen.blit(inventoryb, (x-1, y-8))
+            for i in range(len(p.weapons)):
+                #print(p.current_weapon)
+                if p.weapons[i] != 0:
+
+                    screen.blit(load_inventory_sprites(p.weapons[i]), (x+38*i, y))
+                if i== p.ccw and p.ccw != 0 :
+                    screen.blit(selectb, (x + 38*(i-1) -2, y - 3))
+
+
+
 def draw_frame(screen, players, bullets,dropped, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER,FARTS,DEFAULT_FARTS):
     screen.fill((0, 0, 0))
 
@@ -338,7 +423,7 @@ def draw_frame(screen, players, bullets,dropped, my_id, map_w, map_h, SPRITES1, 
     draw_dropped(screen, dropped, DAGGERS, DEFAULT_DAGGER, cam_x, cam_y)
     draw_bullets(screen, bullets, cam_x, cam_y)
     draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER,FARTS,DEFAULT_FARTS)
-
+    draw_inventori(screen, players,my_id)
 
 # ---------- main ----------
 def run():

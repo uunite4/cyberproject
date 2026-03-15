@@ -74,26 +74,25 @@ class Dagger:
     # --------------------
     # Apply damage
     # --------------------
-    def damage_player(self, target):
-        target.health -= self.damage
-        if target.health <= 0:
-            target.health = 0
+   # def damage_player(self, target):
+     #   target.health -= self.damage
+     #   if target.health <= 0:
+    #        target.health = 0
 
 
-    def respawn_if_dead(self, target, new_place):
-        if target.health <= 0:
-            target.x, target.y = new_place()
-            target.health = 100
+    #def respawn_if_dead(self, target, new_place):
+     #   if target.health <= 0:
+      #      target.x, target.y = new_place()
+       #     target.health = 100
 
 
     # --------------------
     # MAIN ATTACK FUNCTION
     # --------------------
-    def attack(self, attacker, clients, new_place):
+    def attack(self, attacker, clients):
 
         if not self.ready(attacker.id):
-            return
-
+            return False,0
         self.trigger_cooldown(attacker.id)
 
         hitbox = self.build_hitbox(attacker)
@@ -109,7 +108,6 @@ class Dagger:
                 continue
 
             if self.inside(hitbox, target.x, target.y):
-                self.damage_player(target)
-                self.respawn_if_dead(target, new_place)
-                return True
+                return True,target.id
 
+        return False, 0

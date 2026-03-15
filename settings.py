@@ -38,7 +38,8 @@ marble = 'imges\marble.png'
 bitmikdash = 'imges\statue.png'
 ostone='imges\\blackstone.png'
 poop = 'poop.png'
-
+inventory1 = 'inventory.png'
+select1 = 'select.png'
 #===========
 HEALTH_BAR_SIZE_X = 120
 HEALTH_BAR_SIZE_Y = 30
@@ -56,7 +57,18 @@ FART_TIME=200
 FART_COOLDOWN = 2000
 FART_DAMEG = 0.3
 #-------
+BRIT_TIMER = 200
+#
 TELEPORT_RANGE = 200
 TELEPORT_COOLDOWN = 1000
 #=====-=-=-=
-INVENTORI = [0,0,0,0,0,0,0,0,0,0]
+INVENTORI = ['da',0,0,0,0,0,0,0,0]
+#--------=-=
+SPEED_POSSION_TIME = 500
+INVESIBEL_TIME = 500
+BRIT_TIMER = 300
+#=========
+LASER_TIME = 30
+LASER_COOLDOWN = 200
+LASER_DAMEG =20
+LASER_DIS = 400

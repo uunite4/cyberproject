@@ -139,6 +139,26 @@ def tick_cooldowns(clients,farts):
         if hasattr(p, "t_cooldown") and p.t_cooldown > 0:
             p.t_cooldown -= 1
 
+        if hasattr(p, "la_cooldown") and p.la_cooldown > 0:
+            p.la_cooldown -= 1
+            if p.la_cooldown < LASER_COOLDOWN-LASER_TIME:
+                p.laser_event=0
+
+        if hasattr(p, "spat") and p.spat >= 0:
+            p.spat -= 1
+            if p.spat == 0:
+                p.speed_po = 0
+
+        if hasattr(p, "i_timer") and p.i_timer >= 0:
+            p.i_timer -= 1
+            if p.i_timer == 0:
+                p.invesebel = 0
+
+        if hasattr(p, "b_timer") and p.b_timer >= 0:
+            p.b_timer -= 1
+            if p.b_timer == 0:
+                p.britmila = 0
+
     for f in farts:
         if hasattr(f, "duration") and f.duration > 0:
             f.duration -= 1
@@ -157,6 +177,8 @@ def dir_to_vec(d: int) -> tuple[int, int]:
     return vectors.get(d, (0, 0))
 
 def apply_movement(p, dx, dy, dsprint,teleport):
+
+
     if teleport and p.t_cooldown == 0:
         p.t_cooldown = TELEPORT_COOLDOWN
         speed =SPEED*200
@@ -164,7 +186,7 @@ def apply_movement(p, dx, dy, dsprint,teleport):
         nx = clamp(p.x + dx * speed, 0, MAP_W)
         ny = clamp(p.y + dy * speed, 0, MAP_H)
     else:
-        speed = SPEED + (SPEED * dsprint*50)
+        speed = SPEED + (SPEED * dsprint*5)+ (SPEED*p.speed_po*50)
         nx = clamp(p.x + dx * speed, 0, MAP_W)
         ny = clamp(p.y + dy * speed, 0, MAP_H)
 
@@ -209,58 +231,99 @@ def try_attack(p, attack, bullets,farts, clients, dagger ,fartp):
         p.weapons[p.current_weapon - 1] = 0
         p.health = 100
 
+    elif p.weapons[p.current_weapon - 1] == 's' and attack == 1:
+        p.weapons[p.current_weapon - 1] = 0
+        p.spat = SPEED_POSSION_TIME
+        p.speed_po = 1
 
-        #elif p.weapons[p.current_weapon-1] == 'da':# and dagger.attack(p, clients, new_place):
-     #   drop_weapons(p, dropped_items)
-      #  dagger.attack(p, clients, new_place)
+    elif p.weapons[p.current_weapon - 1] == 'i' and attack == 1:
+        p.weapons[p.current_weapon - 1] = 0
+        p.invesebel = 1
+        p.i_timer = INVESIBEL_TIME
+
+    elif p.weapons[p.current_weapon - 1] == 'b' and attack == 1:
+        p.weapons[p.current_weapon - 1] = 0
+        p.britmila = 1
+        p.b_timer = BRIT_TIMER
+
+    elif p.weapons[p.current_weapon-1] == 'da' and attack == 1:
+        do , tid =dagger.attack(p, clients)
+        if do:
+            for t in clients.values():
+                t = t['player']
+                if t.britmila == 1:
+                    dagger_hit(dagger, p)
+                else:
+                    if t.id == tid:
+                        dagger_hit(dagger,t)
+
+    elif p.weapons[p.current_weapon-1] == 'la' and attack == 1:
+        if p.la_cooldown == 0:
+            check_laser_hit(p, clients)
+            p.la_cooldown = LASER_COOLDOWN
+            p.laser_event = 1
+
 
 def drop_weapons(player, dropped_list):
     for w_type in player.weapons:
-        if w_type != 0 :
+        if w_type != 0:
             new_id = next(item_id_counter)
             if w_type == 'da':
                 w_type = 1
             elif w_type == 'gu':
                 w_type = 2
-
+            elif w_type == 'h':
+                w_type = 3
+            elif w_type == 's':
+                w_type = 4
+            elif w_type == 'i':
+                w_type = 5
+            elif w_type == 'b':
+                w_type = 6
+            elif w_type == 'la':
+                w_type = 7
             angle = random.uniform(0, 2 * math.pi)
             print (angle)
             radius = 40
             drop_x = player.x + math.cos(angle) * radius
             drop_y = player.y + math.sin(angle) * radius
+            if w_type != 1:
+                item = DroppedWeapon(new_id, drop_x,drop_y, w_type)
+                dropped_list.append(item)
 
-            item = DroppedWeapon(new_id, drop_x,drop_y, w_type)
-            dropped_list.append(item)
-
-    player.weapons = INVENTORI
+    player.weapons = INVENTORI.copy()
     player.current_weapon = 0
 
 def pickup_weapons(player, dropped_list):
     min_dis = 80
     closest_item = None
-    for wepon in dropped_list:
-        dis= ((player.x - wepon.x) ** 2 + (player.y - wepon.y) ** 2) ** 0.5
+    for weapon in dropped_list:
+        dis = ((player.x - weapon.x) ** 2 + (player.y - weapon.y) ** 2) ** 0.5
         if dis < min_dis:
 
-            wt = 'da' if wepon.weapon_type == 1 else 'gu'
+            wt_map = {1: 'da', 2: 'gu', 3: 'h', 4: 's', 5: 'i', 6: 'b',7:'la'}
+            wt = wt_map.get(weapon.weapon_type)
 
+            if wt:
 
-            if wt not in player.weapons:
-                min_dis = dis
-                closest_item = wepon
+                if wt not in player.weapons or wt in ['h', 's', 'i', 'b']:
+                    min_dis = dis
+                    closest_item = weapon
+
+    if closest_item:
+        wt_map = {1: 'da', 2: 'gu', 3: 'h', 4: 's', 5: 'i', 6: 'b',7:'la'}
+        wt = wt_map.get(closest_item.weapon_type)
 
         if closest_item:
-            if closest_item.weapon_type == 1:
-                wt = 'da'
-            elif closest_item.weapon_type == 2:
-                wt = 'gu'
-
+            wt_map = {1: 'da', 2: 'gu', 3: 'h', 4: 's', 5: 'i', 6: 'b',7:'la'}
+            wt = wt_map.get(closest_item.weapon_type)
             for i in range(len(player.weapons)-1):
                 if player.weapons[i] == 0:
                     player.weapons[i] = wt
-                    dropped_list.remove(closest_item)
-                    print(f"Player {player.id} picked up {wt}")
-                    break
+                    if closest_item in dropped_list:
+                        dropped_list.remove(closest_item)
+
+                    return
 
 def apply_bullet_hits_for_player(p, bullets, clients):
     for b in bullets[:]:
@@ -288,6 +351,48 @@ def update_bullets(bullets):
         is_dead = b.update_bullet()  # שם הפונקציה שלך
         if is_dead:
             bullets.remove(b)
+
+def dagger_hit(d,t):
+    t.health -= d.damage
+    if t.health <= 0:
+        drop_weapons(t, dropped_items)
+        t.x, t.y = new_place()
+        t.health = 100
+
+
+def check_laser_hit(attacker, clients):
+    vx, vy = dir_to_vec(attacker.dir)
+
+    for c in clients.values():
+        target = c['player']
+        if target.id == attacker.id or target.group == attacker.group:
+            continue
+
+
+        dx = target.x - attacker.x
+        dy = target.y - attacker.y
+        dist = math.sqrt(dx ** 2 + dy ** 2)
+
+        if dist <= LASER_DIS:
+
+            target_angle = math.atan2(dy, dx)
+            if target_angle < 0: target_angle += 2 * math.pi
+
+
+            attacker_angle = math.atan2(vy, vx)
+            if attacker_angle < 0: attacker_angle += 2 * math.pi
+
+
+            angle_diff = abs(target_angle - attacker_angle)
+            if angle_diff > math.pi:  # תיקון למעגל
+                angle_diff = 2 * math.pi - angle_diff
+
+            if angle_diff < 0.1:
+                target.health -= LASER_DAMEG
+                if target.health <= 0:
+                    drop_weapons(target, dropped_items)
+                    target.x, target.y = new_place()
+                    target.health = 100
 
 def fart(farts,p,clients):
     for f in farts[:]:
@@ -381,8 +486,18 @@ def build_state_payload(clients, bullets):
             wepon = 1
         elif p.weapons[p.current_weapon - 1] == 'gu':
             wepon = 2
+        elif p.weapons[p.current_weapon - 1] == 'h':
+            wepon = 3
+        elif p.weapons[p.current_weapon - 1] == 's':
+            wepon = 4
+        elif p.weapons[p.current_weapon - 1] == 'i':
+            wepon = 5
+        elif p.weapons[p.current_weapon - 1] == 'b':
+            wepon = 6
+        elif p.weapons[p.current_weapon - 1] == 'la':
+            wepon = 7
         payload += struct.pack(
-            "!IIIHHBBBBII",
+            "!IIIHHBBBBIIBBB",
             int(p.id),
             int(p.x),
             int(p.y),
@@ -393,8 +508,33 @@ def build_state_payload(clients, bullets):
             int(p.group),
             int(p.fartp),
             int(p.f_cooldown),
-            int(p.t_cooldown)
+            int(p.t_cooldown),
+            int(p.invesebel),
+            int(p.current_weapon),
+            int(p.laser_event)
+
         )
+        payload.append(len(INVENTORI))
+        for i in p.weapons:
+            if i== 'da':
+                wepon = 1
+            elif i == 'gu':
+                wepon = 2
+            elif i == 'h':
+                wepon = 3
+            elif i == 's':
+                wepon = 4
+            elif i == 'i':
+                wepon = 5
+            elif i == 'b':
+                wepon = 6
+            elif i == 'la':
+                wepon = 7
+            else :
+                wepon = 0
+
+            payload += struct.pack("!B", wepon)
+
 
     # bullets (limit to 255 to keep one byte length safe)
     bcount = min(255, len(bullets))
@@ -442,6 +582,7 @@ def main():
     dagger = Dagger()
     bullets = []
     farts = []
+
     last_broadcast = time.time()
     print(f"QC3 Server listening on {HOST}:{PORT}")
 

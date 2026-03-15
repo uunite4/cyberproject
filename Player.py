@@ -17,14 +17,23 @@ class PlayerData(Entity):
         self.healthBarx = 20
         self.healthBary = 20
         self.gun_cooldown = gcd
-        self.weapons=['gu','da','h',0]
+        self.weapons=['da','gu','h','s','i','b','la',0,0]
         self.current_weapon = 0
         self.attack = 0
         self.fartp=0
         self.f_cooldown = fc
         self.t_cooldown = tc
+        self.speed_po = 0
+        self.spat = 0
+        self.invesebel = 0
+        self.i_timer = 0
+        self.ccw=0
+        self.britmila = 0
+        self.b_timer = 0
+        self.la_cooldown = 0
+        self.laser_event = 0
 
-    def update_from_server(self, x, y, health, direction, attack, current_weapon, group,fartp,fcool,tcool):
+    def update_from_server(self, x, y, health, direction, attack, current_weapon, group,fartp,fcool,tcool,inv,wepons,cw,la):
         self.x = x
         self.y = y
         self.health = health
@@ -36,7 +45,10 @@ class PlayerData(Entity):
         self.fartp = fartp
         self.f_cooldown = fcool
         self.t_cooldown = tcool
-
+        self.invesebel = inv
+        self.weapons=wepons
+        self.ccw=cw
+        self.laser_event = la
 def handle_input():
     keys = pygame.key.get_pressed()
     dx = int(keys[pygame.K_d]) - int(keys[pygame.K_a])
@@ -163,6 +175,7 @@ def check_fart_hit(p,f,low , high):
 
 
     return True
+
 def new_place():
     while True:
         px =random.randint(1,1000)#len(MAP)-1)
