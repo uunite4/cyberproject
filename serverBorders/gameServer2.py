@@ -4,6 +4,7 @@ import time
 import random
 from xmlrpc.client import boolean
 import Dagger
+import Fart
 from Bullet import *
 from Player import *
 import SETTINGS as S
@@ -18,6 +19,8 @@ class MyServer:
         self.nearOverlaps = getNearOverlaps(self.serverNumber - 1)
         self.clients = {}
         self.bullets = []
+        self.items = []
+        self.farts = []
         self.server = QuicServer(
             ip=self.serverData["ip"],
             port=self.serverData["port"],
@@ -48,7 +51,9 @@ class MyServer:
                 "imOverlap": False,
                 "att": 0,
                 "weapon": 1,
-                "gun_cd": S.BULLET_COOLDOWN
+                "gun_cd": S.BULLET_COOLDOWN,
+                "fart": 0,
+                "f_cooldown": 0,
             }
             print("PLAYERS INITIAL POS: ", self.clients[pid]["x"], self.clients[pid]["y"], "PLAYERS ID: ", pid)
 
@@ -120,7 +125,7 @@ class MyServer:
             del self.clients[pid]
         elif (cmd == S.CMDS["ADD_ME"]):
             print("added player ", pid)
-            x, y, dir, health, att, weapon = struct.unpack_from('!hhhhbb', data, 17)
+            x, y, dir, health, att, weapon, fart = struct.unpack_from('!hhhhbbb', data, 17)
             self.clients[pid] = {
                 "x": x,
                 "y": y,
@@ -131,25 +136,36 @@ class MyServer:
                 "att": att,
                 "weapon": weapon,
                 "gun_cd": S.BULLET_COOLDOWN,
+                "fart":fart,
+                "f_cooldown": 0,
                 "cid": connection_id,
             }
 
         elif (cmd == S.CMDS["ATTACK"]):
             att = struct.unpack_from('!b', data, 17)[0]
             self.clients[pid]["att"] = att
-            if self.clients[pid]["weapon"] == 2 and self.clients[pid]["gun_cd"] <= 0:
+            if att == 1 and self.clients[pid]["weapon"] == 2 and self.clients[pid]["gun_cd"] <= 0:
                 b_id = get_next_bullet_id(self.bullets)
                 new_bullet = Bullet(b_id, self.clients[pid]["x"], self.clients[pid]["y"], self.clients[pid]["dir"], S.BULLET_DISTANS, pid)
                 self.bullets.append(new_bullet)
                 self.clients[pid]["gun_cd"] = S.BULLET_COOLDOWN
-
-
         elif (cmd == S.CMDS["CHANGE_WEAPON"]):
             weapon = struct.unpack_from('!b', data, 17)[0]
             self.clients[pid]["weapon"] = weapon
             print("changed weapon to ", weapon)
             if weapon == 2:
                 self.clients[pid]["gun_cd"] = S.BULLET_COOLDOWN
+        elif (cmd == S.CMDS["FART"]):
+            fart = struct.unpack_from('!b', data, 17)[0]
+            print("got fart")
+            if fart == 1:
+                if self.clients[pid]["f_cooldown"] <= 0:
+                    self.clients[pid]["fart"] = fart
+                    print("added fart")
+                    f_id = pid
+                    new_fart = Fart.Fart(f_id, self.clients[pid]["x"], self.clients[pid]["y"], self.clients[pid]["dir"], S.FART_TIME)
+                    self.farts.append(new_fart)
+                    self.clients[pid]["f_cooldown"] = S.FART_COOLDOWN
 
     def on_connect(self, connection_id: int):
         print(f"connected {connection_id}")
@@ -165,9 +181,11 @@ class MyServer:
             now = time.time()
 
             if now - lastBroadcast >= S.BROADCAST_INTERVAL:
-                tick_cooldowns(self.clients)
+                tick_cooldowns(self.clients,self.farts)
                 broadcast(self, dagger)
                 update_bullets(self.bullets)
+                update_fart(self.farts, self.clients)
+
                 lastBroadcast = now
 
             await asyncio.sleep(0.001)
@@ -222,8 +240,10 @@ def broadcast(self, dagger):
     for pid,client in self.clients.items():
         temp = copy_dic(self.clients)
         del temp[pid]
-        pk = build_state_payload(temp, self.bullets)
+        pk = build_state_payload(temp, self.bullets, client["fart"])
         self.server.send(client["cid"],pk)
+        if client["fart"] == 1:
+            print("player is farting ", i)
         #health related changes
         if client["att"] == 1 and client["weapon"] == 1:  # daggers
             print("player attacking", i)
@@ -234,8 +254,12 @@ def broadcast(self, dagger):
                     hp_change[j] = True
                 j += 1
         if not client["imOverlap"]:
-            if self.bullets != []:
+            if self.bullets: #!= []
                 boo = apply_bullet_hits_for_player(pid, client, self.bullets)
+                if boo:
+                    hp_change[i] = True
+            if self.farts: #!= []
+                boo = fart(self.farts, client, pid)
                 if boo:
                     hp_change[i] = True
             if check_collision_with_lava(client["x"], client["y"], S.PLAYER_SIZE): #daggers
@@ -247,7 +271,7 @@ def broadcast(self, dagger):
         if hp_change[i]:
             if client["hp"] > 0:
                 print("damage taken")
-                pk = struct.pack('!bh', S.CMDS["DAMAGE"], client["hp"])
+                pk = struct.pack('!bh', S.CMDS["DAMAGE"], int(client["hp"]))
             elif client["hp"] <= 0:
                 x, y = respawn(self.serverNumber-1)
                 print("DECIDED ON POS: ", x, y)
@@ -284,10 +308,10 @@ def copy_dic(dic):
         ndic[k] = v
     return ndic
 
-def build_state_payload(clients, bullets):
+def build_state_payload(clients, bullets, fart):
     count = len(clients)
-    format = "!bh" + "hhhhbb" * count #the b is for byte - 0\1
-    payload = [S.CMDS["RENDER"], count]
+    format = "!bbh" + "hhhhbbb" * count #the b is for byte - 0\1
+    payload = [S.CMDS["RENDER"], fart, count]
 
     for c in clients.values():
         payload.append(int(c["x"]))
@@ -296,6 +320,7 @@ def build_state_payload(clients, bullets):
         payload.append(int(c["hp"]))
         payload.append(int(c["att"]))
         payload.append(int(c["weapon"]))
+        payload.append(int(c["fart"]))
 
     countb = len(bullets)
     payload.append(countb)
@@ -331,10 +356,15 @@ def get_dir(dx,dy):
             dire = 3
     return dire
 
-def tick_cooldowns(clients):
+def tick_cooldowns(clients, farts):
     for c in clients.values():
         if c["weapon"] == 2 and c["gun_cd"] > 0:
             c["gun_cd"] -= 1
+        if c["f_cooldown"] > 0:
+            c["f_cooldown"] -= 1
+    for f in farts:
+        if f.duration > 0:
+            f.duration -= 1
 
 def update_bullets(bullets):
     i=0
@@ -343,6 +373,15 @@ def update_bullets(bullets):
         if is_dead:
             del bullets[i]
         i+=1
+
+def update_fart(farts,c):
+    for f in farts:
+        if f.duration <= 0:
+            c[f.id]["fart"] = 0
+            farts.remove(f)
+        else:
+            f.x = c[f.id]["x"]
+            f.y = c[f.id]["y"]
 
 def apply_bullet_hits_for_player(pid, p, bullets):
     back = False
@@ -358,6 +397,17 @@ def apply_bullet_hits_for_player(pid, p, bullets):
         i+=1
     return back
 
+def fart(farts,p,pid):
+    boo = False
+    for f in farts:
+        # לא פוגע בעצמו
+        if f.id == pid:
+            continue
+        low, high = Fart.get_angle_from_dir(f.dir)
+        if check_fart_hit(p, f,low,high):
+            p["hp"] -= S.FART_DAMEG
+            boo = True
+    return boo
 if __name__ == "__main__":
     s = MyServer()
     asyncio.run(s.run())

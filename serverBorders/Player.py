@@ -1,4 +1,5 @@
 import pygame
+import math
 import SETTINGS as S
 import map_data as M
 
@@ -10,6 +11,10 @@ class Player:
         self.health = health
         self.att = 0
         self.weapon = 1
+        self.weapons=['da','gu','h','s','i','b','la',0,0]
+        self.fartp =0
+        self.invesebel = 0
+
 
         self.width = 40
         self.height = 40
@@ -73,4 +78,25 @@ def check_bullet_hit(p,b):
 
     if left <= b.x <= right and top <= b.y <= bottom:
         return True
+    return False
+
+def check_fart_hit(p,f,low , high):
+    corners = get_corners(p["x"], p["y"], S.PLAYER_SIZE)
+
+    for cx, cy in corners:
+
+        dx = cx - f.x
+        dy = cy - f.y
+        dist_sq = dx ** 2 + dy ** 2
+
+        if dist_sq <= f.radius ** 2:
+
+            angle = math.atan2(dy, dx)
+            if angle < 0: angle += 2 * math.pi
+
+            if low > high:
+                if angle >= low or angle <= high: return True
+            else:
+                if low <= angle <= high: return True
+
     return False

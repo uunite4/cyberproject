@@ -16,9 +16,19 @@ BUILDING_SIZE = 40
 WIDTH = 192
 HEIGHT = 108
 #Obgects
-grass='..\sprites\grass.png'
-stone='..\sprites\stone.png'
-lava = '..\sprites\lava.png'
+grass='sprites\grass.png'
+stone='sprites\stone.png'
+lava = 'sprites\lava.png'
+tree ='sprites\\tree.png'
+pesel= 'sprites\\statue.png'
+marble = 'sprites\marble.png'
+bitmikdash = 'sprites\statue.png'
+ostone='sprites\\blackstone.png'
+poop = 'sprites\poop.png'
+inventory1 = 'sprites\inventory.png'
+select1 = 'sprites\select.png'
+dagger = 'sprites\DAGGER-NORTH.png'
+fart = 'sprites\FARTS.png'
 
 OVERLAP_WIDTH = 600
 SERVER_NUMBER = 4
@@ -73,6 +83,7 @@ CMDS = {
     "HP_DONT_RESPOND": 0x0E,
     "CHANGE_WEAPON": 0x0F,
     "ADD_ME": 0x10,
+    "FART": 0x11,
 }
 
 LOAD_BALANCER = {
@@ -93,3 +104,8 @@ BULLET_COOLDOWN = 10
 BULLET_DAMEG = 10
 BULLET_SIZE = 5
 
+#fart settings
+FART_RUADIOS=100
+FART_TIME=200
+FART_COOLDOWN = 2000
+FART_DAMEG = 0.3

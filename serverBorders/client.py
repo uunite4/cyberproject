@@ -12,6 +12,10 @@ from networking.wrappers.client_wrapper import QuicClient
 from map import *
 from map_data import *
 
+poopb=pygame.image.load(S.poop).convert_alpha()
+inventoryb = pygame.image.load(S.inventory1).convert_alpha()
+selectb = pygame.image.load(S.select1).convert_alpha()
+
 class MyClient:
 
     def __init__(self):
@@ -23,6 +27,7 @@ class MyClient:
         self.running = True
         self.players = []  # list of other players which are relevant works in [i]={"x":...,...}
         self.bullets = []
+        self.dropped = []
         pygame.init()
         self.screen = pygame.display.set_mode((S.WINDOW_WIDTH, S.WINDOW_HEIGHT))
         pygame.display.set_caption("Game")
@@ -63,9 +68,9 @@ class MyClient:
 
                 print(self.iInActive)
 
-                pk = struct.pack("!b16shhhhbb", S.CMDS["ADD_ME"], self.pid.encode("utf-8"), self.player.x,
+                pk = struct.pack("!b16shhhhbbb", S.CMDS["ADD_ME"], self.pid.encode("utf-8"), self.player.x,
                                  self.player.y,
-                                 self.player.dir, self.player.health, self.player.att, self.player.weapon)
+                                 self.player.dir, self.player.health, self.player.att, self.player.weapon, self.player.fartp)
                 self.client.send(self.connections[self.iInActive], pk)
 
         elif (cmd == S.CMDS["OUT_OF_OVERLAP"]):
@@ -86,13 +91,17 @@ class MyClient:
         elif (cmd == S.CMDS["RENDER"]):
             # render the screen
             if connection_id == self.connections[self.iControl] or (self.iInActive != None and connection_id == self.connections[self.iInActive]):
+                fart = struct.unpack_from('!b', data, 1)[0]
+                self.player.fartp = fart
+                if fart == 1:
+                    print("farting")
                 self.players = []
-                count = struct.unpack_from('!h', data, 1)[0]
+                count = struct.unpack_from('!h', data, 2)[0]
                 for i in range(count):
-                    offset = 3+10*i
-                    x, y, dir, health, att, weapon = struct.unpack_from('!hhhhbb', data, offset)
-                    self.players.append({"x":x,"y": y, "dir": dir, "hp": health, "att": att, "weapon": weapon})
-                offset = 3+10*count
+                    offset = 4+11*i
+                    x, y, dir, health, att, weapon, fart = struct.unpack_from('!hhhhbbb', data, offset)
+                    self.players.append({"x":x,"y": y, "dir": dir, "hp": health, "att": att, "weapon": weapon, "fart": fart})
+                offset = 4+11*count
                 self.bullets = []
                 countb = struct.unpack_from('!h', data, offset)[0]
                 offset += 2
@@ -153,7 +162,8 @@ class MyClient:
         DEFAULT_SPRITE2 = SPRITES2[3]
         DAGGERS = load_dagger_sprites()
         DEFAULT_DAGGER = DAGGERS[3]
-
+        FARTS = load_fart_sprites()
+        DEFAULT_FARTS = FARTS[3]
 
         while self.running:
             # Check for events
@@ -162,7 +172,7 @@ class MyClient:
                     self.running = False
 
             # KEYS (GET INPUTS)
-            inputs, pressedM, pressedA = getInputs()
+            inputs, pressedM, pressedA, fart = getInputs()
             # SEND INPUTS
             if inputs["sp"] == 1: #attacking...
                 if self.player.att == 0:
@@ -180,12 +190,17 @@ class MyClient:
                     if self.iInActive != None:
                         self.client.send(self.connections[self.iInActive], pk)
 
+            if fart == 1: #farting...
+                if self.player.fartp == 0:
+                    print("sent fart")
+                    sendFart(self, 1)
+
             if (pressedM): #movement related inputs
                 self.sendInputs(inputs)
 
 
             # DRAW
-            self.draw_frame(self.screen, S.MAP_WIDTH, S.MAP_HEIGHT, DEFAULT_SPRITE1, SPRITES1 , DEFAULT_DAGGER, DAGGERS)
+            self.draw_frame(self.screen, S.MAP_WIDTH, S.MAP_HEIGHT, DEFAULT_SPRITE1, SPRITES1 , DEFAULT_DAGGER, DAGGERS, DEFAULT_FARTS, FARTS)
             pygame.display.flip()
 
             await asyncio.sleep(1 / 60)
@@ -198,16 +213,18 @@ class MyClient:
         pk = struct.pack('!b16sbbb', S.CMDS["MOVE"], self.pid.encode("utf-8"), xAxisDirection, yAxisDirection, inputs["sf"])  # b is signed byte
         self.client.send(self.connections[self.iControl], pk)
 
-    def draw_frame(self, screen, map_w, map_h, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS):
+    def draw_frame(self, screen, map_w, map_h, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS, DEFAULT_FARTS, FARTS):
         screen.fill((0, 0, 0))
 
         cam_x, cam_y = camera_from_pos(self.player.x, self.player.y, map_w, map_h)
 
         draw_map(screen, MAP, cam_x, cam_y, S.WINDOW_WIDTH, S.WINDOW_HEIGHT)
         draw_bullets(screen, self.bullets, cam_x, cam_y)
-        draw_players(screen, self.player, self.players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS)
+        draw_players(screen, self.player, self.players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS, DEFAULT_FARTS, FARTS)
 
-def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS):
+        draw_inventori(screen, self.player)
+
+def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS, DEFAULT_FARTS, FARTS):
     # DRAW OTHER PLAYERS
     for p in players:
         px = int(p["x"] - cam_x - S.PLAYER_SIZE // 2)
@@ -224,6 +241,14 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
             dagger_x = int((p["x"] + vx * S.TILE_SIZE) - cam_x - S.TILE_SIZE // 2)
             dagger_y = int((p["y"] + vy * S.TILE_SIZE) - cam_y - S.TILE_SIZE // 2)
             screen.blit(DAGGERS.get(d, DEFAULT_DAGGER), (dagger_x, dagger_y))
+        if p["fart"] == 1:
+            d = p["dir"]
+            vx, vy = dir_to_vec(d)
+            vx,vy=vx*(-1),vy*(-1)
+            fart_x = int((p["x"] + vx * S.TILE_SIZE) - cam_x - S.TILE_SIZE // 2)
+            fart_y = int((p["y"] + vy * S.TILE_SIZE) - cam_y - S.TILE_SIZE // 2)
+            screen.blit(FARTS.get(d, DEFAULT_FARTS), (fart_x, fart_y))
+
 
     # DRAW OWN PLAYER
     px = int(player.x - cam_x - S.PLAYER_SIZE // 2)
@@ -237,6 +262,14 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
         dagger_y = int((player.y + vy * S.TILE_SIZE) - cam_y - S.TILE_SIZE // 2)
         screen.blit(DAGGERS.get(d, DEFAULT_DAGGER), (dagger_x, dagger_y))
 
+    if player.fartp ==1:
+        d = player.dir
+        vx, vy = dir_to_vec(d)
+        vx,vy=vx*(-1),vy*(-1)
+        fart_x = int((player.x + vx * S.TILE_SIZE) - cam_x - S.TILE_SIZE // 2)
+        fart_y = int((player.y + vy * S.TILE_SIZE) - cam_y - S.TILE_SIZE // 2)
+        screen.blit(FARTS.get(d, DEFAULT_FARTS), (fart_x, fart_y))
+
     health_bar_update(player.health, screen)
 
 def draw_bullets(screen, bullets, cam_x, cam_y):
@@ -247,6 +280,114 @@ def draw_bullets(screen, bullets, cam_x, cam_y):
         pygame.draw.circle(screen, "red", (bx, by), S.BULLET_SIZE)
         pygame.draw.circle(screen, "orange", (bx, by), S.BULLET_SIZE-1)
         pygame.draw.circle(screen, "yellow", (bx, by), S.BULLET_SIZE-3)
+
+def draw_dropped(screen, dropped, DAGGERS,DEFAULT_DAGGER, cam_x, cam_y):
+    for _, d in dropped.items():
+        dx = d.x - cam_x
+        dy = d.y - cam_y
+        print (int(d.id), int(d.x), int(d.y), d.weapon_type)
+        if d.weapon_type == 1:
+            screen.blit(DAGGERS.get(3, DEFAULT_DAGGER), (dx, dy))
+        elif d.weapon_type == 2:
+            pygame.draw.circle(screen, "yellow", (dx, dy), S.BULLET_SIZE)
+        elif d.weapon_type == 3:
+            pygame.draw.circle(screen, "red", (dx, dy), S.BULLET_SIZE)
+        elif d.weapon_type == 4:
+            pygame.draw.circle(screen, "green", (dx, dy), S.BULLET_SIZE)
+        elif d.weapon_type == 5:
+            pygame.draw.circle(screen, "black", (dx, dy), S.BULLET_SIZE)
+        elif d.weapon_type == 6:
+            pygame.draw.circle(screen, "blue", (dx, dy), S.BULLET_SIZE)
+        elif d.weapon_type == 7:
+            pygame.draw.circle(screen, "white", (dx, dy), S.BULLET_SIZE)
+
+def draw_fps(clock, fps_font, screen):
+    fps_val = int(clock.get_fps())
+    fps_surface = fps_font.render(f"FPS: {fps_val}", True, (0, 255, 0))
+    screen.blit(fps_surface, (S.WINDOW_WIDTH-100, 20))
+    # מחקנו את flip ו-tick מכאן!
+
+def draw_inventori(screen,player):
+    x = (S.WINDOW_WIDTH//2)-40*4
+    y = S.WINDOW_HEIGHT - 50
+    screen.blit(inventoryb, (x-1, y-8))
+    for i in range(len(player.weapons)):
+        #print(p.current_weapon)
+        if player.weapons[i] != 0:
+
+            screen.blit(load_inventory_sprites(player.weapons[i]), (x+38*i, y))
+        if i== player.weapon and player.weapon != 0:
+            screen.blit(selectb, (x + 38*(i-1) -2, y - 3))
+def draw_inventory_overlay(screen, players, my_id, font):
+    if my_id not in players:
+        return
+    p = players[my_id]
+
+    # 1. יצירת השכבה השקופה (ה-Overlay)
+    # יוצרים משטח בגודל כל המסך שתומך בשקיפות
+    overlay = pygame.Surface((S.WINDOW_WIDTH, S.WINDOW_HEIGHT), pygame.SRCALPHA)
+    # ממלאים אותו בשחור עם רמת שקיפות (160 מתוך 255)
+    overlay.fill((0, 0, 0, 160))
+    screen.blit(overlay, (0, 0))
+
+    # 2. הגדרת המלבן המרכזי (הפעם הוא יהיה אטום מעט יותר כדי שהטקסט יבלוט)
+    inv_w, inv_h = 600, 350
+    inv_x = (S.WINDOW_WIDTH - inv_w) // 2
+    inv_y = (S.WINDOW_HEIGHT - inv_h) // 2
+    inv_rect = pygame.Rect(inv_x, inv_y, inv_w, inv_h)
+
+    # ציור תיבת האינבנטורי - צבע כהה מאוד
+    pygame.draw.rect(screen, (30, 30, 30), inv_rect)
+    pygame.draw.rect(screen, (0, 255, 255), inv_rect, 3)  # מסגרת טורקיז
+
+    # 3. HP - בתוך המלבן
+    health_txt = font.render(f"HP: {int(p.health)}/100", True, (255, 50, 50))
+    screen.blit(health_txt, (inv_rect.x + 20, inv_rect.y + 20))
+
+    # 4. משבצות הנשקים
+    num_slots = len(p.weapons)
+    slot_size = 50
+    gap = 10
+    total_w = (num_slots * slot_size) + ((num_slots - 1) * gap)
+    slots_x = inv_rect.centerx - (total_w // 2)
+    slots_y = inv_rect.y + 70
+
+    for i in range(num_slots):
+        slot_rect = pygame.Rect(slots_x + (i * (slot_size + gap)), slots_y, slot_size, slot_size)
+
+        # צבע משבצת
+        color = (50, 50, 50) if (i + 1) != p.ccw else (80, 80, 40)
+        pygame.draw.rect(screen, color, slot_rect)
+        pygame.draw.rect(screen, (150, 150, 150), slot_rect, 1)
+
+        if p.weapons[i] != 0:
+            img = load_inventory_sprites(p.weapons[i])
+            icon = pygame.transform.scale(img, (30, 30))
+            ix = slot_rect.x + (slot_size - icon.get_width()) // 2
+            iy = slot_rect.y + (slot_size - icon.get_height()) // 2
+            screen.blit(icon, (ix, iy))
+
+        if i + 1 == p.ccw:
+            pygame.draw.rect(screen, (255, 255, 0), slot_rect, 2)
+
+    # 5. הנשק הגדול (Preview)
+    current_w = p.weapons[p.ccw - 1] if p.ccw > 0 else 0
+    if current_w != 0:
+        big_img = load_inventory_sprites(current_w)
+        big_img = pygame.transform.scale(big_img, (130, 130))
+
+        bx = inv_rect.centerx - (big_img.get_width() // 2)
+        by = slots_y + slot_size + 30
+
+        # במה קטנה לנשק
+        pygame.draw.ellipse(screen, (20, 20, 20), (inv_rect.centerx - 60, by + 120, 120, 20))
+        screen.blit(big_img, (bx, by))
+
+        # שם הנשק
+        w_names = {1: 'DAGGER', 2: 'GUN', 3: 'HEALTH', 4: 'SPEED', 5: 'INVIS', 6: 'SHIELD', 7: 'LASER'}
+        name_txt = font.render(w_names.get(current_w, "---"), True, (255, 255, 255))
+        screen.blit(name_txt, (inv_rect.centerx - (name_txt.get_width() // 2), by + 140))
+
 
 def dir_to_vec(d: int) -> tuple[int, int]:
     vectors = {
@@ -297,7 +438,7 @@ def load_player_sprites(group):
         8: load("north-east.png", rotations_dir),
     }
 def load_dagger_sprites() -> dict[int, pygame.Surface]:
-    base_path = os.path.join(os.path.dirname(__file__), "..\sprites\DAGGER-NORTH.png")
+    base_path = os.path.join(os.path.dirname(__file__), S.dagger)
     base = pygame.image.load(base_path).convert_alpha()
 
     if base.get_width() != S.TILE_SIZE or base.get_height() != S.TILE_SIZE:
@@ -313,6 +454,40 @@ def load_dagger_sprites() -> dict[int, pygame.Surface]:
         4: rot(base, 135),
         5: rot(base, 90),
         6: rot(base, 45),
+    }
+def load_inventory_sprites(i):
+    if i == 1:
+        i = poopb
+    elif i == 2 :
+        i = poopb
+    elif i == 3:
+        i = poopb
+    elif i == 4:
+        i = poopb
+    elif i == 5:
+        i = poopb
+    elif i == 6:
+        i = poopb
+    else : i = poopb
+    return  i
+
+def load_fart_sprites() -> dict[int, pygame.Surface]:
+    base_path = os.path.join(os.path.dirname(__file__), S.fart)
+    base = pygame.image.load(base_path).convert_alpha()
+
+    if base.get_width() != S.TILE_SIZE or base.get_height() != S.TILE_SIZE:
+        base = pygame.transform.scale(base, (S.TILE_SIZE, S.TILE_SIZE))
+
+    # base = NORTH (dir 7)
+    return {
+        2: base,
+        3: rot(base, -45),
+        4: rot(base, -90),
+        5: rot(base, -135),
+        6: rot(base, 180),
+        7: rot(base, 135),
+        8: rot(base, 90),
+        1: rot(base, 45),
     }
 
 def rot(img, deg):
@@ -360,13 +535,32 @@ def getInputs():
         inputs["sp"] = 1
     if keys[pygame.K_1]:
         pressedA = 1
-    if keys[pygame.K_2]:
+    elif keys[pygame.K_2]:
         pressedA = 2
+    elif keys[pygame.K_3]:
+        pressedA = 3
+    elif keys[pygame.K_4]:
+        pressedA = 4
+    elif keys[pygame.K_5]:
+        pressedA = 5
+    elif keys[pygame.K_6]:
+        pressedA = 6
+    elif keys[pygame.K_7]:
+        pressedA = 7
+    elif keys[pygame.K_8]:
+        pressedA = 8
+    fart = int(keys[pygame.K_f])
 
-    return inputs, pressedM, pressedA
+    return inputs, pressedM, pressedA, fart
 
 def sendAttack(self, boo):
     pk = struct.pack('!b16sb', S.CMDS["ATTACK"], self.pid.encode("utf-8"), boo)  # b is signed byte
+    self.client.send(self.connections[self.iControl], pk)
+    if self.iInActive != None:
+        self.client.send(self.connections[self.iInActive], pk)
+
+def sendFart(self, boo):
+    pk = struct.pack('!b16sb', S.CMDS["FART"], self.pid.encode("utf-8"), boo)  # b is signed byte
     self.client.send(self.connections[self.iControl], pk)
     if self.iInActive != None:
         self.client.send(self.connections[self.iInActive], pk)
