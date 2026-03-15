@@ -151,10 +151,10 @@ def dir_to_vec(d: int) -> tuple[int, int]:
 # ---------- extracted logic (no state dict) ----------
 
 def send_input(sock) -> bool:
-    dx, dy, dspeed, dire, attack, current_weapon ,pickup,fart,teleport= handle_input()
+    dx, dy, dspeed, dire, attack, current_weapon ,pickup,fart,teleport,outo= handle_input()
 
     try:
-        sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbbbbbbb", dx, dy, dspeed, dire, attack, current_weapon,pickup,fart,teleport)))
+        sock.sendall(qc3_pack(CMD_INPUT, struct.pack("!bbbbbbbbbb", dx, dy, dspeed, dire, attack, current_weapon,pickup,fart,teleport,outo)))
         return True
     except BlockingIOError:
         return True
@@ -393,7 +393,11 @@ def draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1
             pygame.draw.line(screen, (255, 0, 0), (start_x, start_y), (end_x, end_y), 7 + flicker)
             pygame.draw.line(screen, (255, 255, 255), (start_x, start_y), (end_x, end_y), 3)
             pygame.draw.circle(screen, (255, 255, 255), (int(start_x), int(start_y)), 5)
-
+def draw_fps(clock, fps_font, screen):
+    fps_val = int(clock.get_fps())
+    fps_surface = fps_font.render(f"FPS: {fps_val}", True, (0, 255, 0))
+    screen.blit(fps_surface, (WINDOW_W-100, 20))
+    # מחקנו את flip ו-tick מכאן!
 def draw_inventori(screen,players,m):
     x = (WINDOW_W//2)-40*4
     y = WINDOW_H - 50
@@ -407,10 +411,76 @@ def draw_inventori(screen,players,m):
                     screen.blit(load_inventory_sprites(p.weapons[i]), (x+38*i, y))
                 if i== p.ccw and p.ccw != 0 :
                     screen.blit(selectb, (x + 38*(i-1) -2, y - 3))
+def draw_inventory_overlay(screen, players, my_id, font):
+    if my_id not in players:
+        return
+    p = players[my_id]
 
+    # 1. יצירת השכבה השקופה (ה-Overlay)
+    # יוצרים משטח בגודל כל המסך שתומך בשקיפות
+    overlay = pygame.Surface((WINDOW_W, WINDOW_H), pygame.SRCALPHA)
+    # ממלאים אותו בשחור עם רמת שקיפות (160 מתוך 255)
+    overlay.fill((0, 0, 0, 160))
+    screen.blit(overlay, (0, 0))
 
+    # 2. הגדרת המלבן המרכזי (הפעם הוא יהיה אטום מעט יותר כדי שהטקסט יבלוט)
+    inv_w, inv_h = 600, 350
+    inv_x = (WINDOW_W - inv_w) // 2
+    inv_y = (WINDOW_H - inv_h) // 2
+    inv_rect = pygame.Rect(inv_x, inv_y, inv_w, inv_h)
 
-def draw_frame(screen, players, bullets,dropped, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER,FARTS,DEFAULT_FARTS):
+    # ציור תיבת האינבנטורי - צבע כהה מאוד
+    pygame.draw.rect(screen, (30, 30, 30), inv_rect)
+    pygame.draw.rect(screen, (0, 255, 255), inv_rect, 3)  # מסגרת טורקיז
+
+    # 3. HP - בתוך המלבן
+    health_txt = font.render(f"HP: {int(p.health)}/100", True, (255, 50, 50))
+    screen.blit(health_txt, (inv_rect.x + 20, inv_rect.y + 20))
+
+    # 4. משבצות הנשקים
+    num_slots = len(p.weapons)
+    slot_size = 50
+    gap = 10
+    total_w = (num_slots * slot_size) + ((num_slots - 1) * gap)
+    slots_x = inv_rect.centerx - (total_w // 2)
+    slots_y = inv_rect.y + 70
+
+    for i in range(num_slots):
+        slot_rect = pygame.Rect(slots_x + (i * (slot_size + gap)), slots_y, slot_size, slot_size)
+
+        # צבע משבצת
+        color = (50, 50, 50) if (i + 1) != p.ccw else (80, 80, 40)
+        pygame.draw.rect(screen, color, slot_rect)
+        pygame.draw.rect(screen, (150, 150, 150), slot_rect, 1)
+
+        if p.weapons[i] != 0:
+            img = load_inventory_sprites(p.weapons[i])
+            icon = pygame.transform.scale(img, (30, 30))
+            ix = slot_rect.x + (slot_size - icon.get_width()) // 2
+            iy = slot_rect.y + (slot_size - icon.get_height()) // 2
+            screen.blit(icon, (ix, iy))
+
+        if i + 1 == p.ccw:
+            pygame.draw.rect(screen, (255, 255, 0), slot_rect, 2)
+
+    # 5. הנשק הגדול (Preview)
+    current_w = p.weapons[p.ccw - 1] if p.ccw > 0 else 0
+    if current_w != 0:
+        big_img = load_inventory_sprites(current_w)
+        big_img = pygame.transform.scale(big_img, (130, 130))
+
+        bx = inv_rect.centerx - (big_img.get_width() // 2)
+        by = slots_y + slot_size + 30
+
+        # במה קטנה לנשק
+        pygame.draw.ellipse(screen, (20, 20, 20), (inv_rect.centerx - 60, by + 120, 120, 20))
+        screen.blit(big_img, (bx, by))
+
+        # שם הנשק
+        w_names = {1: 'DAGGER', 2: 'GUN', 3: 'HEALTH', 4: 'SPEED', 5: 'INVIS', 6: 'SHIELD', 7: 'LASER'}
+        name_txt = font.render(w_names.get(current_w, "---"), True, (255, 255, 255))
+        screen.blit(name_txt, (inv_rect.centerx - (name_txt.get_width() // 2), by + 140))
+def draw_frame(screen, players, bullets,dropped, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER,FARTS,DEFAULT_FARTS,clock , fps_font,open):
     screen.fill((0, 0, 0))
 
     if my_id is None or my_id not in players:
@@ -423,8 +493,12 @@ def draw_frame(screen, players, bullets,dropped, my_id, map_w, map_h, SPRITES1, 
     draw_dropped(screen, dropped, DAGGERS, DEFAULT_DAGGER, cam_x, cam_y)
     draw_bullets(screen, bullets, cam_x, cam_y)
     draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER,FARTS,DEFAULT_FARTS)
-    draw_inventori(screen, players,my_id)
 
+    draw_fps(clock , fps_font ,screen)
+    if open:
+        draw_inventory_overlay(screen, players, my_id, fps_font)
+    else :
+        draw_inventori(screen, players, my_id)
 # ---------- main ----------
 def run():
     pygame.init()
@@ -432,7 +506,10 @@ def run():
     clock = pygame.time.Clock()
 
     screen = pygame.display.set_mode((WINDOW_W, WINDOW_H))
+    inventory_open = False
+    pygame.font.init()
 
+    fps_font = pygame.font.SysFont("Arial", 20, bold=True)
     # load sprites
     SPRITES1 = load_player_sprites(1)
     DEFAULT_SPRITE1 = SPRITES1[3]
@@ -466,7 +543,9 @@ def run():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_i:  # לחיצה על I
+                    inventory_open = not inventory_open
         # input
         if not send_input(sock):
             running = False
@@ -477,10 +556,11 @@ def run():
             running = False
 
         # draw
-        draw_frame(screen, players, bullets,dropped, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER,FARTS,DEFAULT_FARTS)
+        draw_frame(screen, players, bullets,dropped, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER,FARTS,DEFAULT_FARTS,clock, fps_font,inventory_open)
 
         pygame.display.flip()
         clock.tick(60)
+
 
     try:
         sock.close()

@@ -185,6 +185,11 @@ def apply_movement(p, dx, dy, dsprint,teleport):
         dx,dy =dir_to_vec(p.dir)
         nx = clamp(p.x + dx * speed, 0, MAP_W)
         ny = clamp(p.y + dy * speed, 0, MAP_H)
+    elif p.outo_run:
+        speed = SPEED + (SPEED * dsprint * 5) + (SPEED * p.speed_po * 50)
+        dx,dy = dir_to_vec(p.dir)
+        nx = clamp(p.x + dx * speed, 0, MAP_W)
+        ny = clamp(p.y + dy * speed, 0, MAP_H)
     else:
         speed = SPEED + (SPEED * dsprint*5)+ (SPEED*p.speed_po*50)
         nx = clamp(p.x + dx * speed, 0, MAP_W)
@@ -262,7 +267,6 @@ def try_attack(p, attack, bullets,farts, clients, dagger ,fartp):
             check_laser_hit(p, clients)
             p.la_cooldown = LASER_COOLDOWN
             p.laser_event = 1
-
 
 def drop_weapons(player, dropped_list):
     for w_type in player.weapons:
@@ -419,18 +423,20 @@ def update_fart(farts,c):
             farts.remove(f)
 
 def handle_input_message(p, payload, bullets,farts, clients, dagger):
-    if len(payload) != 9:
+    if len(payload) != 10:
         return
 
-    dx, dy, dsprint, dire, attack, current_weapon ,pickup,fartp,teleport= struct.unpack("!bbbbbbbbb", payload)
+    dx, dy, dsprint, dire, attack, current_weapon ,pickup,fartp,teleport,outo= struct.unpack("!bbbbbbbbbb", payload)
     # weapon switch
-
+    if outo ==1 :
+        p.outo_run = not p.outo_run
+    elif dire != 0:
+        p.dir = int(dire)
     if current_weapon != 0 and p.weapons[current_weapon-1] in p.weapons:
         p.current_weapon = current_weapon
 
     # direction update
-    if dire != 0:
-        p.dir = int(dire)
+
 
     # attack
     try_attack(p, attack, bullets,farts, clients, dagger,fartp)
@@ -582,7 +588,7 @@ def main():
     dagger = Dagger()
     bullets = []
     farts = []
-
+    outo_run=False
     last_broadcast = time.time()
     print(f"QC3 Server listening on {HOST}:{PORT}")
 

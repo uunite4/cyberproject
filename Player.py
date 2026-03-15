@@ -32,6 +32,7 @@ class PlayerData(Entity):
         self.b_timer = 0
         self.la_cooldown = 0
         self.laser_event = 0
+        self.outo_run = False
 
     def update_from_server(self, x, y, health, direction, attack, current_weapon, group,fartp,fcool,tcool,inv,wepons,cw,la):
         self.x = x
@@ -49,10 +50,12 @@ class PlayerData(Entity):
         self.weapons=wepons
         self.ccw=cw
         self.laser_event = la
+
 def handle_input():
     keys = pygame.key.get_pressed()
     dx = int(keys[pygame.K_d]) - int(keys[pygame.K_a])
     dy = int(keys[pygame.K_s]) - int(keys[pygame.K_w])
+    outo = int(keys[pygame.K_r])
     pickup = int(keys[pygame.K_e])
     dspeed = int(keys[pygame.K_LSHIFT])
     shot = int(keys[pygame.K_SPACE])
@@ -101,7 +104,7 @@ def handle_input():
         elif dy == 0:
             dire =0
 
-    return dx,dy ,dspeed,dire ,shot ,current_weapon,pickup,fart,teleport
+    return dx,dy ,dspeed,dire ,shot ,current_weapon,pickup,fart,teleport,outo
 def get_corners(x,y,size):
     left, right, top, bottom = get_sides(x,y,size)
     corners = [  # 4 corners
