@@ -84,6 +84,7 @@ CMDS = {
     "CHANGE_WEAPON": 0x0F,
     "ADD_ME": 0x10,
     "FART": 0x11,
+    "HELLO": 0x12,
 }
 
 LOAD_BALANCER = {

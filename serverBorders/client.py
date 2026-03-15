@@ -50,6 +50,8 @@ class MyClient:
             self.player.att = 0
             self.player.weapon = 1
 
+            pk = struct.pack("!b16s", S.CMDS["HELLO"], self.pid.encode("utf-8"))
+            self.client.send(self.connections[self.iControl], pk)
         elif (cmd == S.CMDS["MOVE"]):
             moveOffPackt(data, self.player)
 

@@ -56,7 +56,8 @@ class MyServer:
                 "f_cooldown": 0,
             }
             print("PLAYERS INITIAL POS: ", self.clients[pid]["x"], self.clients[pid]["y"], "PLAYERS ID: ", pid)
-
+        elif (cmd == S.CMDS["HELLO"]):
+            self.clients[pid]["cid"] = connection_id
         elif (cmd == S.CMDS["MOVE"]):
             currentClient = self.clients[pid]
 
