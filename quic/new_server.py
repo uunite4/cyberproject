@@ -4,6 +4,7 @@ import json
 import secrets
 import sqlite3
 import string
+import os
 
 from login.loginServer import player_info_update
 from wrappers.server_wrapper import QuicServer
@@ -30,11 +31,11 @@ class LoginServer:
 
         raw_data = data.decode()
         if not raw_data: return
-        if connection_id == self.loadbalancer_id:
-            self.handle_load_balancer(self, raw_data)
+        #if connection_id == self.loadbalancer_id:
+            #self.handle_load_balancer(self, raw_data, connection_id)
 
-        else:
-            handle_login_client()
+        #else:
+        handle_login_client(self, raw_data, connection_id)
 
     def on_connect(self, connection_id: int):
         print(f"{connection_id} connected")
@@ -46,7 +47,7 @@ class LoginServer:
         await self.server.start()
         print("Server started")
 
-        loadbalancer_id = await self.server.connect_to_server()
+        #loadbalancer_id = await self.server.connect_to_server()
 
         try:
             await asyncio.Future()
@@ -59,25 +60,58 @@ class LoginServer:
             print("Server shut down")
 
     def hash_password(self, password):
-        # Returns a fixed-length string 'fingerprint' of the password
+        # We will keep it simple for now so your Login still works
+        # Salting requires saving the salt in the DB, which we can add later!
         return hashlib.sha256(password.encode()).hexdigest()
 
-    def player_info_update(self, key, x_position, y_position, health, team, direaction):
+    def hash_password_with_salt(self, password, salt_hex=None):
+        # 1. If we are signing up, we need a brand NEW random salt
+        if salt_hex is None:
+            salt = os.urandom(16)  # Random bytes
+            salt_hex = salt.hex()  # Convert to string for the DB
+        else:
+            # 2. If we are logging in, we use the salt we found in the DB
+            salt = bytes.fromhex(salt_hex)
+
+        # 3. ADD the salt to the password (Salt + Password)
+        # We use salt (bytes) + password.encode() (bytes)
+        combined = salt + password.encode()
+
+        # 4. Hash the combined version
+        hash_obj = hashlib.sha256(combined)
+        return salt_hex, hash_obj.hexdigest()
+
+    def player_inventory_upload(self, item1, item2, item3, item4, item5, item6, item7, item8, item9, item10, token):
+        with sqlite3.connect(DB_PATH, timeout=5) as conn:
+            cursor = conn.cursor()
+            # You must list every column you want to update
+            cursor.execute("""UPDATE inventory 
+                            SET item1 = ?, item2 = ?, item3 = ?, item4 = ?, item5 = ?,
+                                item6 = ?, item7 = ?, item8 = ?, item9 = ?, item10 = ?
+                            WHERE token = ?""",
+                           (item1, item2, item3, item4, item5, item6, item7, item8, item9, item10, token))
+            conn.commit()
+            conn.close()
+            print("invertory uploaded!")
+    def player_info_update(self, token, x_position, y_position, health, team, direaction, item1, item2, item3, item4, item5, item6, item7, item8, item9, item10):
+        self.player_inventory_upload(item1, item2, item3, item4, item5, item6, item7, item8, item9, item10, token)
         with sqlite3.connect(DB_PATH, timeout=5) as conn:
             curser = conn.cursor()
             curser.execute("""UPDATE last_save
-                              SET x position = ?,
-                                  y position = ?,
+                              SET x_position = ?,
+                                  y_position = ?,
                                   health     = ?,
                                   team       = ?,
                                   direaction = ?
-                              WHERE token = ?""", (x_position, y_position, health, team, direaction, key))
+                              WHERE token = ?""", (x_position, y_position, health, team, direaction, token))
+
             conn.commit()
             conn.close()
-            print(f"Successfully updated stats for Player {key}")
+            print(f"Successfully updated stats for Player {token}")
 
     def sendTokenToLB(self, token):
         return "38.97.84.242"  # Mock IP for game server
+
 
     def get_unique_token(self):
         conn = sqlite3.connect(DB_PATH)
@@ -98,48 +132,82 @@ class LoginServer:
 
             # If it's NOT None, the loop runs again to try a different token
 
+    def check_username_exists(self, username):
+        with sqlite3.connect(DB_PATH, timeout=5) as conn:
+            cursor = conn.cursor()
+            # We only look for the name, ignoring the password
+            cursor.execute("SELECT 1 FROM login WHERE username = ?", (username,))
+            return cursor.fetchone() is not None
+
     def handleSignup(self, username, password):
-        if self.handleLogin(username, password) != 404:
+        if self.check_username_exists(username):
             return "ALREADY FOUND"
 
         token = self.get_unique_token()
-        pass_hash = self.hash_password(password)
-        try:
-            with sqlite3.connect(DB_PATH, timeout=5) as conn:
-                cursor = conn.cursor()
-                cursor.execute("INSERT INTO login (username, password, token) VALUES (?, ?, ?)",
-                               (username, pass_hash, token))
-                # Optional: cursor.execute("INSERT INTO PlayerData...")
-                conn.commit()
-                return token
-        except sqlite3.IntegrityError:
-            return "ALREADY FOUND"
+        # Generate the salt and the hash
+        salt, pass_hash = self.hash_password_with_salt(password)
+
+        with sqlite3.connect(DB_PATH, timeout=5) as conn:
+            cursor = conn.cursor()
+            # You MUST have a 'salt' column in your 'login' table
+            cursor.execute("INSERT INTO login (username, password, salt, token) VALUES (?, ?, ?, ?)",
+                           (username, pass_hash, salt, token))
+            conn.commit()
+        return token
 
     def handleLogin(self, username, password):
         with sqlite3.connect(DB_PATH, timeout=5) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            pass_hash = self.hash_password(password)
-            cursor.execute("SELECT token FROM login WHERE username = ? AND password = ?", (username, pass_hash))
-            user = cursor.fetchone()
-            return user['token'] if user else 404
+
+            # 1. Find the user first to get THEIR specific salt
+            cursor.execute("SELECT password, salt, token FROM login WHERE username = ?", (username,))
+            user_row = cursor.fetchone()
+
+            if user_row:
+                stored_hash = user_row['password']
+                stored_salt = user_row['salt']  # This is the 'xyz' or 'abc'
+
+                # 2. Combine the salt they have in the DB with the password they just typed
+                _, attempt_hash = self.hash_password_with_salt(password, stored_salt)
+
+                # 3. If the fingerprints match, they are logged in!
+                if attempt_hash == stored_hash:
+                    return user_row['token']
+
+            return 404
 
     def generateToken(self, length=16):
         alphabet = string.ascii_letters + string.digits
         return ''.join(secrets.choice(alphabet) for _ in range(length))
 
-    def handle_load_balancer(self, raw_data):
+    def handle_load_balancer(self, raw_data, connection_id):
         loginData = json.loads(raw_data)
 
-        key = loginData["key"]
+        token = loginData["token"]
         x_position = loginData["x_position"]
         y_position = loginData["y_position"]
         health = loginData["health"]
         team = loginData["team"]
         direaction = loginData["direaction"]
-        self.player_info_update(key, x_position, y_position, health, team, direaction)
+        item1 = loginData["item1"]
+        item2 = loginData["item2"]
+        item3 = loginData["item3"]
+        item4 = loginData["item4"]
+        item5 = loginData["item5"]
+        item6 = loginData["item6"]
+        item7 = loginData["item7"]
+        item8 = loginData["item8"]
+        item9 = loginData["item9"]
+        item10 = loginData["item10"]
+        self.player_info_update(token, x_position, y_position, health, team, direaction,item1, item2, item3, item4, item5, item6, item7, item8, item9, item10)
         print("updated successfully!")
-
+        response_packet = f"OK={token}={connection_id}"
+        try:
+            self.server.send(connection_id, response_packet.encode())
+            print(f"Handled update info for {connection_id}. Response sent.")
+        except Exception as e:
+            print(f"Error handling request: {e}")
 
 def handle_login_client(self, raw_data, connection_id):
        # still needs to make a new one also for the updating
@@ -167,8 +235,9 @@ def handle_login_client(self, raw_data, connection_id):
            elif userToken == 404:
                response_packet = "ERROR=ERROR: with login=NO USER FOUND"
            else:
-               gameServerIP = self.sendTokenToLB(userToken)
-               response_packet = f"OK={userToken}={gameServerIP}"
+               game_server_ip = self.sendTokenToLB(userToken)
+               response_packet = f"OK={userToken}={game_server_ip}"
+
 
        elif action == "SIGNUP":
            print("signup")
@@ -184,8 +253,8 @@ def handle_login_client(self, raw_data, connection_id):
            elif userToken == "ALREADY FOUND":
                response_packet = "ERROR=ERROR: with signup=User already found"
            else:
-               gameServerIP = self.sendTokenToLB(userToken)
-               response_packet = f"OK={userToken}={gameServerIP}"
+               game_server_ip = self.sendTokenToLB(userToken)
+               response_packet = f"OK={userToken}={game_server_ip}"
 
        # Send response and CLOSE this specific client connection
 
