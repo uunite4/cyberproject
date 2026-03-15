@@ -150,10 +150,12 @@ def enemy_treatment(enemies, players, memory_list):
         target_x, target_y, id = e.get_target(see_id_list, see_pos_list, last_target)
         memory_list[eid] = (target_x, target_y)
 
-        final_x, final_y = next_pos(e.entity.x, e.entity.y, target_x, target_y, S.MONSTERS[e.type]["speed"])
+        final_x, final_y = next_pos2(e.entity.x, e.entity.y, target_x, target_y, S.MONSTERS[e.type]["speed"])
         if final_y<0: final_y = 0
-        e.entity.x, e.entity.y = final_x, final_y
-        #final_list_pos.append((final_x, final_y))
+        if not check_collision_with_stone(final_x, e.entity.y, S.ENEMY_SIZE):
+            e.entity.x = final_x
+        if not check_collision_with_stone(e.entity.x, final_y, S.ENEMY_SIZE):
+            e.entity.y = final_y        #final_list_pos.append((final_x, final_y))
     return memory_list
 
 

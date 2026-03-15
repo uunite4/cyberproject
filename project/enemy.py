@@ -87,11 +87,11 @@ class Enemy:
             dis = distance(self.entity.x, self.entity.y, tx, ty)
 
             # If we are more than 10 pixels away, keep this target
-            if dis > 10:
+            if dis >5:
                 return tx, ty, None
         # If no players are found/visible, pick a random spot to wander
         while True:
-            target = rand_pos(s.MONSTERS[self.type]["att_radius"], self)
+            target = rand_pos(s.MONSTERS[self.type]["see_radius"], self)
             if in_view(self.entity.x, self.entity.y, target[0], target[1]):
                 return target[0], target[1], None
 

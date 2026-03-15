@@ -55,16 +55,6 @@ def rand_pos(radius,enemy):
     rand_y = random.randint(ey - r, ey + r)
     return rand_x,rand_y
 
-def rand_pos2(radius,enemy):
-    while True:
-        r = radius
-        ex = int(enemy.entity.x+200)
-        ey = int(enemy.entity.y+200)
-        rand_x = random.randint(ex - r, ex + r)
-        rand_y = random.randint(ey - r, ey + r)
-        if rand_y>0 and rand_y<108*40 and rand_x>0 and rand_x<192*40:
-            return rand_x,rand_y
-
 def next_pos(sx,sy,tx,ty,speed): #start x,y ; target x,y ; speed
     dir,slope = vector(sx,sy,tx,ty)
     if dir==0:
@@ -75,6 +65,17 @@ def next_pos(sx,sy,tx,ty,speed): #start x,y ; target x,y ; speed
         ny = sy + dir*speed*slope
     return nx,ny
 
+
+def next_pos2(sx, sy, tx, ty, speed):
+    dist = distance(sx, sy, tx, ty)
+    if dist < speed:
+        return tx, ty  # Arrived at target
+
+    # Calculate angle to target
+    angle = math.atan2(ty - sy, tx - sx)
+    nx = sx + math.cos(angle) * speed
+    ny = sy + math.sin(angle) * speed
+    return nx, ny
 def in_view(sx,sy,tx,ty):
     dir, slope = vector(sx,sy,tx,ty)
     if dir==0:
