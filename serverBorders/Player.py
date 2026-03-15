@@ -8,7 +8,8 @@ class Player:
         self.y = y
         self.dir = dir
         self.health = health
-        self.att = False
+        self.att = 0
+        self.weapon = 1
 
         self.width = 40
         self.height = 40
@@ -66,3 +67,10 @@ def get_sides(x,y, size):
     bottom = y + size // 2 - 1  # player box bottom (pixels)
 
     return left,right,top,bottom
+
+def check_bullet_hit(p,b):
+    left, right, top, bottom = get_sides(p["x"], p["y"],S.PLAYER_SIZE)
+
+    if left <= b.x <= right and top <= b.y <= bottom:
+        return True
+    return False

@@ -4,6 +4,7 @@ import time
 import random
 from xmlrpc.client import boolean
 import Dagger
+from Bullet import *
 from Player import *
 import SETTINGS as S
 from networking.wrappers.server_wrapper import QuicServer
@@ -16,6 +17,7 @@ class MyServer:
         self.serverData = S.SERVERS[self.serverNumber - 1]
         self.nearOverlaps = getNearOverlaps(self.serverNumber - 1)
         self.clients = {}
+        self.bullets = []
         self.server = QuicServer(
             ip=self.serverData["ip"],
             port=self.serverData["port"],
@@ -45,12 +47,17 @@ class MyServer:
                 "cid":connection_id,
                 "imOverlap": False,
                 "att": 0,
+                "weapon": 1,
+                "gun_cd": S.BULLET_COOLDOWN
             }
             print("PLAYERS INITIAL POS: ", self.clients[pid]["x"], self.clients[pid]["y"], "PLAYERS ID: ", pid)
 
         elif (cmd == S.CMDS["MOVE"]):
             currentClient = self.clients[pid]
-            currentClient["imOverlap"] = False
+
+            if currentClient["imOverlap"]:
+                currentClient["imOverlap"] = False
+                currentClient["inOverlap"] = False
             # CLIENT GAVE US DIRECTION, WE RETURN POS
             print(f"GOT MOVE PACKET")
             xDir, yDir, sprint = struct.unpack_from('!bbb', data, 17)
@@ -98,27 +105,51 @@ class MyServer:
                 self.server.send(connection_id, pk)
                 del self.clients[pid]
         elif (cmd == S.CMDS["POS_DONT_RESPOND"]):
-            x, y, dir, health, att = struct.unpack_from('!hhhhb', data, 17)
-            self.clients[pid] = {
+            x, y, dir = struct.unpack_from('!hhh', data, 17)
+            new_data = {
                 "x": x,
                 "y": y,
-                "inOverlap": True,
-                "imOverlap": True,
-                "dir":dir,
-                "hp":health,
-                "att": att,
-                "cid":connection_id,
+                "dir": dir,
             }
+            self.clients[pid].update(new_data)
             print(f"GOT OVERLAP PACKET")
         elif (cmd == S.CMDS["HP_DONT_RESPOND"]):
             nhp = struct.unpack_from('!h', data, 17)[0]
             self.clients[pid]["hp"] = nhp
         elif (cmd == S.CMDS["REMOVE_ME"]):
             del self.clients[pid]
+        elif (cmd == S.CMDS["ADD_ME"]):
+            print("added player ", pid)
+            x, y, dir, health, att, weapon = struct.unpack_from('!hhhhbb', data, 17)
+            self.clients[pid] = {
+                "x": x,
+                "y": y,
+                "inOverlap": True,
+                "imOverlap": True,
+                "dir": dir,
+                "hp": health,
+                "att": att,
+                "weapon": weapon,
+                "gun_cd": S.BULLET_COOLDOWN,
+                "cid": connection_id,
+            }
 
         elif (cmd == S.CMDS["ATTACK"]):
             att = struct.unpack_from('!b', data, 17)[0]
             self.clients[pid]["att"] = att
+            if self.clients[pid]["weapon"] == 2 and self.clients[pid]["gun_cd"] <= 0:
+                b_id = get_next_bullet_id(self.bullets)
+                new_bullet = Bullet(b_id, self.clients[pid]["x"], self.clients[pid]["y"], self.clients[pid]["dir"], S.BULLET_DISTANS, pid)
+                self.bullets.append(new_bullet)
+                self.clients[pid]["gun_cd"] = S.BULLET_COOLDOWN
+
+
+        elif (cmd == S.CMDS["CHANGE_WEAPON"]):
+            weapon = struct.unpack_from('!b', data, 17)[0]
+            self.clients[pid]["weapon"] = weapon
+            print("changed weapon to ", weapon)
+            if weapon == 2:
+                self.clients[pid]["gun_cd"] = S.BULLET_COOLDOWN
 
     def on_connect(self, connection_id: int):
         print(f"connected {connection_id}")
@@ -134,7 +165,9 @@ class MyServer:
             now = time.time()
 
             if now - lastBroadcast >= S.BROADCAST_INTERVAL:
+                tick_cooldowns(self.clients)
                 broadcast(self, dagger)
+                update_bullets(self.bullets)
                 lastBroadcast = now
 
             await asyncio.sleep(0.001)
@@ -184,30 +217,36 @@ def getNearOverlaps(serverIndex):
 
 
 def broadcast(self, dagger):
-    hp_change = [False] * len(self.clients)
+    hp_change = [False] * len(self.clients) #does their health change and need updating?
     i = 0
     for pid,client in self.clients.items():
         temp = copy_dic(self.clients)
         del temp[pid]
-        pk = build_state_payload(temp)
+        pk = build_state_payload(temp, self.bullets)
         self.server.send(client["cid"],pk)
         #health related changes
-        if client["att"] == 1:
+        if client["att"] == 1 and client["weapon"] == 1:  # daggers
             print("player attacking", i)
             arr = dagger.attack(client, self.clients)
-            j=0
+            j = 0
             for boo in arr:
                 if boo:
                     hp_change[j] = True
                 j += 1
-        if check_collision_with_lava(client["x"], client["y"], S.PLAYER_SIZE):
-            client["hp"] -= 1
-            hp_change[i] = True
+        if not client["imOverlap"]:
+            if self.bullets != []:
+                boo = apply_bullet_hits_for_player(pid, client, self.bullets)
+                if boo:
+                    hp_change[i] = True
+            if check_collision_with_lava(client["x"], client["y"], S.PLAYER_SIZE): #daggers
+                client["hp"] -= 1
+                hp_change[i] = True
         i += 1
     i = 0
     for client in self.clients.values():
-        if hp_change[i] and not client["imOverlap"]:
+        if hp_change[i]:
             if client["hp"] > 0:
+                print("damage taken")
                 pk = struct.pack('!bh', S.CMDS["DAMAGE"], client["hp"])
             elif client["hp"] <= 0:
                 x, y = respawn(self.serverNumber-1)
@@ -245,9 +284,9 @@ def copy_dic(dic):
         ndic[k] = v
     return ndic
 
-def build_state_payload(clients):
+def build_state_payload(clients, bullets):
     count = len(clients)
-    format = "!bh" + "hhhhb" * count #the b is for byte - 0\1
+    format = "!bh" + "hhhhbb" * count #the b is for byte - 0\1
     payload = [S.CMDS["RENDER"], count]
 
     for c in clients.values():
@@ -256,6 +295,15 @@ def build_state_payload(clients):
         payload.append(int(c["dir"]))
         payload.append(int(c["hp"]))
         payload.append(int(c["att"]))
+        payload.append(int(c["weapon"]))
+
+    countb = len(bullets)
+    payload.append(countb)
+    format += "h" + "hh" * countb
+    for b in bullets:
+        payload.append(int(b.x))
+        payload.append(int(b.y))
+        print("bullet in ", b.x, b.y)
 
     return struct.pack(format, *payload)
 
@@ -282,6 +330,33 @@ def get_dir(dx,dy):
         elif dy == 0:
             dire = 3
     return dire
+
+def tick_cooldowns(clients):
+    for c in clients.values():
+        if c["weapon"] == 2 and c["gun_cd"] > 0:
+            c["gun_cd"] -= 1
+
+def update_bullets(bullets):
+    i=0
+    for b in bullets:
+        is_dead = b.update_bullet()  # שם הפונקציה שלך
+        if is_dead:
+            del bullets[i]
+        i+=1
+
+def apply_bullet_hits_for_player(pid, p, bullets):
+    back = False
+    i=0
+    for b in bullets:
+        # לא פוגע בעצמו
+        if b.player_id == pid:
+            continue
+        if check_bullet_hit(p, b):
+            p["hp"] -= S.BULLET_DAMEG
+            del bullets[i]
+            back = True
+        i+=1
+    return back
 
 if __name__ == "__main__":
     s = MyServer()

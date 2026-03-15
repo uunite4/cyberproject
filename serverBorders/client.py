@@ -22,6 +22,7 @@ class MyClient:
         self.iInActive = None
         self.running = True
         self.players = []  # list of other players which are relevant works in [i]={"x":...,...}
+        self.bullets = []
         pygame.init()
         self.screen = pygame.display.set_mode((S.WINDOW_WIDTH, S.WINDOW_HEIGHT))
         pygame.display.set_caption("Game")
@@ -42,25 +43,30 @@ class MyClient:
             self.player.dir = 3
             self.player.health = S.PLAYER_HEALTH
             self.player.att = 0
+            self.player.weapon = 1
 
         elif (cmd == S.CMDS["MOVE"]):
             moveOffPackt(data, self.player)
 
         elif (cmd == S.CMDS["OVERLAP"]):
             # SEND POS TO SECOND SERVER
+            if self.iInActive != None:
+                pk = struct.pack("!b16shhh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x,
+                                 self.player.y, self.player.dir)
+                self.client.send(self.connections[self.iInActive], pk)
+            else:
+                dir = struct.unpack_from('!1s', data, 1)[0].decode("utf-8")
+                if (dir == "r"):
+                    self.iInActive = self.iControl + 1
+                elif (dir == "l"):
+                    self.iInActive = self.iControl - 1
 
-            dir = struct.unpack_from('!1s', data, 1)[0].decode("utf-8")
-            if (dir == "r"):
-                self.iInActive = self.iControl + 1
-            elif (dir == "l"):
-                self.iInActive = self.iControl - 1
+                print(self.iInActive)
 
-            print(self.iInActive)
-
-            pk = struct.pack("!b16shhhhb", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x,
-                             self.player.y,
-                             self.player.dir, self.player.health, self.player.att)
-            self.client.send(self.connections[self.iInActive], pk)
+                pk = struct.pack("!b16shhhhbb", S.CMDS["ADD_ME"], self.pid.encode("utf-8"), self.player.x,
+                                 self.player.y,
+                                 self.player.dir, self.player.health, self.player.att, self.player.weapon)
+                self.client.send(self.connections[self.iInActive], pk)
 
         elif (cmd == S.CMDS["OUT_OF_OVERLAP"]):
             # SEND TO INACTIVE SERVER TO REMOVE ME
@@ -83,9 +89,20 @@ class MyClient:
                 self.players = []
                 count = struct.unpack_from('!h', data, 1)[0]
                 for i in range(count):
-                    offset = 3+9*i
-                    x, y, dir, health, att = struct.unpack_from('!hhhhb', data, offset)
-                    self.players.append({"x":x,"y": y, "dir": dir, "hp": health, "att": att})
+                    offset = 3+10*i
+                    x, y, dir, health, att, weapon = struct.unpack_from('!hhhhbb', data, offset)
+                    self.players.append({"x":x,"y": y, "dir": dir, "hp": health, "att": att, "weapon": weapon})
+                offset = 3+10*count
+                self.bullets = []
+                countb = struct.unpack_from('!h', data, offset)[0]
+                offset += 2
+                for i in range(countb):
+                    bx, by = struct.unpack_from('!hh', data, offset)
+                    self.bullets.append({"x":bx, "y":by})
+                    offset+=4
+                    print("bullet in ", bx, " ", by)
+
+
         elif (cmd == S.CMDS["DAMAGE"]):
             nhp = struct.unpack_from('!h', data, 1)[0]
             self.player.health = nhp
@@ -147,19 +164,22 @@ class MyClient:
             # KEYS (GET INPUTS)
             inputs, pressedM, pressedA = getInputs()
             # SEND INPUTS
-            if inputs["sp"] == 1:
+            if inputs["sp"] == 1: #attacking...
                 if self.player.att == 0:
-                    pk = struct.pack('!b16sb', S.CMDS["ATTACK"], self.pid.encode("utf-8"), inputs["sp"])  # b is signed byte
+                    sendAttack(self, 1)
+                    self.player.att = 1
+            elif self.player.att == 1:
+                sendAttack(self, 0)
+                self.player.att = 0
+
+            if pressedA !=0:
+                if self.player.weapon != pressedA:
+                    self.player.weapon = pressedA
+                    pk = struct.pack("!b16sb", S.CMDS["CHANGE_WEAPON"], self.pid.encode("utf-8"), pressedA)
                     self.client.send(self.connections[self.iControl], pk)
                     if self.iInActive != None:
                         self.client.send(self.connections[self.iInActive], pk)
-                    self.player.att = 1
-            elif self.player.att == 1:
-                pk = struct.pack('!b16sb', S.CMDS["ATTACK"], self.pid.encode("utf-8"), inputs["sp"])  # b is signed byte
-                self.client.send(self.connections[self.iControl], pk)
-                if self.iInActive != None:
-                    self.client.send(self.connections[self.iInActive], pk)
-                self.player.att = 0
+
             if (pressedM): #movement related inputs
                 self.sendInputs(inputs)
 
@@ -184,6 +204,7 @@ class MyClient:
         cam_x, cam_y = camera_from_pos(self.player.x, self.player.y, map_w, map_h)
 
         draw_map(screen, MAP, cam_x, cam_y, S.WINDOW_WIDTH, S.WINDOW_HEIGHT)
+        draw_bullets(screen, self.bullets, cam_x, cam_y)
         draw_players(screen, self.player, self.players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS)
 
 def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS):
@@ -196,8 +217,8 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
         screen.blit(sprite, (px, py))
         S_health_bar_update(p["hp"], screen, px, py)
 
-        if p["att"]==1: #daggers
-            print("A PLAYER IS ATTACKING")
+        if p["att"]==1 and p["weapon"]==1: #daggers
+            print("A PLAYER IS daggering")
             d = p["dir"]
             vx, vy = dir_to_vec(d)
             dagger_x = int((p["x"] + vx * S.TILE_SIZE) - cam_x - S.TILE_SIZE // 2)
@@ -209,7 +230,7 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
     py = int(player.y - cam_y - S.PLAYER_SIZE // 2)
     sprite = SPRITES1.get(player.dir, DEFAULT_SPRITE1)
     screen.blit(sprite, (px, py))
-    if player.att == 1:  # daggers
+    if player.att == 1 and player.weapon == 1:  # daggers
         d = player.dir
         vx, vy = dir_to_vec(d)
         dagger_x = int((player.x + vx * S.TILE_SIZE) - cam_x - S.TILE_SIZE // 2)
@@ -217,6 +238,15 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
         screen.blit(DAGGERS.get(d, DEFAULT_DAGGER), (dagger_x, dagger_y))
 
     health_bar_update(player.health, screen)
+
+def draw_bullets(screen, bullets, cam_x, cam_y):
+    for b in bullets:
+        bx = b["x"] - cam_x
+        by = b["y"] - cam_y
+
+        pygame.draw.circle(screen, "red", (bx, by), S.BULLET_SIZE)
+        pygame.draw.circle(screen, "orange", (bx, by), S.BULLET_SIZE-1)
+        pygame.draw.circle(screen, "yellow", (bx, by), S.BULLET_SIZE-3)
 
 def dir_to_vec(d: int) -> tuple[int, int]:
     vectors = {
@@ -309,7 +339,8 @@ def getInputs():
         "sf": 0,
         "sp": 0,
     }
-    pressedM, pressedA = False, False
+    pressedM = False
+    pressedA = 0
     keys = pygame.key.get_pressed()
     if keys[pygame.K_w]:
         inputs["w"] = 1
@@ -327,10 +358,18 @@ def getInputs():
         inputs["sf"] = 1
     if keys[pygame.K_SPACE]:
         inputs["sp"] = 1
-        pressedA = True
+    if keys[pygame.K_1]:
+        pressedA = 1
+    if keys[pygame.K_2]:
+        pressedA = 2
 
     return inputs, pressedM, pressedA
 
+def sendAttack(self, boo):
+    pk = struct.pack('!b16sb', S.CMDS["ATTACK"], self.pid.encode("utf-8"), boo)  # b is signed byte
+    self.client.send(self.connections[self.iControl], pk)
+    if self.iInActive != None:
+        self.client.send(self.connections[self.iInActive], pk)
 
 if __name__ == "__main__":
     c = MyClient()

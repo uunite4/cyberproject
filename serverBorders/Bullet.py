@@ -1,11 +1,11 @@
 
 
-
+import SETTINGS as S
 from Entity import *
 
 
 class Bullet(Entity):
-    def __init__(self, bid, x, y , dir1,dis,pi):
+    def __init__(self, bid, x, y , dir1, dis, pi):
         super().__init__(x, y, dir1, dis, bid, "bullet")
         self.player_id = pi
 
@@ -39,8 +39,8 @@ class Bullet(Entity):
                 dx = 1
                 dy = -1
 
-            self.x += dx * BULLET_SPEED
-            self.y += dy * BULLET_SPEED
+            self.x += dx * S.BULLET_SPEED
+            self.y += dy * S.BULLET_SPEED
             self.health -= 1
             return False
         else:
