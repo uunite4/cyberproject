@@ -40,6 +40,13 @@ ostone='imges\\blackstone.png'
 poop = 'poop.png'
 inventory1 = 'inventory.png'
 select1 = 'select.png'
+lazer = 'wepons\\lazer.png'
+gun = 'wepons\\gun.png'
+lcon1 = 'wepons\\Icon1.png'
+lcon5 = 'wepons\\Icon5.png'
+lcon28 = 'wepons\\Icon28.png'
+bolbol = 'wepons\\bolbol.png'
+scissors = 'wepons\\scissors.png'
 #===========
 HEALTH_BAR_SIZE_X = 120
 HEALTH_BAR_SIZE_Y = 30

@@ -12,6 +12,13 @@ from DroppedWeapon import *
 poopb=pygame.image.load(poop).convert_alpha()
 inventoryb = pygame.image.load(inventory1).convert_alpha()
 selectb = pygame.image.load(select1).convert_alpha()
+bolbolb = pygame.image.load(bolbol).convert_alpha()
+lcon28b = pygame.image.load(lcon28).convert_alpha()
+lcon1b = pygame.image.load(lcon1).convert_alpha()
+lcon5b = pygame.image.load(lcon5).convert_alpha()
+scissorsb = pygame.image.load(scissors).convert_alpha()
+lazerb = pygame.image.load(lazer).convert_alpha()
+gunb = pygame.image.load(gun).convert_alpha()
 # ---------- network helpers ----------
 def qc3_pack(cmd: int, payload: bytes = b"") -> bytes:
     body = bytes([cmd]) + payload
@@ -81,17 +88,19 @@ def load_player_sprites(group):
 
 def load_inventory_sprites(i):
     if i == 1:
-        i = poopb
+        i = bolbolb
     elif i == 2 :
-        i = poopb
+        i = gunb
     elif i == 3:
-        i = poopb
+        i = lcon1b
     elif i == 4:
-        i = poopb
+        i = lcon5b
     elif i == 5:
-        i = poopb
+        i = lcon28b
     elif i == 6:
-        i = poopb
+        i = scissorsb
+    elif i ==7:
+        i=lazerb
     else : i = poopb
     return  i
 
@@ -310,20 +319,9 @@ def draw_dropped(screen, dropped, DAGGERS,DEFAULT_DAGGER, cam_x, cam_y):
         dx = d.x - cam_x
         dy = d.y - cam_y
         print (int(d.id), int(d.x), int(d.y), d.weapon_type)
-        if d.weapon_type == 1:
-            screen.blit(DAGGERS.get(3, DEFAULT_DAGGER), (dx, dy))
-        elif d.weapon_type == 2:
-            pygame.draw.circle(screen, "yellow", (dx, dy), BULLET_SIZE)
-        elif d.weapon_type == 3:
-            pygame.draw.circle(screen, "red", (dx, dy), BULLET_SIZE)
-        elif d.weapon_type == 4:
-            pygame.draw.circle(screen, "green", (dx, dy), BULLET_SIZE)
-        elif d.weapon_type == 5:
-            pygame.draw.circle(screen, "black", (dx, dy), BULLET_SIZE)
-        elif d.weapon_type == 6:
-            pygame.draw.circle(screen, "blue", (dx, dy), BULLET_SIZE)
-        elif d.weapon_type == 7:
-            pygame.draw.circle(screen, "white", (dx, dy), BULLET_SIZE)
+        weponn = load_inventory_sprites(d.weapon_type)
+        screen.blit(weponn, (dx, dy))
+
 def draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER,FARTS,DEFAULT_FARTS):
     for pid, p in players.items():
         px = int(p.x - cam_x - PLAYER_SIZE // 2)
@@ -477,7 +475,7 @@ def draw_inventory_overlay(screen, players, my_id, font):
         screen.blit(big_img, (bx, by))
 
         # שם הנשק
-        w_names = {1: 'DAGGER', 2: 'GUN', 3: 'HEALTH', 4: 'SPEED', 5: 'INVIS', 6: 'SHIELD', 7: 'LASER'}
+        w_names = {1: 'BOLBOL', 2: 'GUN', 3: 'HEALTH', 4: 'SPEED', 5: 'INVIS', 6: 'SHIELD', 7: 'LASER'}
         name_txt = font.render(w_names.get(current_w, "---"), True, (255, 255, 255))
         screen.blit(name_txt, (inv_rect.centerx - (name_txt.get_width() // 2), by + 140))
 def draw_frame(screen, players, bullets,dropped, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER,FARTS,DEFAULT_FARTS,clock , fps_font,open):
