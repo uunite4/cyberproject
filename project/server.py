@@ -298,9 +298,9 @@ def generate_id(length=5) -> str:
 
 def keep_ai_count(type, list):
     i=0
-    while len(list) < 1:
-        i+=1
+    while len(list) < 50:
         while True:
+            i+=1
             x = random.randint(0, MAP_W)
             y = random.randint(0, MAP_H)
             if not check_collision_with_stone(x, y, 40):
@@ -308,7 +308,7 @@ def keep_ai_count(type, list):
                 id = generate_id()
                 obj = Entity(x, y, dir, S.MONSTERS[type]["health"], id, type)
                 list[i] = Enemy(obj, id, type)
-            if len(list) == 1:
+            if len(list) == 50:
                 return list
     return list
 
