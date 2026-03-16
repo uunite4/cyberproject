@@ -47,7 +47,7 @@ BULLET_SIZE = 5
 
 MONSTERS = {
     "GOBLIN" : { #some sort of monster
-        "health" : 200, #starter health
+        "health" : 50, #starter health
         "speed" : 2,
         "see_radius" : 400, #going to players in this range
         "att_radius" : 200, #attack players in this range

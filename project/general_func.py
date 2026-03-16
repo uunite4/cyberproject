@@ -76,19 +76,50 @@ def next_pos2(sx, sy, tx, ty, speed):
     nx = sx + math.cos(angle) * speed
     ny = sy + math.sin(angle) * speed
     return nx, ny
-def in_view(sx,sy,tx,ty):
-    dir, slope = vector(sx,sy,tx,ty)
-    if dir==0:
-        while (sy < ty and slope==-1) or (sy > ty and slope==1):
-            if check_collision_with_stone(TILE_SIZE,sx,sy):
-                return False
-            sy += slope*TILE_SIZE
+
+def in_view(sx, sy, tx, ty):
+
+    start = pygame.Vector2(sx, sy)
+    target = pygame.Vector2(tx, ty)
+
+    direction: pygame.Vector2 = pygame.Vector2(target) - pygame.Vector2(start)
+    dist = direction.length()
+
+    if dist == 0:
         return True
-    else:
-        jump = jumps(TILE_SIZE, slope)
-        while (sx < tx and dir==-1) or (sx > tx and dir==1):
-            if check_collision_with_stone(TILE_SIZE, sx, sy):
-                return False
-            sx += dir * jump
-            sy += slope*dir*jump
-        return True
+
+    direction = direction.normalize()
+
+    step_size = TILE_SIZE / 2  # smaller = more accurate
+    steps = int(dist / step_size)
+
+    pos = pygame.Vector2(start)
+
+    for _ in range(steps):
+        if check_collision_with_stone(pos.x, pos.y, TILE_SIZE):
+            return False
+        pos += direction * step_size
+
+    return True
+
+
+def get_dir_from_vector(dx, dy):
+    if dx == 0 and dy == 0:
+        return None
+
+    # Calculate angle in degrees (0 is East, 90 is South)
+    angle = math.degrees(math.atan2(dy, dx))
+    if angle < 0:
+        angle += 360
+
+    # Map the 360 degrees into 8 segments of 45 degrees
+    # 1:E, 2:SE, 3:S, 4:SW, 5:W, 6:NW, 7:N, 8:NE
+    if 337.5 <= angle or angle < 22.5: return 1  # East
+    if 22.5 <= angle < 67.5: return 2  # South-East
+    if 67.5 <= angle < 112.5: return 3  # South
+    if 112.5 <= angle < 157.5: return 4  # South-West
+    if 157.5 <= angle < 202.5: return 5  # West
+    if 202.5 <= angle < 247.5: return 6  # North-West
+    if 247.5 <= angle < 292.5: return 7  # North
+    if 292.5 <= angle < 337.5: return 8  # North-East
+    return 1

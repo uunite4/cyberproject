@@ -151,6 +151,11 @@ def enemy_treatment(enemies, players, memory_list, bullets,id_gen):
         target_x, target_y, id = e.get_target(see_id_list, see_pos_list, last_target)
         memory_list[eid] = (target_x, target_y)
 
+        dx = target_x - e.entity.x
+        dy = target_y - e.entity.y
+        new_dir = get_dir_from_vector(dx, dy)
+        if new_dir:
+            e.entity.dir = new_dir
 
         final_x, final_y = next_pos2(e.entity.x, e.entity.y, target_x, target_y, S.MONSTERS[e.type]["speed"])
         if final_y<0: final_y = 0
@@ -203,7 +208,7 @@ def apply_lava_and_respawn(p):
             p.health = 100
 
 
-def try_attack(p, attack, bullets, clients, dagger):
+def try_attack(p, attack, bullets, clients,enemies, dagger):
     p.attack = 0
     if attack != 1:
         return
@@ -218,7 +223,7 @@ def try_attack(p, attack, bullets, clients, dagger):
             p.gun_cooldown = BULLET_COOLDOWN
 
     elif p.current_weapon == 1:
-        dagger.attack(p, clients, new_place)
+        dagger.attack(p, clients,enemies, new_place)
 
 
 def apply_bullet_hits_for_player(p, bullets, clients,enemies):
@@ -241,13 +246,33 @@ def apply_bullet_hits_for_player(p, bullets, clients,enemies):
                     p.x, p.y = new_place()
                     p.health = 100
 
+def apply_bullet_hits_for_enemy(e, bullets, clients,enemies):
+    for b in bullets[:]:
+        shooter_group = id_to_group(b.player_id, clients, enemies)
+
+        # לא פוגע בעצמו
+        if b.player_id == e.id:
+            continue
+
+        # אם לא מוצאים קבוצה (יורה התנתק) - אפשר לבחור להתעלם
+        if shooter_group is None:
+            continue
+
+        if shooter_group != "enemy":
+            if check_bullet_hit(e.entity, b):
+                e.entity.health -= BULLET_DAMEG
+                bullets.remove(b)
+                if e.entity.health <= 0:
+                    e.entity.x, e.entity.y = new_place()
+                    e.entity.health = S.MONSTERS[e.type]["health"]
+
 
 def update_bullets(bullets):
     for b in bullets[:]:
         is_dead = b.update_bullet()  # שם הפונקציה שלך
         if is_dead:
             bullets.remove(b)
-def handle_input_message(p, payload, bullets, clients, dagger):
+def handle_input_message(p, payload, bullets, clients,enemies, dagger):
     if len(payload) != 6:
         return
 
@@ -262,7 +287,7 @@ def handle_input_message(p, payload, bullets, clients, dagger):
         p.dir = int(dire)
 
     # attack
-    try_attack(p, attack, bullets, clients, dagger)
+    try_attack(p, attack, bullets, clients,enemies, dagger)
 
     # movement + env
     apply_movement(p, dx, dy, dsprint)
@@ -281,7 +306,7 @@ def handle_client_read(sock, clients,enemies, bullets, dagger, now):
         for cmd, payload in clients[sock]["stream"].pop_messages():
             if cmd == CMD_INPUT:
                 p = clients[sock]["player"]
-                handle_input_message(p, payload, bullets, clients, dagger)
+                handle_input_message(p, payload, bullets, clients,enemies, dagger)
 
     except Exception:
         disconnect_client(sock, clients)
@@ -438,6 +463,8 @@ def main():
         if bullets:
             for c in clients.values():
                 apply_bullet_hits_for_player(c["player"], bullets, clients,enemies)
+            for e in enemies.values():
+                apply_bullet_hits_for_enemy(e, bullets, clients,enemies)
 
         # timeouts
         timeout_clients(clients, now, timeout_sec=10)
