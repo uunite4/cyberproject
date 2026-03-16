@@ -51,6 +51,7 @@ class MyServer:
                 "imOverlap": False,
                 "att": 0,
                 "weapon": 1,
+                "inventory": S.INVENTORI,
                 "gun_cd": S.BULLET_COOLDOWN,
                 "fart": 0,
                 "f_cooldown": 0,
@@ -137,6 +138,7 @@ class MyServer:
                 "att": att,
                 "weapon": weapon,
                 "gun_cd": S.BULLET_COOLDOWN,
+                "inventory": S.INVENTORI, #needs to be recieved!!!!
                 "fart":fart,
                 "f_cooldown": 0,
                 "cid": connection_id,
@@ -145,7 +147,9 @@ class MyServer:
         elif (cmd == S.CMDS["ATTACK"]):
             att = struct.unpack_from('!b', data, 17)[0]
             self.clients[pid]["att"] = att
-            if att == 1 and self.clients[pid]["weapon"] == 2 and self.clients[pid]["gun_cd"] <= 0:
+            print("attacking with weapon ", self.clients[pid]["weapon"])
+            print(self.clients[pid]["gun_cd"])
+            if att == 1 and placeToWeapon(self.clients[pid]) == 2 and self.clients[pid]["gun_cd"] <= 0:
                 b_id = get_next_bullet_id(self.bullets)
                 new_bullet = Bullet(b_id, self.clients[pid]["x"], self.clients[pid]["y"], self.clients[pid]["dir"], S.BULLET_DISTANS, pid)
                 self.bullets.append(new_bullet)
@@ -154,7 +158,8 @@ class MyServer:
             weapon = struct.unpack_from('!b', data, 17)[0]
             self.clients[pid]["weapon"] = weapon
             print("changed weapon to ", weapon)
-            if weapon == 2:
+            if placeToWeapon(self.clients[pid]) == 2:
+                print("successful change")
                 self.clients[pid]["gun_cd"] = S.BULLET_COOLDOWN
         elif (cmd == S.CMDS["FART"]):
             fart = struct.unpack_from('!b', data, 17)[0]
@@ -246,7 +251,7 @@ def broadcast(self, dagger):
         if client["fart"] == 1:
             print("player is farting ", i)
         #health related changes
-        if client["att"] == 1 and client["weapon"] == 1:  # daggers
+        if client["att"] == 1 and placeToWeapon(client) == 1:  # daggers
             print("player attacking", i)
             arr = dagger.attack(client, self.clients)
             j = 0
@@ -320,7 +325,8 @@ def build_state_payload(clients, bullets, fart):
         payload.append(int(c["dir"]))
         payload.append(int(c["hp"]))
         payload.append(int(c["att"]))
-        payload.append(int(c["weapon"]))
+        wp = placeToWeapon(c)
+        payload.append(int(wp))
         payload.append(int(c["fart"]))
 
     countb = len(bullets)
@@ -332,6 +338,14 @@ def build_state_payload(clients, bullets, fart):
         print("bullet in ", b.x, b.y)
 
     return struct.pack(format, *payload)
+
+def placeToWeapon(client):
+    weapon = client["inventory"][client["weapon"]-1]
+    if weapon == 'da':
+        return 1
+    if weapon == 'gu':
+        return 2
+    return 0
 
 def get_dir(dx,dy):
     if dx > 0:
@@ -359,7 +373,7 @@ def get_dir(dx,dy):
 
 def tick_cooldowns(clients, farts):
     for c in clients.values():
-        if c["weapon"] == 2 and c["gun_cd"] > 0:
+        if placeToWeapon(c) == 2 and c["gun_cd"] > 0:
             c["gun_cd"] -= 1
         if c["f_cooldown"] > 0:
             c["f_cooldown"] -= 1

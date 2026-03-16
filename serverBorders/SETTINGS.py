@@ -110,3 +110,6 @@ FART_RUADIOS=100
 FART_TIME=200
 FART_COOLDOWN = 2000
 FART_DAMEG = 0.3
+
+#inventory
+INVENTORI = ['gu','da','h','s','i','b','la',0,0]

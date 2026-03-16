@@ -11,7 +11,7 @@ class Player:
         self.health = health
         self.att = 0
         self.weapon = 1
-        self.weapons=['da','gu','h','s','i','b','la',0,0]
+        self.weapons=S.INVENTORI
         self.fartp =0
         self.invesebel = 0
 

@@ -257,7 +257,7 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
     py = int(player.y - cam_y - S.PLAYER_SIZE // 2)
     sprite = SPRITES1.get(player.dir, DEFAULT_SPRITE1)
     screen.blit(sprite, (px, py))
-    if player.att == 1 and player.weapon == 1:  # daggers
+    if player.att == 1 and player.weapons[player.weapon-1] == 'da':  # daggers
         d = player.dir
         vx, vy = dir_to_vec(d)
         dagger_x = int((player.x + vx * S.TILE_SIZE) - cam_x - S.TILE_SIZE // 2)

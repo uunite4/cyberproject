@@ -2,6 +2,7 @@
 
 import SETTINGS as S
 from Entity import *
+from serverBorders.Player import check_collision_with_stone
 
 
 class Bullet(Entity):
@@ -42,7 +43,10 @@ class Bullet(Entity):
             self.x += dx * S.BULLET_SPEED
             self.y += dy * S.BULLET_SPEED
             self.health -= 1
-            return False
+            if check_collision_with_stone(self.x, self.y, S.BULLET_SIZE):
+                return True
+            else:
+                return False
         else:
             return True
     def update_from_server_bull(self,bx,by):
