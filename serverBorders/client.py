@@ -198,7 +198,7 @@ class MyClient:
                     print("sent fart")
                     sendFart(self, 1)
 
-            if inputs["i"] == 1: #toggle inventory
+            if inputs["i"] == 1: #toggle inventory432
                 self.open = not self.open
 
             if (pressedM): #movement related inputs
@@ -392,7 +392,7 @@ def draw_inventory_overlay(screen, p, font):
         screen.blit(big_img, (bx, by))
 
         # שם הנשק
-        w_names = {'da': 'DAGGER', 'gu': 'GUN', 3: 'HEALTH', 4: 'SPEED', 5: 'INVIS', 6: 'SHIELD', 7: 'LASER'}
+        w_names = {'da': 'DAGGER', 'gu': 'GUN', 'h': 'HEALTH', 's': 'SPEED', 'i': 'INVIS', 'b': 'SHIELD', 'la': 'LASER'}
         name_txt = font.render(w_names.get(current_w, "---"), True, (255, 255, 255))
         screen.blit(name_txt, (inv_rect.centerx - (name_txt.get_width() // 2), by + 140))
 

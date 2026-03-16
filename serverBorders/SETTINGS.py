@@ -113,4 +113,4 @@ FART_COOLDOWN = 2000
 FART_DAMEG = 0.3
 
 #inventory
-INVENTORI = ['gu','da','h','s','i','b','la']
+INVENTORI = ['gu','da','h','s','i','b','la', 0, 0]
