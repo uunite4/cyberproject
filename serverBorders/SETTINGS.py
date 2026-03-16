@@ -114,3 +114,8 @@ FART_DAMEG = 0.3
 
 #inventory
 INVENTORI = ['gu','da','h','s','i','b','la', 0, 0]
+
+#POTIONS
+SPEED_POSSION_TIME = 500
+INVESIBEL_TIME = 500
+BRIT_TIMER = 3000

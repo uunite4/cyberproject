@@ -94,17 +94,18 @@ class MyClient:
         elif (cmd == S.CMDS["RENDER"]):
             # render the screen
             if connection_id == self.connections[self.iControl] or (self.iInActive != None and connection_id == self.connections[self.iInActive]):
-                fart = struct.unpack_from('!b', data, 1)[0]
+                fart, invi = struct.unpack_from('!bb', data, 1)
                 self.player.fartp = fart
+                self.player.invisible = invi
                 if fart == 1:
                     print("farting")
                 self.players = []
-                count = struct.unpack_from('!h', data, 2)[0]
+                count = struct.unpack_from('!h', data, 3)[0]
                 for i in range(count):
-                    offset = 4+11*i
-                    x, y, dir, health, att, weapon, fart = struct.unpack_from('!hhhhbbb', data, offset)
-                    self.players.append({"x":x,"y": y, "dir": dir, "hp": health, "att": att, "weapon": weapon, "fart": fart})
-                offset = 4+11*count
+                    offset = 5+12*i
+                    x, y, dir, health, att, weapon, fart, invi = struct.unpack_from('!hhhhbbbb', data, offset)
+                    self.players.append({"x":x,"y": y, "dir": dir, "hp": health, "att": att, "weapon": weapon, "fart": fart, "invi": invi})
+                offset = 5+12*count
                 self.bullets = []
                 countb = struct.unpack_from('!h', data, offset)[0]
                 offset += 2
@@ -240,10 +241,10 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
     for p in players:
         px = int(p["x"] - cam_x - S.PLAYER_SIZE // 2)
         py = int(p["y"] - cam_y - S.PLAYER_SIZE // 2)
-
-        sprite = SPRITES1.get(p["dir"], DEFAULT_SPRITE1)
-        screen.blit(sprite, (px, py))
-        S_health_bar_update(p["hp"], screen, px, py)
+        if p["invi"] == 0:
+            sprite = SPRITES1.get(p["dir"], DEFAULT_SPRITE1)
+            screen.blit(sprite, (px, py))
+            S_health_bar_update(p["hp"], screen, px, py)
 
         if p["att"]==1 and p["weapon"]==1: #daggers
             print("A PLAYER IS daggering")
@@ -262,10 +263,12 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
 
 
     # DRAW OWN PLAYER
-    px = int(player.x - cam_x - S.PLAYER_SIZE // 2)
-    py = int(player.y - cam_y - S.PLAYER_SIZE // 2)
-    sprite = SPRITES1.get(player.dir, DEFAULT_SPRITE1)
-    screen.blit(sprite, (px, py))
+    if player.invisible == 0:
+        px = int(player.x - cam_x - S.PLAYER_SIZE // 2)
+        py = int(player.y - cam_y - S.PLAYER_SIZE // 2)
+        sprite = SPRITES1.get(player.dir, DEFAULT_SPRITE1)
+        screen.blit(sprite, (px, py))
+
     if player.att == 1 and player.weapons[player.weapon-1] == 'da':  # daggers
         d = player.dir
         vx, vy = dir_to_vec(d)

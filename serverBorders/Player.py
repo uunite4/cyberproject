@@ -13,7 +13,7 @@ class Player:
         self.weapon = 1
         self.weapons=S.INVENTORI
         self.fartp =0
-        self.invesebel = 0
+        self.invisible = 0
 
 
         self.width = 40

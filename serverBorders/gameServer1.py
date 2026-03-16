@@ -55,6 +55,8 @@ class MyServer:
                 "gun_cd": S.BULLET_COOLDOWN,
                 "fart": 0,
                 "f_cooldown": 0,
+                "invis": 0,
+                "i_timer": S.INVESIBEL_TIME
             }
             print("PLAYERS INITIAL POS: ", self.clients[pid]["x"], self.clients[pid]["y"], "PLAYERS ID: ", pid)
         elif (cmd == S.CMDS["HELLO"]):
@@ -154,6 +156,10 @@ class MyServer:
                 new_bullet = Bullet(b_id, self.clients[pid]["x"], self.clients[pid]["y"], self.clients[pid]["dir"], S.BULLET_DISTANS, pid)
                 self.bullets.append(new_bullet)
                 self.clients[pid]["gun_cd"] = S.BULLET_COOLDOWN
+            if att == 1 and placeToWeapon(self.clients[pid]) == 5:
+                self.clients[pid]["invis"] = 1
+                self.clients[pid]["i_cooldown"] = S.INVESIBEL_TIME
+                self.clients[pid]["inventory"][self.clients[pid]["weapon"] - 1] = 0
         elif (cmd == S.CMDS["CHANGE_WEAPON"]):
             weapon = struct.unpack_from('!b', data, 17)[0]
             self.clients[pid]["weapon"] = weapon
@@ -246,7 +252,7 @@ def broadcast(self, dagger):
     for pid,client in self.clients.items():
         temp = copy_dic(self.clients)
         del temp[pid]
-        pk = build_state_payload(temp, self.bullets, client["fart"])
+        pk = build_state_payload(temp, self.bullets, client["fart"], client["invis"])
         self.server.send(client["cid"],pk)
         if client["fart"] == 1:
             print("player is farting ", i)
@@ -314,10 +320,10 @@ def copy_dic(dic):
         ndic[k] = v
     return ndic
 
-def build_state_payload(clients, bullets, fart):
+def build_state_payload(clients, bullets, fart, invi):
     count = len(clients)
-    format = "!bbh" + "hhhhbbb" * count #the b is for byte - 0\1
-    payload = [S.CMDS["RENDER"], fart, count]
+    format = "!bbbh" + "hhhhbbb" * count #the b is for byte - 0\1
+    payload = [S.CMDS["RENDER"], fart, invi, count]
 
     for c in clients.values():
         payload.append(int(c["x"]))
@@ -328,6 +334,7 @@ def build_state_payload(clients, bullets, fart):
         wp = placeToWeapon(c)
         payload.append(int(wp))
         payload.append(int(c["fart"]))
+        payload.append(int(c["invis"]))
 
     countb = len(bullets)
     payload.append(countb)
@@ -345,6 +352,16 @@ def placeToWeapon(client):
         return 1
     if weapon == 'gu':
         return 2
+    if weapon == 'h':
+        return 3
+    if weapon == 's':
+        return 4
+    if weapon == 'i':
+        return 5
+    if weapon == 'b':
+        return 6
+    if weapon == 'la':
+        return 7
     return 0
 
 def get_dir(dx,dy):
@@ -377,6 +394,11 @@ def tick_cooldowns(clients, farts):
             c["gun_cd"] -= 1
         if c["f_cooldown"] > 0:
             c["f_cooldown"] -= 1
+        if c["invis"] == 1 and c["i_cooldown"] > 0:
+            c["i_cooldown"] -= 1
+            if c["i_cooldown"] == 0:
+                c["invis"] = 0
+
     for f in farts:
         if f.duration > 0:
             f.duration -= 1
