@@ -1,4 +1,5 @@
 from pathlib import Path
+import pygame
 BASE_DIR = Path(__file__).resolve().parent
 
 MAP_WIDTH = 192*40
@@ -112,4 +113,4 @@ FART_COOLDOWN = 2000
 FART_DAMEG = 0.3
 
 #inventory
-INVENTORI = ['gu','da','h','s','i','b','la',0,0]
+INVENTORI = ['gu','da','h','s','i','b','la']

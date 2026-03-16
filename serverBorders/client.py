@@ -28,6 +28,7 @@ class MyClient:
         self.players = []  # list of other players which are relevant works in [i]={"x":...,...}
         self.bullets = []
         self.dropped = []
+        self.open = False
         pygame.init()
         self.screen = pygame.display.set_mode((S.WINDOW_WIDTH, S.WINDOW_HEIGHT))
         pygame.display.set_caption("Game")
@@ -197,6 +198,9 @@ class MyClient:
                     print("sent fart")
                     sendFart(self, 1)
 
+            if inputs["i"] == 1: #toggle inventory
+                self.open = not self.open
+
             if (pressedM): #movement related inputs
                 self.sendInputs(inputs)
 
@@ -224,7 +228,12 @@ class MyClient:
         draw_bullets(screen, self.bullets, cam_x, cam_y)
         draw_players(screen, self.player, self.players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS, DEFAULT_FARTS, FARTS)
 
-        draw_inventori(screen, self.player)
+        fps_font = pygame.font.SysFont("Arial", 20, bold=True)
+
+        if self.open:
+            draw_inventory_overlay(screen,self.player, fps_font)
+        else:
+            draw_inventori(screen, self.player)
 
 def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS, DEFAULT_FARTS, FARTS):
     # DRAW OTHER PLAYERS
@@ -320,10 +329,7 @@ def draw_inventori(screen,player):
             screen.blit(load_inventory_sprites(player.weapons[i]), (x+38*i, y))
         if i== player.weapon and player.weapon != 0:
             screen.blit(selectb, (x + 38*(i-1) -2, y - 3))
-def draw_inventory_overlay(screen, players, my_id, font):
-    if my_id not in players:
-        return
-    p = players[my_id]
+def draw_inventory_overlay(screen, p, font):
 
     # 1. יצירת השכבה השקופה (ה-Overlay)
     # יוצרים משטח בגודל כל המסך שתומך בשקיפות
@@ -358,7 +364,7 @@ def draw_inventory_overlay(screen, players, my_id, font):
         slot_rect = pygame.Rect(slots_x + (i * (slot_size + gap)), slots_y, slot_size, slot_size)
 
         # צבע משבצת
-        color = (50, 50, 50) if (i + 1) != p.ccw else (80, 80, 40)
+        color = (50, 50, 50) if (i + 1) != p.weapon else (80, 80, 40)
         pygame.draw.rect(screen, color, slot_rect)
         pygame.draw.rect(screen, (150, 150, 150), slot_rect, 1)
 
@@ -369,11 +375,11 @@ def draw_inventory_overlay(screen, players, my_id, font):
             iy = slot_rect.y + (slot_size - icon.get_height()) // 2
             screen.blit(icon, (ix, iy))
 
-        if i + 1 == p.ccw:
+        if i + 1 == p.weapon:
             pygame.draw.rect(screen, (255, 255, 0), slot_rect, 2)
 
     # 5. הנשק הגדול (Preview)
-    current_w = p.weapons[p.ccw - 1] if p.ccw > 0 else 0
+    current_w = p.weapons[p.weapon - 1] if p.weapon > 0 else 0
     if current_w != 0:
         big_img = load_inventory_sprites(current_w)
         big_img = pygame.transform.scale(big_img, (130, 130))
@@ -386,7 +392,7 @@ def draw_inventory_overlay(screen, players, my_id, font):
         screen.blit(big_img, (bx, by))
 
         # שם הנשק
-        w_names = {1: 'DAGGER', 2: 'GUN', 3: 'HEALTH', 4: 'SPEED', 5: 'INVIS', 6: 'SHIELD', 7: 'LASER'}
+        w_names = {'da': 'DAGGER', 'gu': 'GUN', 3: 'HEALTH', 4: 'SPEED', 5: 'INVIS', 6: 'SHIELD', 7: 'LASER'}
         name_txt = font.render(w_names.get(current_w, "---"), True, (255, 255, 255))
         screen.blit(name_txt, (inv_rect.centerx - (name_txt.get_width() // 2), by + 140))
 
@@ -515,6 +521,7 @@ def getInputs():
         "d": 0,
         "sf": 0,
         "sp": 0,
+        "i": 0,
     }
     pressedM = False
     pressedA = 0
@@ -535,6 +542,8 @@ def getInputs():
         inputs["sf"] = 1
     if keys[pygame.K_SPACE]:
         inputs["sp"] = 1
+    if keys[pygame.K_i]:
+        inputs["i"] = 1
     if keys[pygame.K_1]:
         pressedA = 1
     elif keys[pygame.K_2]:
