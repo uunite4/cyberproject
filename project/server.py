@@ -158,10 +158,15 @@ def enemy_treatment(enemies, players, memory_list, bullets,id_gen):
             e.entity.dir = new_dir
 
         final_x, final_y = next_pos2(e.entity.x, e.entity.y, target_x, target_y, S.MONSTERS[e.type]["speed"])
-        if final_y<0: final_y = 0
-        if not check_collision_with_stone(final_x, e.entity.y, S.MONSTERS[e.type]["size"]):
+        # 1. Calculate potential next positions
+        # 2. Check X movement
+        if not check_collision_with_stone(final_x, e.entity.y, S.MONSTERS[e.type]["size"]) and \
+                not check_collision_with_lava(e.entity, final_x, e.entity.y):  # Added lava check
             e.entity.x = final_x
-        if not check_collision_with_stone(e.entity.x, final_y, S.MONSTERS[e.type]["size"]):
+
+        # 3. Check Y movement
+        if not check_collision_with_stone(e.entity.x, final_y, S.MONSTERS[e.type]["size"]) and \
+                not check_collision_with_lava(e.entity, e.entity.x, final_y):  # Added lava check
             e.entity.y = final_y
         isenemy_att = attack_bullet(id, e, target_x, target_y,bullets ,id_gen)
     return isenemy_att ,memory_list
@@ -327,12 +332,14 @@ def keep_ai_count(type, list,num):
             x = random.randint(0, MAP_W)
             y = random.randint(0, MAP_H)
 
-            if not check_collision_with_stone(x, y, 40):
+            if not check_collision_with_stone(x, y, S.MONSTERS[type]["size"]) and not check_collision_with_lava(x, y, S.MONSTERS[type]["size"]):
                 dir = 1
                 id = generate_id()
                 obj = Entity(x, y, dir, S.MONSTERS[type]["health"], id, type)
                 list[id] = Enemy(obj, id, type)
-            break
+                print(type)
+            if len(list) == num:
+                break
     return list
 
 # ----------------- state broadcast -----------------
@@ -437,7 +444,7 @@ def main():
 
         #is there enough enemies?
         enemies = keep_ai_count( "GOBLIN", enemies,50)
-        enemies = keep_ai_count( "BEAR", enemies,50)
+        enemies = keep_ai_count( "BEAR", enemies,100)
 
         # read sockets
         rlist = [server] + list(clients.keys())

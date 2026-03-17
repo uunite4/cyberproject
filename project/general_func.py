@@ -98,7 +98,7 @@ def in_view(sx, sy, tx, ty):
     pos = pygame.Vector2(start)
 
     for _ in range(steps):
-        if check_collision_with_stone(pos.x, pos.y, TILE_SIZE):
+        if check_collision_with_stone(pos.x, pos.y, TILE_SIZE) or check_collision_with_lava(pos.x, pos.y, TILE_SIZE):
             return False
         pos += direction * step_size
 

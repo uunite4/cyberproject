@@ -191,6 +191,8 @@ def update_enemys(payload, off, enemies):
 
         if etype == 1:
             etype = "GOBLIN"
+        if etype == 0:
+            etype = "BEAR"
 
         eid = eid.decode('ascii').strip('\x00')
         obj = Entity(x, y, edire, health, eid, etype)
@@ -303,7 +305,7 @@ def draw_enemy(screen, enemys, cam_x, cam_y, ENEMY_SPRITES, DEFAULT_SPRITE,SPRIT
     for eid, e in enemys.items():
         ex = int(e.entity.x - cam_x - S.MONSTERS[e.type]["size"] // 2)
         ey = int(e.entity.y - cam_y - S.MONSTERS[e.type]["size"] // 2)
-        if S.MONSTERS[e.type]== "GOBLIN":
+        if e.type == "GOBLIN":
             sprite = ENEMY_SPRITES.get(e.entity.dir, DEFAULT_SPRITE)
         else:
             sprite = SPRITES2ENEMY.get(e.entity.dir, DEFAULT_SPRITES2ENEMY)

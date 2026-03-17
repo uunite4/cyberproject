@@ -60,6 +60,6 @@ MONSTERS = {
         "see_radius" : 400, #going to players in this range
         "att_radius" : 200, #attack players in this range
         "damage" : 30,
-        "size" : 50, #of sprite
+        "size" : 40, #of sprite
     }
 }
