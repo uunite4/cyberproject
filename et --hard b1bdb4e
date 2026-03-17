@@ -1,0 +1,21 @@
+[33mabab941[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mneta_raveh-enemies[m[33m)[m HEAD@{0}: reset: moving to abab9410404c8985a071c962dcb7502269841e08
+[33mb1bdb4e[m[33m ([m[1;31morigin/neta_raveh-enemies[m[33m)[m HEAD@{1}: commit: sprits update and shoots update towards the player
+[33mabab941[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mneta_raveh-enemies[m[33m)[m HEAD@{2}: commit: works for more than 1 enemy
+[33m1cb0b13[m HEAD@{3}: commit: the enemy bullets increse the player health bar
+[33mdea976c[m HEAD@{4}: commit: bug with x tile fixed, random movment fixed, stone collition work!!, still one enemy
+[33m32dccb7[m HEAD@{5}: commit: printed 1 enemy, ignoring stones, has a prob with the same x tile, not working for more than one enemy (no attack)
+[33ma47345c[m HEAD@{6}: commit: client and server enemy cheges
+[33m0404856[m HEAD@{7}: commit: update get target to check view
+[33mf5032be[m HEAD@{8}: commit: updated order, big check, in view, get target, rand pos, next pos
+[33m326b083[m HEAD@{9}: commit (merge): Merge remote-tracking branch 'origin/neta_raveh-enemies' into neta_raveh-enemies
+[33md9fedc1[m HEAD@{10}: commit: updated order, big check, in view, get target, rand pos, next pos
+[33md90b08f[m HEAD@{11}: commit: updated order, big check, in view, get target, rand pos, next pos
+[33m64ac779[m HEAD@{12}: merge origin/neta_raveh-enemies: Fast-forward
+[33m8d71d32[m HEAD@{13}: commit: הוספתי Entity כי רציתי ליצור עצם בראשי, created half main code, and moved the draw func from general_func.py to main
+[33m0109514[m HEAD@{14}: commit: change the variables from two lists -> one, in small_check and add check_att_redius, to_attck
+[33m54e2b11[m HEAD@{15}: commit: add draw enemy for idan code in general_func
+[33mb02e8c4[m HEAD@{16}: rebase (finish): returning to refs/heads/neta_raveh-enemies
+[33mb02e8c4[m HEAD@{17}: rebase (start): checkout origin/neta_raveh-enemies
+[33m8de04d5[m HEAD@{18}: commit: added "Project" folder
+[33md000a12[m HEAD@{19}: checkout: moving from main to neta_raveh-enemies
+[33m8c2bb4e[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/dev[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m HEAD@{20}: clone: from https://github.com/uunite4/cyberproject
