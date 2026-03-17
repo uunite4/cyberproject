@@ -3,7 +3,7 @@ import SETTINGS as S
 import math
 class Fart(Entity):
     def __init__(self, eid, x, y, dir, duration, radius=S.FART_RUADIOS):
-        super().__init__(x, y, dir, 1,eid, "ability") #hp ddoesnt matter
+        super().__init__(x, y, dir, 1, eid, "ability") #hp ddoesnt matter
         self.radius = radius
         self.duration = duration
 
