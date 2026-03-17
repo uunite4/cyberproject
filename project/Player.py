@@ -2,6 +2,9 @@
 import pygame
 import struct
 import random
+
+from pygame import Vector2
+
 from settings import *
 from map_data import *
 from Entity import *
@@ -19,10 +22,39 @@ class PlayerData(Entity):
         self.gun_cooldown = gcd
         self.current_weapon = 1
         self.attack = 0
+        self.target = None
+        self.idle = False
 
     def update_from_server(self, x, y, health, direction, attack, current_weapon, group):
-        self.x = x
-        self.y = y
+
+        if self.idle:
+
+            while self.target is None:
+
+                target = Vector2(0, 0)
+                ex = int(self.x)
+                ey = int(self.y)
+                target.x = random.randint(ex - 200, ex + 200)
+                target.y = random.randint(ey - 200, ey + 200)
+
+                from general_func import in_view
+                if in_view(self.x, self.y, target.x, target.y):
+                    self.target = Vector2(target.x, target.y)
+
+            from general_func import distance
+            dist = distance(self.x, self.y, self.target.x, self.target.y)
+            if dist < 20:
+                self.target = None
+
+            pos = Vector2(self.x, self.y)
+            dire = (self.target - pos).normalize() * 5
+            self.x += dire.x
+            self.y += dire.y
+
+        else:
+            self.x = x
+            self.y = y
+
         self.health = health
         if direction != 0:
             self.dir = direction
@@ -97,8 +129,8 @@ def check_collision_with_stone(next_x, next_y, size):  # True = blocked (stone/o
         if MAP[tile_y][tile_x] == "x":
             return True
     return False
-def check_collision_with_lava(self, next_x, next_y):    # True = blocked (stone/outside)
-    corners = get_corners(next_x, next_y, PLAYER_SIZE)
+def check_collision_with_lava(next_x, next_y, size):    # True = blocked (stone/outside)
+    corners = get_corners(next_x, next_y, size)
 
     for px, py in corners:  # test each corner
         tile_x = int(px // TILE_SIZE)  # pixel -> tile col

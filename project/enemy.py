@@ -87,8 +87,8 @@ class Enemy:
             tx, ty = memory
             dis = distance(self.entity.x, self.entity.y, tx, ty)
 
-            # If we are more than 10 pixels away, keep this target
-            if dis >5:
+            # If we are more than 25 pixels away, keep this target
+            if dis > 25:
                 return tx, ty, None
         # If no players are found/visible, pick a random spot to wander
         while True:

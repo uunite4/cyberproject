@@ -161,12 +161,12 @@ def enemy_treatment(enemies, players, memory_list, bullets,id_gen):
         # 1. Calculate potential next positions
         # 2. Check X movement
         if not check_collision_with_stone(final_x, e.entity.y, S.MONSTERS[e.type]["size"]) and \
-                not check_collision_with_lava(e.entity, final_x, e.entity.y):  # Added lava check
+                not check_collision_with_lava(final_x, e.entity.y, 400):  # Added lava check
             e.entity.x = final_x
 
         # 3. Check Y movement
         if not check_collision_with_stone(e.entity.x, final_y, S.MONSTERS[e.type]["size"]) and \
-                not check_collision_with_lava(e.entity, e.entity.x, final_y):  # Added lava check
+                not check_collision_with_lava(e.entity.x, final_y, 400):  # Added lava check
             e.entity.y = final_y
         isenemy_att = attack_bullet(id, e, target_x, target_y,bullets ,id_gen)
     return isenemy_att ,memory_list
@@ -332,7 +332,9 @@ def keep_ai_count(type, list,num):
             x = random.randint(0, MAP_W)
             y = random.randint(0, MAP_H)
 
-            if not check_collision_with_stone(x, y, S.MONSTERS[type]["size"]) and not check_collision_with_lava(x, y, S.MONSTERS[type]["size"]):
+            if (not check_collision_with_stone(x, y, 40)
+                    and not check_collision_with_lava(x, y, 40)):
+
                 dir = 1
                 id = generate_id()
                 obj = Entity(x, y, dir, S.MONSTERS[type]["health"], id, type)
