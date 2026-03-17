@@ -20,6 +20,7 @@ class Enemy:
         self.health = S.MONSTERS[type]["health"]
         self.type = type
         self.last_att = time.time()
+        self.entity.group = 0
 
 
     # --- Methods ---

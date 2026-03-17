@@ -80,7 +80,7 @@ class Dagger:
     # --------------------
     # MAIN ATTACK FUNCTION
     # --------------------
-    def attack(self, attacker, clients, new_place):
+    def attack(self, attacker, clients,enemies, new_place):
 
         if not self.ready(attacker.id):
             return

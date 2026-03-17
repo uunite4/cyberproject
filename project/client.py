@@ -77,16 +77,19 @@ def load_player_sprites(group):
 def load_enemy_sprites(group):
     if group == 1:
         rotationsenemy_dir = os.path.join(os.path.dirname(__file__), "rotation1enemy")
+    else:
+        rotationsenemy_dir = os.path.join(os.path.dirname(__file__), "rotation2enemy")
+
 
     return {
-        1: load("enemy.png", rotationsenemy_dir),
-        2: load("enemy.png", rotationsenemy_dir),
-        3: load("enemy.png", rotationsenemy_dir),
-        4: load("enemy.png", rotationsenemy_dir),
-        5: load("enemy.png", rotationsenemy_dir),
-        6: load("enemy.png", rotationsenemy_dir),
-        7: load("enemy.png", rotationsenemy_dir),
-        8: load("enemy.png", rotationsenemy_dir),
+        1: load("right.png", rotationsenemy_dir),
+        2: load("down_right.png", rotationsenemy_dir),
+        3: load("down.png", rotationsenemy_dir),
+        4: load("down_left.png", rotationsenemy_dir),
+        5: load("left.png", rotationsenemy_dir),
+        6: load("up_left.png", rotationsenemy_dir),
+        7: load("up.png", rotationsenemy_dir),
+        8: load("up_right.png", rotationsenemy_dir),
     }
 
 def load_dagger_sprites() -> dict[int, pygame.Surface]:
@@ -282,7 +285,6 @@ def draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1
             sprite = SPRITES2.get(p.dir, DEFAULT_SPRITE2)
 
         screen.blit(sprite, (px, py))
-        print("player", p.x, p.y)
 
         if p.attack == 1 and p.current_weapon == 1:
             d = p.dir if p.dir != 0 else 3
@@ -296,18 +298,21 @@ def draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1
         else:
             S_health_bar_update(p.health, screen, px, py)
 
-def draw_enemy(screen, enemys, cam_x, cam_y, ENEMY_SPRITES, DEFAULT_SPRITE):
+def draw_enemy(screen, enemys, cam_x, cam_y, ENEMY_SPRITES, DEFAULT_SPRITE,SPRITES2ENEMY,DEFAULT_SPRITES2ENEMY):
     #print(enemys)
     for eid, e in enemys.items():
-        ex = int(e.entity.x - cam_x - s.ENEMY_SIZE // 2)
-        ey = int(e.entity.y - cam_y - s.ENEMY_SIZE // 2)
-        sprite = ENEMY_SPRITES.get(e.entity.dir, DEFAULT_SPRITE)
+        ex = int(e.entity.x - cam_x - S.MONSTERS[e.type]["size"] // 2)
+        ey = int(e.entity.y - cam_y - S.MONSTERS[e.type]["size"] // 2)
+        if S.MONSTERS[e.type]== "GOBLIN":
+            sprite = ENEMY_SPRITES.get(e.entity.dir, DEFAULT_SPRITE)
+        else:
+            sprite = SPRITES2ENEMY.get(e.entity.dir, DEFAULT_SPRITES2ENEMY)
+
 
         screen.blit(sprite, (ex, ey))
-        print(e.entity.x,e.entity.y)
         #need to add the attack for monster
 
-def draw_frame(screen, players,enemies, bullets, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER, ENEMY_SPRITES, DEFAULT_SPRITE_ENEMY):
+def draw_frame(screen, players,enemies, bullets, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER, ENEMY_SPRITES, DEFAULT_SPRITE_ENEMY,SPRITES2ENEMY,DEFAULT_SPRITES2ENEMY):
     screen.fill((0, 0, 0))
 
     if my_id is None or my_id not in players:
@@ -318,7 +323,7 @@ def draw_frame(screen, players,enemies, bullets, my_id, map_w, map_h, SPRITES1, 
     draw_map(screen, MAP, cam_x, cam_y, WINDOW_W, WINDOW_H)
     draw_bullets(screen, bullets, cam_x, cam_y)
     draw_players(screen, players, my_id, cam_x, cam_y, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER)
-    draw_enemy(screen, enemies, cam_x, cam_y, ENEMY_SPRITES, DEFAULT_SPRITE_ENEMY)
+    draw_enemy(screen, enemies, cam_x, cam_y, ENEMY_SPRITES, DEFAULT_SPRITE_ENEMY,SPRITES2ENEMY,DEFAULT_SPRITES2ENEMY)
 
 
 # ---------- main ----------
@@ -337,7 +342,9 @@ def run():
     DAGGERS = load_dagger_sprites()
     DEFAULT_DAGGER = DAGGERS[3]
     SPRITES1ENEMY = load_enemy_sprites(1)
-    DEFAULT_SPRITES1ENEMY = SPRITES1ENEMY[3]
+    DEFAULT_SPRITES1ENEMY = SPRITES1ENEMY[1]
+    SPRITES2ENEMY = load_enemy_sprites(2)
+    DEFAULT_SPRITES2ENEMY = SPRITES2ENEMY[1]
 
     # connect
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -375,7 +382,7 @@ def run():
             running = False
 
         # draw
-        draw_frame(screen, players, enemies, bullets, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER,SPRITES1ENEMY,DEFAULT_SPRITES1ENEMY)
+        draw_frame(screen, players, enemies, bullets, my_id, map_w, map_h, SPRITES1, DEFAULT_SPRITE1, SPRITES2, DEFAULT_SPRITE2, DAGGERS, DEFAULT_DAGGER,SPRITES1ENEMY,DEFAULT_SPRITES1ENEMY,SPRITES2ENEMY,DEFAULT_SPRITES2ENEMY)
 
         pygame.display.flip()
         clock.tick(60)
