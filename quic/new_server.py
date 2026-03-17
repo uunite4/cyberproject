@@ -11,7 +11,14 @@ from wrappers.server_wrapper import QuicServer
 
 #DB_PATH = r"C:\Users\USER\PycharmProjects\PythonProject\Cyber-Proj-main\loginServerBasics\game.db"
 #DB_PATH = r"C:\Users\Itay\PycharmProjects\cyberproject\quic\game.db"
-DB_PATH = r"C:\Users\USER\PycharmProjects\cyberproject\quic\game.db"
+#DB_PATH = r"C:\Users\USER\PycharmProjects\cyberproject\quic\game.db"
+
+# 1. Get the directory where THIS script is saved
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# 2. Point to the game.db file in that same directory
+DB_PATH = os.path.join(current_dir, "game.db")
+
 
 
 class LoginServer:
@@ -81,29 +88,36 @@ class LoginServer:
         hash_obj = hashlib.sha256(combined)
         return salt_hex, hash_obj.hexdigest()
 
-    def player_inventory_upload(self, item1, item2, item3, item4, item5, item6, item7, item8, item9, item10, token):
+    def player_info_get(self, token):
         with sqlite3.connect(DB_PATH, timeout=5) as conn:
-            cursor = conn.cursor()
-            # You must list every column you want to update
-            cursor.execute("""UPDATE inventory 
-                            SET item1 = ?, item2 = ?, item3 = ?, item4 = ?, item5 = ?,
-                                item6 = ?, item7 = ?, item8 = ?, item9 = ?, item10 = ?
-                            WHERE token = ?""",
-                           (item1, item2, item3, item4, item5, item6, item7, item8, item9, item10, token))
-            conn.commit()
-            conn.close()
-            print("invertory uploaded!")
-    def player_info_update(self, token, x_position, y_position, health, team, direaction, item1, item2, item3, item4, item5, item6, item7, item8, item9, item10):
-        self.player_inventory_upload(item1, item2, item3, item4, item5, item6, item7, item8, item9, item10, token)
+            curser = conn.cursor()
+            curser.execute("SELECT * FROM last_save WHERE token = ?", (token,))
+            row = curser.fetchone()
+            if row:
+                x, y, hp, i1, i2, i3, i4, i5, i6, i7, i8 = row
+                print(f"Player is at {x}, {y} with {hp} health. and with the following items {i1, i2, i3, i4, i5, i6, i7, i8}")
+                return x, y, hp, i1, i2, i3, i4, i5, i6, i7, i8
+            else:
+                print("No player found with that token.")
+                return None
+
+    def player_info_update(self, token, x_position, y_position, health, item1, item2, item3, item4, item5, item6, item7, item8):
+        #self.player_inventory_upload(item1, item2, item3, item4, item5, item6, item7, item8, item9, item10, token)
         with sqlite3.connect(DB_PATH, timeout=5) as conn:
             curser = conn.cursor()
             curser.execute("""UPDATE last_save
                               SET x_position = ?,
                                   y_position = ?,
                                   health     = ?,
-                                  team       = ?,
-                                  direaction = ?
-                              WHERE token = ?""", (x_position, y_position, health, team, direaction, token))
+                                  item1      = ?,
+                                  item2      = ?,
+                                  item3      = ?, 
+                                  item4      = ?, 
+                                  item5      = ?,
+                                  item6      = ?, 
+                                  item7      = ?, 
+                                  item8      = ?
+                              WHERE token = ?""", (x_position, y_position, health, item1, item2, item3, item4, item5, item6, item7, item8,  token))
 
             conn.commit()
             conn.close()
