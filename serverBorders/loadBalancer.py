@@ -63,13 +63,6 @@ class MyServer:
             print(server_id)
 
         await asyncio.Future()
-
-def point_in_rect(px, py, rx, ry, w, h):
-    return (
-        rx <= px <= rx + w and
-        ry <= py <= ry + h
-    )
-
 def get_random_position():
 
     # Choose a random server

@@ -90,19 +90,26 @@ class Dagger:
         hitbox = self.build_hitbox(attacker)
 
         arr = []
-
+        boo = False
         for target in clients.values():
 
             if target["cid"] == attacker["cid"]:
                 arr.append(False)
+                i = len(arr) - 1
                 continue
 
             target_box = player_rect(target)
             if rects_overlap(hitbox, target_box):
-                arr.append(True)
-                target["hp"] -= self.damage
+                if target["brit_timer"]==0:
+                        arr.append(True)
+                        target["hp"] -= self.damage
+                else:
+                    boo = True
+                    attacker["hp"] -= self.damage
             else:
                 arr.append(False)
+        if boo:
+            arr[i] = True
         return arr
 
 

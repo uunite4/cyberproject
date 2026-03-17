@@ -56,7 +56,12 @@ class MyServer:
                 "fart": 0,
                 "f_cooldown": 0,
                 "invis": 0,
-                "i_timer": S.INVESIBEL_TIME
+                "i_timer": 0,
+                "speed": 0,
+                "speed_timer": 0,
+                "laser_timer": 0,
+                "laser_cooldown": S.LASER_COOLDOWN,
+                "brit_timer": 0,
             }
             print("PLAYERS INITIAL POS: ", self.clients[pid]["x"], self.clients[pid]["y"], "PLAYERS ID: ", pid)
         elif (cmd == S.CMDS["HELLO"]):
@@ -71,7 +76,7 @@ class MyServer:
             print(f"GOT MOVE PACKET")
             xDir, yDir, sprint = struct.unpack_from('!bbb', data, 17)
 
-            nx,ny = apply_movement(currentClient["x"],currentClient["y"],xDir,yDir,sprint)
+            nx,ny = apply_movement(currentClient["x"],currentClient["y"],xDir,yDir, sprint + 2*currentClient["speed"])
             currentClient["dir"] = get_dir(nx-currentClient["x"],ny-currentClient["y"])
             currentClient["x"], currentClient["y"] = nx, ny
             currentClient["cid"] = connection_id
@@ -150,23 +155,54 @@ class MyServer:
             att = struct.unpack_from('!b', data, 17)[0]
             self.clients[pid]["att"] = att
             print("attacking with weapon ", self.clients[pid]["weapon"])
-            print(self.clients[pid]["gun_cd"])
-            if att == 1 and placeToWeapon(self.clients[pid]) == 2 and self.clients[pid]["gun_cd"] <= 0:
+            if att != 1:
+                return
+            if placeToWeapon(self.clients[pid]) == 2 and self.clients[pid]["gun_cd"] <= 0:
                 b_id = get_next_bullet_id(self.bullets)
                 new_bullet = Bullet(b_id, self.clients[pid]["x"], self.clients[pid]["y"], self.clients[pid]["dir"], S.BULLET_DISTANS, pid)
                 self.bullets.append(new_bullet)
                 self.clients[pid]["gun_cd"] = S.BULLET_COOLDOWN
-            if att == 1 and placeToWeapon(self.clients[pid]) == 5:
+
+            elif placeToWeapon(self.clients[pid]) == 3:
+                    if self.clients[pid]["hp"] < 100:
+                        self.clients[pid]["hp"] = min(self.clients[pid]["hp"]+50, 100)
+                        pk = struct.pack('!bh', S.CMDS["DAMAGE"], int(self.clients[pid]["hp"]))
+                        self.server.send(connection_id, pk)
+                        self.clients[pid]["inventory"][self.clients[pid]["weapon"] - 1] = 0
+                        destroyItem(self, self.clients[pid]["cid"], self.clients[pid]["weapon"] - 1)
+
+
+            elif placeToWeapon(self.clients[pid]) == 4:
+                self.clients[pid]["speed"] = 1
+                self.clients[pid]["speed_timer"] = S.SPEED_POSSION_TIME
+                self.clients[pid]["inventory"][self.clients[pid]["weapon"] - 1] = 0
+                destroyItem(self, self.clients[pid]["cid"], self.clients[pid]["weapon"] - 1)
+
+
+            elif placeToWeapon(self.clients[pid]) == 5:
                 self.clients[pid]["invis"] = 1
                 self.clients[pid]["i_cooldown"] = S.INVESIBEL_TIME
                 self.clients[pid]["inventory"][self.clients[pid]["weapon"] - 1] = 0
+                destroyItem(self, self.clients[pid]["cid"], self.clients[pid]["weapon"] - 1)
+
+
+            elif placeToWeapon(self.clients[pid]) == 6:
+                self.clients[pid]["brit_timer"] = S.BRIT_TIMER
+                self.clients[pid]["inventory"][self.clients[pid]["weapon"] - 1] = 0
+                destroyItem(self, self.clients[pid]["cid"], self.clients[pid]["weapon"] - 1)
+
+            elif placeToWeapon(self.clients[pid]) == 7 and self.clients[pid]["laser_cooldown"] <= 0:
+                self.clients[pid]["laser_timer"] = S.LASER_TIME
+                self.clients[pid]["laser_cooldown"] = S.LASER_COOLDOWN
+
         elif (cmd == S.CMDS["CHANGE_WEAPON"]):
             weapon = struct.unpack_from('!b', data, 17)[0]
             self.clients[pid]["weapon"] = weapon
             print("changed weapon to ", weapon)
             if placeToWeapon(self.clients[pid]) == 2:
-                print("successful change")
                 self.clients[pid]["gun_cd"] = S.BULLET_COOLDOWN
+            if placeToWeapon(self.clients[pid]) != 7:
+                self.clients[pid]["laser_timer"] = 0
         elif (cmd == S.CMDS["FART"]):
             fart = struct.unpack_from('!b', data, 17)[0]
             print("got fart")
@@ -193,7 +229,7 @@ class MyServer:
             now = time.time()
 
             if now - lastBroadcast >= S.BROADCAST_INTERVAL:
-                tick_cooldowns(self.clients,self.farts)
+                tick_cooldowns(self.server,self.clients,self.farts)
                 broadcast(self, dagger)
                 update_bullets(self.bullets)
                 update_fart(self.farts, self.clients)
@@ -252,7 +288,7 @@ def broadcast(self, dagger):
     for pid,client in self.clients.items():
         temp = copy_dic(self.clients)
         del temp[pid]
-        pk = build_state_payload(temp, self.bullets, client["fart"], client["invis"])
+        pk = build_state_payload(temp, self.bullets, client["fart"], client["invis"], min(1,client["laser_timer"]))
         self.server.send(client["cid"],pk)
         if client["fart"] == 1:
             print("player is farting ", i)
@@ -260,6 +296,13 @@ def broadcast(self, dagger):
         if client["att"] == 1 and placeToWeapon(client) == 1:  # daggers
             print("player attacking", i)
             arr = dagger.attack(client, self.clients)
+            j = 0
+            for boo in arr:
+                if boo:
+                    hp_change[j] = True
+                j += 1
+        if client["laser_timer"]>0:
+            arr = check_laser_hit(pid, client, self.clients)
             j = 0
             for boo in arr:
                 if boo:
@@ -320,10 +363,10 @@ def copy_dic(dic):
         ndic[k] = v
     return ndic
 
-def build_state_payload(clients, bullets, fart, invi):
+def build_state_payload(clients, bullets, fart, invi, laser):
     count = len(clients)
-    format = "!bbbh" + "hhhhbbb" * count #the b is for byte - 0\1
-    payload = [S.CMDS["RENDER"], fart, invi, count]
+    format = "!bbbbh" + "hhhhbbbb" * count #the b is for byte - 0\1
+    payload = [S.CMDS["RENDER"], fart, invi, laser, count]
 
     for c in clients.values():
         payload.append(int(c["x"]))
@@ -345,6 +388,14 @@ def build_state_payload(clients, bullets, fart, invi):
         print("bullet in ", b.x, b.y)
 
     return struct.pack(format, *payload)
+
+def build_total_client(pid,client):
+    format = "!b16shh"
+    payload = [S.CMDS["MOVE_PLAYER"], pid]
+    payload.append(client["x"])
+    payload.append(client["y"])
+    payload.append(client["dir"])
+    payload.append(client["hp"])
 
 def placeToWeapon(client):
     weapon = client["inventory"][client["weapon"]-1]
@@ -388,20 +439,40 @@ def get_dir(dx,dy):
             dire = 3
     return dire
 
-def tick_cooldowns(clients, farts):
+def tick_cooldowns(server,clients, farts):
     for c in clients.values():
         if placeToWeapon(c) == 2 and c["gun_cd"] > 0:
             c["gun_cd"] -= 1
         if c["f_cooldown"] > 0:
             c["f_cooldown"] -= 1
+            if c["f_cooldown"] == 0:
+                pk = struct.pack("!b", S.CMDS["FART_READY"])
+                server.send(c["cid"], pk)
+        if c["speed"] == 1 and c["speed_timer"] > 0:
+            c["speed_timer"] -= 1
+            if c["speed_timer"] <= 0:
+                c["speed_timer"] = 0
+                c["speed"] = 0
         if c["invis"] == 1 and c["i_cooldown"] > 0:
             c["i_cooldown"] -= 1
             if c["i_cooldown"] == 0:
                 c["invis"] = 0
+        if placeToWeapon(c) == 7 and c["laser_cooldown"] > 0:
+            c["laser_cooldown"] -= 1
+            if c["laser_timer"] > 0:
+                c["laser_timer"] -= 1
+            else:
+                c["laser_timer"] = 0
+        if c["brit_timer"] > 0:
+            c["brit_timer"] -= 1
+            if c["brit_timer"] < 0:
+                c["brit_timer"] = 0
 
     for f in farts:
         if f.duration > 0:
             f.duration -= 1
+
+
 
 def update_bullets(bullets):
     i=0
@@ -433,6 +504,51 @@ def apply_bullet_hits_for_player(pid, p, bullets):
             back = True
         i+=1
     return back
+def check_laser_hit(pid, attacker, clients):
+    vx, vy = dir_to_vec(attacker["dir"])
+    arr = []
+    for id,target in clients.items():
+        arr.append(False)
+        if id == pid:
+            continue
+
+
+        dx = target["x"] - attacker["x"]
+        dy = target["y"] - attacker["y"]
+        dist = math.sqrt(dx ** 2 + dy ** 2)
+
+        if dist <= S.LASER_DIS:
+
+            target_angle = math.atan2(dy, dx)
+            if target_angle < 0: target_angle += 2 * math.pi
+
+
+            attacker_angle = math.atan2(vy, vx)
+            if attacker_angle < 0: attacker_angle += 2 * math.pi
+
+
+            angle_diff = abs(target_angle - attacker_angle)
+            if angle_diff > math.pi:  # תיקון למעגל
+                angle_diff = 2 * math.pi - angle_diff
+
+            if angle_diff < 0.1:
+                target["hp"] -= S.LASER_DAMEG
+                arr[-1] = True
+    return arr
+
+def dir_to_vec(d: int) -> tuple[int, int]:
+    vectors = {
+        1: (1, 0),
+        2: (1, 1),
+        3: (0, 1),
+        4: (-1, 1),
+        5: (-1, 0),
+        6: (-1, -1),
+        7: (0, -1),
+        8: (1, -1)
+    }
+    return vectors.get(d, (0, 0))
+
 
 def fart(farts,p,pid):
     boo = False
@@ -445,6 +561,10 @@ def fart(farts,p,pid):
             p["hp"] -= S.FART_DAMEG
             boo = True
     return boo
+def destroyItem(self, cid, item):
+    pk = struct.pack('!bb', S.CMDS["DELETE_ITEM"], int(item))
+    self.server.send(cid, pk)
+
 if __name__ == "__main__":
     s = MyServer()
     asyncio.run(s.run())

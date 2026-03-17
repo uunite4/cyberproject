@@ -1,5 +1,4 @@
 import asyncio
-import json
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -16,7 +15,13 @@ from map_data import *
 poopb=pygame.image.load(S.poop).convert_alpha()
 inventoryb = pygame.image.load(S.inventory1).convert_alpha()
 selectb = pygame.image.load(S.select1).convert_alpha()
-
+bolbolb = pygame.image.load(S.bolbol).convert_alpha()
+lcon28b = pygame.image.load(S.lcon28).convert_alpha()
+lcon1b = pygame.image.load(S.lcon1).convert_alpha()
+lcon5b = pygame.image.load(S.lcon5).convert_alpha()
+scissorsb = pygame.image.load(S.scissors).convert_alpha()
+lazerb = pygame.image.load(S.lazer).convert_alpha()
+gunb = pygame.image.load(S.gun).convert_alpha()
 class MyClient:
 
     def __init__(self):
@@ -30,144 +35,124 @@ class MyClient:
         self.bullets = []
         self.dropped = []
         self.open = False
-        self.state = "login"
         pygame.init()
-        self.font = pygame.font.SysFont("Arial", 24)
         self.screen = pygame.display.set_mode((S.WINDOW_WIDTH, S.WINDOW_HEIGHT))
         pygame.display.set_caption("Game")
         self.player = Player.Player()
-        self.response_event = asyncio.Event()
-        self.status_msg = None
     # ----------
     # RECEIVE DATA
     # ----------
     def on_receive(self, connection_id: int, data: bytes):
-        if connection_id == self.login_server_id:
-            self.status_msg = data.decode().split("=")
-            print(f"login server: {self.status_msg}")
+        cmd = struct.unpack_from('!b', data, 0)[0]
+        if (cmd == S.CMDS["INIT_LB"]):
+            pid, controlIndex, x, y = struct.unpack_from('!16sbhh', data, 1)
+            print(pid, controlIndex, x, y)
+            self.iControl = controlIndex
+            self.pid = pid.decode("utf-8")
+            print("RESPONSE FROM LB (SERVER INDEX): ", self.iControl, "(X,Y): (", x, ",", y, ")", "PID", self.pid)
+            self.player.x = x
+            self.player.y = y
+            self.player.dir = 3
+            self.player.health = S.PLAYER_HEALTH
+            self.player.att = 0
+            self.player.weapon = 1
 
-            # notify response received
-            self.response_event.set()
-        else:
-            cmd = struct.unpack_from('!b', data, 0)[0]
-            if (cmd == S.CMDS["INIT_LB"]):
-                pid, controlIndex, x, y = struct.unpack_from('!16sbhh', data, 1)
-                print(pid, controlIndex, x, y)
-                self.iControl = controlIndex
-                self.pid = pid.decode("utf-8")
-                print("RESPONSE FROM LB (SERVER INDEX): ", self.iControl, "(X,Y): (", x, ",", y, ")", "PID", self.pid)
-                self.player.x = x
-                self.player.y = y
-                self.player.dir = 3
-                self.player.health = S.PLAYER_HEALTH
-                self.player.att = 0
-                self.player.weapon = 1
-    
-                pk = struct.pack("!b16s", S.CMDS["HELLO"], self.pid.encode("utf-8"))
+            pk = struct.pack("!b16s", S.CMDS["HELLO"], self.pid.encode("utf-8"))
+            self.client.send(self.connections[self.iControl], pk)
+        elif (cmd == S.CMDS["MOVE"]):
+            moveOffPackt(data, self.player)
+
+        elif (cmd == S.CMDS["OVERLAP"]):
+            # SEND POS TO SECOND SERVER
+            if self.iInActive != None:
+                pk = struct.pack("!b16shhh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x,
+                                 self.player.y, self.player.dir)
+                self.client.send(self.connections[self.iInActive], pk)
+            else:
+                dir = struct.unpack_from('!1s', data, 1)[0].decode("utf-8")
+                if (dir == "r"):
+                    self.iInActive = self.iControl + 1
+                elif (dir == "l"):
+                    self.iInActive = self.iControl - 1
+
+                print(self.iInActive)
+
+                pk = struct.pack("!b16shhhhbbb", S.CMDS["ADD_ME"], self.pid.encode("utf-8"), self.player.x,
+                                 self.player.y,
+                                 self.player.dir, self.player.health, self.player.att, self.player.weapon, self.player.fartp)
+                self.client.send(self.connections[self.iInActive], pk)
+
+        elif (cmd == S.CMDS["OUT_OF_OVERLAP"]):
+            # SEND TO INACTIVE SERVER TO REMOVE ME
+            pk = struct.pack("!b16s", S.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
+            self.client.send(self.connections[self.iInActive], pk)
+            self.iInActive = None
+
+        elif (cmd == S.CMDS["SWITCH_SERVER"]):
+            # SWITCH BETWEEN CONTROL AND INACTIVE
+            if self.iInActive != None:
+                pk = struct.pack("!b16s", S.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
                 self.client.send(self.connections[self.iControl], pk)
-            elif (cmd == S.CMDS["MOVE"]):
-                moveOffPackt(data, self.player)
-    
-            elif (cmd == S.CMDS["OVERLAP"]):
-                # SEND POS TO SECOND SERVER
-                if self.iInActive != None:
-                    pk = struct.pack("!b16shhh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x,
-                                     self.player.y, self.player.dir)
-                    self.client.send(self.connections[self.iInActive], pk)
-                else:
-                    dir = struct.unpack_from('!1s', data, 1)[0].decode("utf-8")
-                    if (dir == "r"):
-                        self.iInActive = self.iControl + 1
-                    elif (dir == "l"):
-                        self.iInActive = self.iControl - 1
-    
-                    print(self.iInActive)
-    
-                    pk = struct.pack("!b16shhhhbbb", S.CMDS["ADD_ME"], self.pid.encode("utf-8"), self.player.x,
-                                     self.player.y,
-                                     self.player.dir, self.player.health, self.player.att, self.player.weapon, self.player.fartp)
-                    self.client.send(self.connections[self.iInActive], pk)
-    
-            elif (cmd == S.CMDS["OUT_OF_OVERLAP"]):
-                # SEND TO INACTIVE SERVER TO REMOVE ME
+                self.iControl = self.iInActive
+                self.iInActive = None
+            else:
+                print("fuck")
+        elif (cmd == S.CMDS["RENDER"]):
+            # render the screen
+            if connection_id == self.connections[self.iControl] or (self.iInActive != None and connection_id == self.connections[self.iInActive]):
+                fart, invi, laser = struct.unpack_from('!bbb', data, 1)
+                self.player.fartp = fart
+                self.player.invisible = invi
+                self.player.laser = laser
+                if fart == 1:
+                    print("farting")
+                self.players = []
+                count = struct.unpack_from('!h', data, 4)[0]
+                for i in range(count):
+                    offset = 6+12*i
+                    x, y, dir, health, att, weapon, fart, invi = struct.unpack_from('!hhhhbbbb', data, offset)
+                    self.players.append({"x":x,"y": y, "dir": dir, "hp": health, "att": att, "weapon": weapon, "fart": fart, "invi": invi})
+                offset = 6+12*count
+                self.bullets = []
+                countb = struct.unpack_from('!h', data, offset)[0]
+                offset += 2
+                for i in range(countb):
+                    bx, by = struct.unpack_from('!hh', data, offset)
+                    self.bullets.append({"x":bx, "y":by})
+                    offset+=4
+                    print("bullet in ", bx, " ", by)
+
+
+        elif (cmd == S.CMDS["DAMAGE"]):
+            nhp = struct.unpack_from('!h', data, 1)[0]
+            self.player.health = nhp
+            if self.iInActive != None:
+                pk = struct.pack("!b16shhhhb", S.CMDS["HP_DONT_RESPOND"], self.pid.encode("utf-8"), nhp)
+                self.client.send(self.connections[self.iInActive], pk)
+        elif (cmd == S.CMDS["RESPAWN"]):
+            x,y = struct.unpack_from('!hh', data, 1)
+            self.player.tp(x,y,3)
+            self.player.health = S.PLAYER_HEALTH
+            if self.iInActive != None:
                 pk = struct.pack("!b16s", S.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
                 self.client.send(self.connections[self.iInActive], pk)
-                self.iInActive = None
-    
-            elif (cmd == S.CMDS["SWITCH_SERVER"]):
-                # SWITCH BETWEEN CONTROL AND INACTIVE
-                if self.iInActive != None:
-                    pk = struct.pack("!b16s", S.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
-                    self.client.send(self.connections[self.iControl], pk)
-                    self.iControl = self.iInActive
-                    self.iInActive = None
-                else:
-                    print("fuck")
-            elif (cmd == S.CMDS["RENDER"]):
-                # render the screen
-                if connection_id == self.connections[self.iControl] or (self.iInActive != None and connection_id == self.connections[self.iInActive]):
-                    fart, invi = struct.unpack_from('!bb', data, 1)
-                    self.player.fartp = fart
-                    self.player.invisible = invi
-                    if fart == 1:
-                        print("farting")
-                    self.players = []
-                    count = struct.unpack_from('!h', data, 3)[0]
-                    for i in range(count):
-                        offset = 5+12*i
-                        x, y, dir, health, att, weapon, fart, invi = struct.unpack_from('!hhhhbbbb', data, offset)
-                        self.players.append({"x":x,"y": y, "dir": dir, "hp": health, "att": att, "weapon": weapon, "fart": fart, "invi": invi})
-                    offset = 5+12*count
-                    self.bullets = []
-                    countb = struct.unpack_from('!h', data, offset)[0]
-                    offset += 2
-                    for i in range(countb):
-                        bx, by = struct.unpack_from('!hh', data, offset)
-                        self.bullets.append({"x":bx, "y":by})
-                        offset+=4
-                        print("bullet in ", bx, " ", by)
-    
-    
-            elif (cmd == S.CMDS["DAMAGE"]):
-                nhp = struct.unpack_from('!h', data, 1)[0]
-                self.player.health = nhp
-                if self.iInActive != None:
-                    pk = struct.pack("!b16shhhhb", S.CMDS["HP_DONT_RESPOND"], self.pid.encode("utf-8"), nhp)
-                    self.client.send(self.connections[self.iInActive], pk)
-            elif (cmd == S.CMDS["RESPAWN"]):
-                x,y = struct.unpack_from('!hh', data, 1)
-                self.player.tp(x,y,3)
-                self.player.health = S.PLAYER_HEALTH
-                if self.iInActive != None:
-                    pk = struct.pack("!b16s", S.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
-                    self.client.send(self.connections[self.iInActive], pk)
-
+        elif (cmd == S.CMDS["DELETE_ITEM"]):
+            index = struct.unpack_from('!b', data, 1)[0]
+            self.player.weapons[index] = 0
+        elif (cmd == S.CMDS["FART_READY"]):
+            self.player.fart_ready = 1
 
 
     # ----------
     # RUNNING
     # ----------
     async def run(self):
+
+
         self.client = QuicClient(
             cert_file="../networking/certificate/cert.pem",
             on_receive=self.on_receive
         )
-
-        self.login_server_id = await self.client.connect(
-            server_ip=S.LOGIN_SERVER["ip"],
-            server_port=S.LOGIN_SERVER["port"],
-        )
-        print('connected to server')
-
-        username = ""
-        password = ""
-        active_field = "username"  # Toggle between username and password
-        mode = "START"  # START, LOGIN_INPUT, SIGNUP_INPUT
-        status_msg = "Waiting for input..."
-        
-
-        """
-
         # Connect to all servers
         for server in S.SERVERS:
             server_id = await self.client.connect(
@@ -195,8 +180,7 @@ class MyClient:
         DEFAULT_DAGGER = DAGGERS[3]
         FARTS = load_fart_sprites()
         DEFAULT_FARTS = FARTS[3]
-        
-        """
+        clock = pygame.time.Clock()
 
         while self.running:
             # Check for events
@@ -204,116 +188,44 @@ class MyClient:
                 if event.type == pygame.QUIT:
                     self.running = False
 
-                if event.type == pygame.KEYDOWN and self.state == "login":
-                    if mode == "START":
-                        if event.key == pygame.K_l:
-                            mode = "LOGIN_INPUT"
-                        if event.key == pygame.K_s:
-                            mode = "SIGNUP_INPUT"
+            # KEYS (GET INPUTS)
+            inputs, pressedM, pressedA, fart = getInputs()
+            # SEND INPUTS
+            if inputs["sp"] == 1: #attacking...
+                if self.player.att == 0:
+                    sendAttack(self, 1)
+                    self.player.att = 1
+            elif self.player.att == 1:
+                sendAttack(self, 0)
+                self.player.att = 0
 
-                    elif "INPUT" in mode:
-                        if event.key == pygame.K_ESCAPE:
-                            mode = "START"
-                            # Optional: Clear the text so it's empty when you come back
-                            username = ""
-                            password = ""
-                            status_msg = "Waiting for input..."
-                        if event.key == pygame.K_TAB:  # Switch fields
-                            active_field = "password" if active_field == "username" else "username"
-                        elif event.key == pygame.K_RETURN:  # SEND TO SERVER
-                            print("username: " + username)
-                            print("password: " + password)
-                            await self.send_to_server(
-                                username,
-                                password,
-                                "LOGIN" if mode == "LOGIN_INPUT" else "SIGNUP"
-                            )
-                        elif event.key == pygame.K_BACKSPACE:
-                            if active_field == "username":
-                                username = username[:-1]
-                            else:
-                                password = password[:-1]
-                        else:
-                            if active_field == "username":
-                                username += event.unicode
-                            else:
-                                password += event.unicode
+            if pressedA !=0:
+                if self.player.weapon != pressedA:
+                    self.player.weapon = pressedA
+                    pk = struct.pack("!b16sb", S.CMDS["CHANGE_WEAPON"], self.pid.encode("utf-8"), pressedA)
+                    self.client.send(self.connections[self.iControl], pk)
+                    if self.iInActive != None:
+                        self.client.send(self.connections[self.iInActive], pk)
 
-            if self.state == "login":
-                self.screen.fill(S.WHITE)
-                # ----------
-                # LOGIN SECTION
-                #-----------
-                if mode == "START":
-                    self.draw_text("Welcome to the MMORPG", 230, 150)
-                    self.draw_text("Press 'L' for Login", 250, 250)
-                    self.draw_text("Press 'S' for Signup", 250, 300)
+            if fart == 1: #farting...
+                if self.player.fartp == 0 and self.player.fart_ready == 1:
+                    self.player.fart_ready = 0
+                    print("sent fart")
+                    sendFart(self, 1)
 
-                elif "INPUT" in mode:
-                    self.draw_text(f"Mode: {mode}", 50, 50)
-                    self.draw_text(f"Username: {username} {'|' if active_field == 'username' else ''}", 100, 150)
-                    self.draw_text(f"Password: {'*' * len(password)} {'|' if active_field == 'password' else ''}", 100,
-                                   200)
-                    self.draw_text("Press TAB to switch, ENTER to submit, ESC to go back", 100, 300)
+            if inputs["i"] == 1: #toggle inventory
+                self.open = not self.open
 
-                    if status_msg[1] == "ERROR: with signup":
-                        self.draw_text("SignUp failed!", 100, 400, color=(255, 0, 0))
-                    elif status_msg[1] == "ERROR: with login":
-                        self.draw_text("Login Failed!", 100, 400, color=(255, 0, 0))
-                    elif status_msg[1] == "ERROR: username is empty" or status_msg[1] == "ERROR: password is empty":
-                        self.draw_text("password or username is empty", 100, 400, color=(255, 0, 0))
-                    else:
-                        self.draw_text("the key: " + status_msg[1], 100, 400, color=(255, 0, 0))
-                    if status_msg[2] == "NO USER FOUND":
-                        self.draw_text("NO USER FOUND ", 100, 460, color=(255, 0, 0))
-                    elif status_msg[2] == "User already found":
-                        self.draw_text("USER FOUND ", 100, 460, color=(255, 0, 0))
-                    elif status_msg[1] == "ERROR: username is empty" or status_msg[1] == "ERROR: password is empty":
-                        self.draw_text("password or username is empty", 100, 400, color=(255, 0, 0))
-                    else:
-                        self.draw_text("the next server: " + status_msg[2], 100, 460, color=(255, 0, 0))
-                pygame.display.flip()
-
-            else:
-                # ----------
-                # GAME SECTION
-                # -----------
-                # KEYS (GET INPUTS)
-                inputs, pressedM, pressedA, fart = getInputs()
-                # SEND INPUTS
-                if inputs["sp"] == 1: #attacking...
-                    if self.player.att == 0:
-                        sendAttack(self, 1)
-                        self.player.att = 1
-                elif self.player.att == 1:
-                    sendAttack(self, 0)
-                    self.player.att = 0
-
-                if pressedA !=0:
-                    if self.player.weapon != pressedA:
-                        self.player.weapon = pressedA
-                        pk = struct.pack("!b16sb", S.CMDS["CHANGE_WEAPON"], self.pid.encode("utf-8"), pressedA)
-                        self.client.send(self.connections[self.iControl], pk)
-                        if self.iInActive != None:
-                            self.client.send(self.connections[self.iInActive], pk)
-
-                if fart == 1: #farting...
-                    if self.player.fartp == 0:
-                        print("sent fart")
-                        sendFart(self, 1)
-
-                if inputs["i"] == 1: #toggle inventory432
-                    self.open = not self.open
-
-                if (pressedM): #movement related inputs
-                    self.sendInputs(inputs)
+            if (pressedM): #movement related inputs
+                self.sendInputs(inputs)
 
 
-                # DRAW
-                self.draw_frame(self.screen, S.MAP_WIDTH, S.MAP_HEIGHT, DEFAULT_SPRITE1, SPRITES1 , DEFAULT_DAGGER, DAGGERS, DEFAULT_FARTS, FARTS)
-                pygame.display.flip()
+            # DRAW
+            self.draw_frame(self.screen, S.MAP_WIDTH, S.MAP_HEIGHT, DEFAULT_SPRITE1, SPRITES1 , DEFAULT_DAGGER, DAGGERS, DEFAULT_FARTS, FARTS, clock)
+            pygame.display.flip()
+            clock.tick(60)
 
-                await asyncio.sleep(1 / 60)
+            await asyncio.sleep(1 / 60)
 
         pygame.quit()
 
@@ -323,7 +235,7 @@ class MyClient:
         pk = struct.pack('!b16sbbb', S.CMDS["MOVE"], self.pid.encode("utf-8"), xAxisDirection, yAxisDirection, inputs["sf"])  # b is signed byte
         self.client.send(self.connections[self.iControl], pk)
 
-    def draw_frame(self, screen, map_w, map_h, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS, DEFAULT_FARTS, FARTS):
+    def draw_frame(self, screen, map_w, map_h, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS, DEFAULT_FARTS, FARTS, clock):
         screen.fill((0, 0, 0))
 
         cam_x, cam_y = camera_from_pos(self.player.x, self.player.y, map_w, map_h)
@@ -333,35 +245,11 @@ class MyClient:
         draw_players(screen, self.player, self.players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS, DEFAULT_FARTS, FARTS)
 
         fps_font = pygame.font.SysFont("Arial", 20, bold=True)
-
+        draw_fps(clock, fps_font,screen)
         if self.open:
             draw_inventory_overlay(screen,self.player, fps_font)
         else:
             draw_inventori(screen, self.player)
-
-    def draw_text(self, text, x, y, color=S.BLACK):
-        img = self.font.render(text, True, color)
-        self.screen.blit(img, (x, y))
-
-    async def send_to_server(self, u, p, action):
-        data = json.dumps({"username": u, "password": p, "action": action})
-
-        # reset event before sending
-        self.response_event.clear()
-        self.client.send(self.login_server_id, data.encode())
-
-        try:
-            # wait for server response
-            await asyncio.wait_for(self.response_event.wait(), timeout=2)
-
-        except asyncio.TimeoutError:
-            print("Connection timeout")
-            return ["ERROR", "TIMEOUT", ""]
-
-        status_msg = self.status_msg
-        self.status_msg = None
-
-        return status_msg
 
 def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS, DEFAULT_FARTS, FARTS):
     # DRAW OTHER PLAYERS
@@ -380,6 +268,8 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
             dagger_x = int((p["x"] + vx * S.TILE_SIZE) - cam_x - S.TILE_SIZE // 2)
             dagger_y = int((p["y"] + vy * S.TILE_SIZE) - cam_y - S.TILE_SIZE // 2)
             screen.blit(DAGGERS.get(d, DEFAULT_DAGGER), (dagger_x, dagger_y))
+        if p["att"]==1 and p["weapon"]==7:
+            draw_laser(screen, p["dir"], px, py)
         if p["fart"] == 1:
             d = p["dir"]
             vx, vy = dir_to_vec(d)
@@ -390,9 +280,9 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
 
 
     # DRAW OWN PLAYER
+    px = int(player.x - cam_x - S.PLAYER_SIZE // 2)
+    py = int(player.y - cam_y - S.PLAYER_SIZE // 2)
     if player.invisible == 0:
-        px = int(player.x - cam_x - S.PLAYER_SIZE // 2)
-        py = int(player.y - cam_y - S.PLAYER_SIZE // 2)
         sprite = SPRITES1.get(player.dir, DEFAULT_SPRITE1)
         screen.blit(sprite, (px, py))
 
@@ -403,6 +293,9 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
         dagger_y = int((player.y + vy * S.TILE_SIZE) - cam_y - S.TILE_SIZE // 2)
         screen.blit(DAGGERS.get(d, DEFAULT_DAGGER), (dagger_x, dagger_y))
 
+    if player.att == 1 and player.laser == 1:
+        draw_laser(screen, player.dir, px, py)
+
     if player.fartp ==1:
         d = player.dir
         vx, vy = dir_to_vec(d)
@@ -410,6 +303,11 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
         fart_x = int((player.x + vx * S.TILE_SIZE) - cam_x - S.TILE_SIZE // 2)
         fart_y = int((player.y + vy * S.TILE_SIZE) - cam_y - S.TILE_SIZE // 2)
         screen.blit(FARTS.get(d, DEFAULT_FARTS), (fart_x, fart_y))
+
+    if player.fart_ready == 1:
+        x = S.WINDOW_WIDTH - 50
+        y = S.WINDOW_HEIGHT - 50
+        screen.blit(poopb, (x, y))
 
     health_bar_update(player.health, screen)
 
@@ -421,6 +319,34 @@ def draw_bullets(screen, bullets, cam_x, cam_y):
         pygame.draw.circle(screen, "red", (bx, by), S.BULLET_SIZE)
         pygame.draw.circle(screen, "orange", (bx, by), S.BULLET_SIZE-1)
         pygame.draw.circle(screen, "yellow", (bx, by), S.BULLET_SIZE-3)
+
+def draw_laser(screen, dir, px, py):
+    # 1. חישוב וקטור הכיוון ונקודת ההתחלה (טיפה אחרי מרכז השחקן)
+    vx, vy = dir_to_vec(dir)
+    offset = 20  # המרחק שבו הלייזר מתחיל מהשחקן
+
+    # מרכז השחקן על המסך
+    center_x = px + S.PLAYER_SIZE // 2
+    center_y = py + S.PLAYER_SIZE // 2
+
+    # נקודת ההתחלה של הלייזר (מוזזת ב-offset)
+    start_x = center_x + vx * offset
+    start_y = center_y + vy * offset
+
+    # נקודת הסיום (לפי הטווח המקסימלי)
+    end_x = start_x + vx * S.LASER_DIS
+    end_y = start_y + vy * S.LASER_DIS
+
+    # --- שלב א': ציור ה"מסגרת" האדומה (החלק החיצוני) ---
+    # מציירים קו אדום עבה
+    pygame.draw.line(screen, (255, 0, 0), (start_x, start_y), (end_x, end_y), 7)
+    # מציירים עיגול אדום בבסיס (טיפה יותר גדול מהלבן)
+    pygame.draw.circle(screen, (255, 0, 0), (int(start_x), int(start_y)), 8)
+
+    flicker = random.randint(-1, 2)  # רעידה אקראית
+    pygame.draw.line(screen, (255, 0, 0), (start_x, start_y), (end_x, end_y), 7 + flicker)
+    pygame.draw.line(screen, (255, 255, 255), (start_x, start_y), (end_x, end_y), 3)
+    pygame.draw.circle(screen, (255, 255, 255), (int(start_x), int(start_y)), 5)
 
 def draw_dropped(screen, dropped, DAGGERS,DEFAULT_DAGGER, cam_x, cam_y):
     for _, d in dropped.items():
@@ -594,18 +520,20 @@ def load_dagger_sprites() -> dict[int, pygame.Surface]:
         6: rot(base, 45),
     }
 def load_inventory_sprites(i):
-    if i == 1:
-        i = poopb
-    elif i == 2 :
-        i = poopb
-    elif i == 3:
-        i = poopb
-    elif i == 4:
-        i = poopb
-    elif i == 5:
-        i = poopb
-    elif i == 6:
-        i = poopb
+    if i == 'da':
+        i = bolbolb
+    elif i == 'gu':
+        i = gunb
+    elif i == 'h':
+        i = lcon1b
+    elif i == 's':
+        i = lcon5b
+    elif i == 'i':
+        i = lcon28b
+    elif i == 'b':
+        i = scissorsb
+    elif i =='la':
+        i=lazerb
     else : i = poopb
     return  i
 
@@ -705,10 +633,6 @@ def sendFart(self, boo):
     self.client.send(self.connections[self.iControl], pk)
     if self.iInActive != None:
         self.client.send(self.connections[self.iInActive], pk)
-
-
-
-
 
 if __name__ == "__main__":
     c = MyClient()

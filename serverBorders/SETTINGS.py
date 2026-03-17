@@ -1,5 +1,4 @@
 from pathlib import Path
-import pygame
 BASE_DIR = Path(__file__).resolve().parent
 
 MAP_WIDTH = 192*40
@@ -30,6 +29,13 @@ inventory1 = 'sprites\inventory.png'
 select1 = 'sprites\select.png'
 dagger = 'sprites\DAGGER-NORTH.png'
 fart = 'sprites\FARTS.png'
+lazer = 'wepons\\lazer.png'
+gun = 'wepons\\gun.png'
+lcon1 = 'wepons\\Icon1.png'
+lcon5 = 'wepons\\Icon5.png'
+lcon28 = 'wepons\\Icon28.png'
+bolbol = 'wepons\\bolbol.png'
+scissors = 'wepons\\scissors.png'
 
 OVERLAP_WIDTH = 600
 SERVER_NUMBER = 4
@@ -86,6 +92,10 @@ CMDS = {
     "ADD_ME": 0x10,
     "FART": 0x11,
     "HELLO": 0x12,
+    "LOGIN_TO_LB": 0x13,
+    "LOGIN_BACK_TO_CLIENT": 0x14,
+    "DELETE_ITEM": 0x15,
+    "FART_READY": 0x16,
 }
 
 LOAD_BALANCER = {
@@ -115,7 +125,41 @@ FART_DAMEG = 0.3
 #inventory
 INVENTORI = ['gu','da','h','s','i','b','la', 0, 0]
 
+INVENTORY_MAP = {
+    0: "e",
+    1: "da",
+    2: "gu",
+    3: "h",
+    4: "s",
+    5: "i",
+    6: "b",
+    7: "la"
+}
+
 #POTIONS
 SPEED_POSSION_TIME = 500
 INVESIBEL_TIME = 500
 BRIT_TIMER = 3000
+
+#LASER
+LASER_TIME = 30
+LASER_COOLDOWN = 200
+LASER_DAMEG =20
+LASER_DIS = 400
+
+#BRIT-MILA
+BRIT_TIMER = 3000
+
+
+# LOGIN AREA
+LOGIN_SERVER = {
+    "ip": "127.0.0.1",
+    "port": 7080
+}
+
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+GRAY = (200, 200, 200)
+
+# DEBUG
+login = True
