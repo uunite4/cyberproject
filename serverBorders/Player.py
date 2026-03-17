@@ -13,9 +13,13 @@ class Player:
         self.weapon = 1
         self.weapons=S.INVENTORI
         self.fartp =0
+        self.fart_timer = 0
         self.fart_ready = 1
         self.invisible = 0
+        self.invis_timer = 0
         self.laser = 0
+        self.laser_timer = 0
+        self.brit=0
 
         self.width = 40
         self.height = 40

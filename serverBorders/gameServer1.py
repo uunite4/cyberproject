@@ -2,7 +2,7 @@ import asyncio
 import struct
 import time
 import random
-from xmlrpc.client import boolean
+#from xmlrpc.client import boolean
 import Dagger
 import Fart
 from Bullet import *
@@ -10,7 +10,6 @@ from Player import *
 from DroppedWeapon import *
 import SETTINGS as S
 from networking.wrappers.server_wrapper import QuicServer
-from map_data import *
 
 class MyServer:
 
@@ -18,6 +17,7 @@ class MyServer:
         self.serverNumber = 1
         self.serverData = S.SERVERS[self.serverNumber - 1]
         self.nearOverlaps = getNearOverlaps(self.serverNumber - 1)
+        self.load_id = None
         self.clients = {}
         self.bullets = []
         self.items = []
@@ -56,6 +56,7 @@ class MyServer:
                 "gun_cd": S.BULLET_COOLDOWN,
                 "fart": 0,
                 "f_cooldown": 0,
+                "f_timer": 0,
                 "invis": 0,
                 "i_timer": 0,
                 "speed": 0,
@@ -65,14 +66,17 @@ class MyServer:
                 "brit_timer": 0,
             }
             print("PLAYERS INITIAL POS: ", self.clients[pid]["x"], self.clients[pid]["y"], "PLAYERS ID: ", pid)
+        elif (cmd == S.CMDS["HELLO_FROM_LB"]):
+            print("got load")
+            self.load_id = connection_id
+        elif (cmd == S.CMDS["TRANSFER_P"]):
+            print("got player")
+            take_client(self, pid, data)
         elif (cmd == S.CMDS["HELLO"]):
             self.clients[pid]["cid"] = connection_id
         elif (cmd == S.CMDS["MOVE"]):
             currentClient = self.clients[pid]
 
-            if currentClient["imOverlap"]:
-                currentClient["imOverlap"] = False
-                currentClient["inOverlap"] = False
             # CLIENT GAVE US DIRECTION, WE RETURN POS
             print(f"GOT MOVE PACKET")
             xDir, yDir, sprint = struct.unpack_from('!bbb', data, 17)
@@ -116,10 +120,18 @@ class MyServer:
                 currentClient["inOverlap"] = False
 
             if (not inServer):
+                print("not in server")
+                if currentClient["x"] < self.serverData["x"]:
+                    nServer = self.serverNumber-1
+                else:
+                    nServer = self.serverNumber+1
+                pk = build_total_client(pid, currentClient, nServer)
+                self.server.send(self.load_id, pk)
+                print("sent to load_b")
                 pk = struct.pack('!b', S.CMDS["SWITCH_SERVER"])
                 self.server.send(connection_id, pk)
                 del self.clients[pid]
-        elif (cmd == S.CMDS["POS_DONT_RESPOND"]):
+        elif (cmd == S.CMDS["POS_DONT_RESPOND"] and self.clients[pid]["imOverlap"]):
             x, y, dir = struct.unpack_from('!hhh', data, 17)
             new_data = {
                 "x": x,
@@ -133,9 +145,9 @@ class MyServer:
             self.clients[pid]["hp"] = nhp
         elif (cmd == S.CMDS["REMOVE_ME"]):
             del self.clients[pid]
-        elif (cmd == S.CMDS["ADD_ME"]):
+        elif (cmd == S.CMDS["ADD_ME"] and pid not in self.clients):
             print("added player ", pid)
-            x, y, dir, health, att, weapon, fart = struct.unpack_from('!hhhhbbb', data, 17)
+            x, y, dir, health, att, weapon, fart, invis, laser, brit = struct.unpack_from('!hhhhbbhhhh', data, 17)
             self.clients[pid] = {
                 "x": x,
                 "y": y,
@@ -146,17 +158,51 @@ class MyServer:
                 "att": att,
                 "weapon": weapon,
                 "gun_cd": S.BULLET_COOLDOWN,
-                "inventory": S.INVENTORI, #needs to be recieved!!!!
-                "fart":fart,
-                "f_cooldown": 0,
+                "inventory": S.BASIC_INV, #needs to be recieved!!!!
+                "fart": 1 if fart > 0 else 0,
+                "f_cooldown": S.FART_COOLDOWN,
+                "f_timer": fart,
                 "cid": connection_id,
+                "invis": 1 if invis > 0 else 0,
+                "i_timer": invis,
+                "speed": 0,
+                "speed_timer": 0,
+                "laser_timer": laser,
+                "laser_cooldown": S.LASER_COOLDOWN,
+                "brit_timer": brit,
             }
+
+
+            if fart > 0:
+                print("added fart")
+                f_id = pid
+                new_fart = Fart.Fart(f_id, self.clients[pid]["x"], self.clients[pid]["y"], self.clients[pid]["dir"], fart)
+                self.farts.append(new_fart)
+
+        elif (cmd == S.CMDS["INVIS"]):
+            self.clients[pid]["invis"] = 1
+            self.clients[pid]["i_timer"] = S.INVESIBEL_TIME
+        elif (cmd == S.CMDS["LASER"]):
+            self.clients[pid]["laser_timer"] = S.LASER_TIME
+            self.clients[pid]["laser_cooldown"] = S.LASER_COOLDOWN
+        elif (cmd == S.CMDS["BRIT"]):
+            self.clients[pid]["brit_timer"] = S.BRIT_TIMER
+        elif (cmd == S.CMDS["FARTING"]):
+            if self.clients[pid]["f_cooldown"] <= 0:
+                self.clients[pid]["fart"] = 1
+                self.clients[pid]["f_timer"] = S.FART_TIME
+                print("added fart")
+                f_id = pid
+                new_fart = Fart.Fart(f_id, self.clients[pid]["x"], self.clients[pid]["y"], self.clients[pid]["dir"],
+                                     S.FART_TIME)
+                self.farts.append(new_fart)
+                self.clients[pid]["f_cooldown"] = S.FART_COOLDOWN
 
         elif (cmd == S.CMDS["ATTACK"]):
             att = struct.unpack_from('!b', data, 17)[0]
             self.clients[pid]["att"] = att
             print("attacking with weapon ", self.clients[pid]["weapon"])
-            if att != 1:
+            if att != 1 or self.clients[pid]["imOverlap"]:
                 return
             if nameToWeapon(self.clients[pid]) == 2 and self.clients[pid]["gun_cd"] <= 0:
                 b_id = get_next_bullet_id(self.bullets)
@@ -182,7 +228,7 @@ class MyServer:
 
             elif nameToWeapon(self.clients[pid]) == 5:
                 self.clients[pid]["invis"] = 1
-                self.clients[pid]["i_cooldown"] = S.INVESIBEL_TIME
+                self.clients[pid]["i_timer"] = S.INVESIBEL_TIME
                 self.clients[pid]["inventory"][self.clients[pid]["weapon"] - 1] = 0
                 destroyItem(self, self.clients[pid]["cid"], self.clients[pid]["weapon"] - 1)
 
@@ -210,6 +256,7 @@ class MyServer:
             if fart == 1:
                 if self.clients[pid]["f_cooldown"] <= 0:
                     self.clients[pid]["fart"] = fart
+                    self.clients[pid]["f_timer"] = S.FART_TIME
                     print("added fart")
                     f_id = pid
                     new_fart = Fart.Fart(f_id, self.clients[pid]["x"], self.clients[pid]["y"], self.clients[pid]["dir"], S.FART_TIME)
@@ -295,10 +342,11 @@ def getNearOverlaps(serverIndex):
 def broadcast(self, dagger):
     hp_change = [False] * len(self.clients) #does their health change and need updating?
     i = 0
+    global pk
     for pid,client in self.clients.items():
         temp = copy_dic(self.clients)
         del temp[pid]
-        pk = build_state_payload(temp, self.bullets, self.items, client["fart"], client["invis"], min(1,client["laser_timer"]))
+        pk = build_state_payload(temp, self.bullets, self.items, client)
         self.server.send(client["cid"],pk)
         if client["fart"] == 1:
             print("player is farting ", i)
@@ -374,10 +422,10 @@ def copy_dic(dic):
         ndic[k] = v
     return ndic
 
-def build_state_payload(clients, bullets, items, fart, invi, laser):
+def build_state_payload(clients, bullets, items, client):
     count = len(clients)
-    format = "!bbbbh" + "hhhhbbbb" * count #the b is for byte - 0\1
-    payload = [S.CMDS["RENDER"], fart, invi, laser, count]
+    format = "!bhhhhh" + "hhhhbbbb" * count #the b is for byte - 0\1
+    payload = [S.CMDS["RENDER"], int(client["f_timer"]), int(client["i_timer"]), int(client["laser_timer"]), int(client["brit_timer"]), count]
 
     for c in clients.values():
         payload.append(int(c["x"]))
@@ -407,55 +455,141 @@ def build_state_payload(clients, bullets, items, fart, invi, laser):
 
     return struct.pack(format, *payload)
 
-def build_total_client(pid,client):
-    format = "!b16shh"
-    payload = [S.CMDS["MOVE_PLAYER"], pid]
-    payload.append(client["x"])
-    payload.append(client["y"])
-    payload.append(client["dir"])
-    payload.append(client["hp"])
+def build_total_client(pid,client, nServer):
+    inv = get_inventory_in_format(client["inventory"])
+    return struct.pack(
+        f"!b16sbhhbbbb{S.INVENTORY_SIZE}bhbhhbhbhhhh",
+        S.CMDS["TRANSFER_P"],
+        pid.encode("utf-8"),  # 0: 16s
+        int(nServer),
+        int(client["x"]),  # 1: h
+        int(client["y"]),  # 2: h
+        int(client["dir"]),  # 3: b
+        int(client["hp"]),  # 4: b
+        int(client["att"]),  # 5: b
+        int(client["weapon"]),  # 6: b
+        *inv,  # 7 עד 11: מפרק את רשימת ה-5 בתים לארגומנטים נפרדים
+        int(client["gun_cd"]),  # 12: h
+        int(client["fart"]),  # 13: b
+        int(client["f_cooldown"]),  # 14: h
+        int(client["f_timer"]), #15: h
+        int(client["invis"]),  # 15: b
+        int(client["i_timer"]),  # 16: h
+        int(client["speed"]),  # 17: b
+        int(client["speed_timer"]),  # 18: h
+        int(client["laser_timer"]),  # 19: h
+        int(client["laser_cooldown"]),  # 20: h
+        int(client["brit_timer"])  # 21: h
+    )
+def take_client(self, pid, data):
+    # הפורמט חייב להיות זהה לחלוטין לפונקציית ה-build שלך
+    fmt = f"!bhhbbbb{S.INVENTORY_SIZE}bhbhhbhbhhhh"
 
+    # פריקת כל הנתונים לתוך משתנה אחד (Tuple)
+    unpacked = (struct.unpack_from(fmt, data, 17))
+
+    nServer = unpacked[0]  # אם אתה צריך לדעת מאיזה שרת זה הגיע או לוודא שזה השרת הנכון
+    if nServer != self.serverNumber:
+        return
+
+    # --- חילוץ האינוונטרי ---
+    # בפורמט שלנו, האינוונטרי מתחיל באינדקס 9
+    inv_start = 7
+    inv_end = inv_start + S.INVENTORY_SIZE
+    inventory = list(unpacked[inv_start:inv_end])
+    inv_names = numToNames(inventory)
+    print(inv_names)
+
+    #saving the cid
+    cid = self.clients[pid]["cid"]
+
+    # --- בניית מילון השחקן ---
+    self.clients[pid] = {
+        "x": unpacked[1],
+        "y": unpacked[2],
+        "dir": unpacked[3],
+        "hp": unpacked[4],
+        "att": unpacked[5],
+        "weapon": unpacked[6],
+        "inventory": inv_names,
+        "gun_cd": unpacked[inv_end],
+        "fart": unpacked[inv_end + 1],
+        "f_cooldown": unpacked[inv_end + 2],
+        "f_timer": unpacked[inv_end + 3],
+        "invis": unpacked[inv_end + 4],
+        "i_timer": unpacked[inv_end + 5],
+        "speed": unpacked[inv_end + 6],
+        "speed_timer": unpacked[inv_end + 7],
+        "laser_timer": unpacked[inv_end + 8],
+        "laser_cooldown": unpacked[inv_end + 9],
+        "brit_timer": unpacked[inv_end + 10],
+        "inOverlap": False,
+        "imOverlap": False,
+        "cid": cid,
+    }
+    return
+
+def get_inventory_in_format(inv):
+    new_inv = []
+    for ch in inv:
+        if ch == 0:
+            new_inv.append(0)
+        else:
+            new_inv.append(nameTOnum(ch))
+    return new_inv
 def nameToWeapon(client):
     weapon = client["inventory"][client["weapon"]-1]
-    if weapon == 'da':
+    return nameTOnum(weapon)
+def nameTOnum(b):
+    if b == 'da':
         return 1
-    if weapon == 'gu':
+    if b == 'gu':
         return 2
-    if weapon == 'h':
+    if b == 'h':
         return 3
-    if weapon == 's':
+    if b == 's':
         return 4
-    if weapon == 'i':
+    if b == 'i':
         return 5
-    if weapon == 'b':
+    if b == 'b':
         return 6
-    if weapon == 'la':
+    if b == 'la':
         return 7
     return 0
 
+def numToNames(arr):
+    new_names = []
+    for i in arr:
+        if i == 0:
+            new_names.append(0)
+        else:
+            new_names.append(S.INVENTORY_MAP[i])
+    return new_names
+
 def get_dir(dx,dy):
+    global direc
     if dx > 0:
         if dy > 0:
-            dire = 2
+            direc = 2
         elif dy == 0:
-            dire = 1
+            direc = 1
         elif dy < 0:
-            dire = 8
+            direc = 8
     elif dx < 0:
         if dy > 0:
-            dire = 4
+            direc = 4
         elif dy < 0:
-            dire = 6
+            direc = 6
         elif dy == 0:
-            dire = 5
+            direc = 5
     elif dx == 0:
         if dy > 0:
-            dire = 3
+            direc = 3
         elif dy < 0:
-            dire = 7
+            direc = 7
         elif dy == 0:
-            dire = 3
-    return dire
+            direc = 3
+    return direc
 
 def tick_cooldowns(server,clients, farts):
     for c in clients.values():
@@ -466,14 +600,16 @@ def tick_cooldowns(server,clients, farts):
             if c["f_cooldown"] == 0:
                 pk = struct.pack("!b", S.CMDS["FART_READY"])
                 server.send(c["cid"], pk)
+        if c["f_timer"] > 0:
+            c["f_timer"] -= 1
         if c["speed"] == 1 and c["speed_timer"] > 0:
             c["speed_timer"] -= 1
             if c["speed_timer"] <= 0:
                 c["speed_timer"] = 0
                 c["speed"] = 0
-        if c["invis"] == 1 and c["i_cooldown"] > 0:
-            c["i_cooldown"] -= 1
-            if c["i_cooldown"] == 0:
+        if c["invis"] == 1 and c["i_timer"] > 0:
+            c["i_timer"] -= 1
+            if c["i_timer"] == 0:
                 c["invis"] = 0
         if nameToWeapon(c) == 7 and c["laser_cooldown"] > 0:
             c["laser_cooldown"] -= 1
@@ -587,20 +723,7 @@ def drop_weapons(player, dropped_list):
     for w_type in player["inventory"]:
         if w_type != 0:
             new_id = 1 #because i can
-            if w_type == 'da':
-                w_type = 1
-            elif w_type == 'gu':
-                w_type = 2
-            elif w_type == 'h':
-                w_type = 3
-            elif w_type == 's':
-                w_type = 4
-            elif w_type == 'i':
-                w_type = 5
-            elif w_type == 'b':
-                w_type = 6
-            elif w_type == 'la':
-                w_type = 7
+            w_type = nameTOnum(w_type)
             angle = random.uniform(0, 2 * math.pi)
             print (angle)
             radius = 40
@@ -610,7 +733,7 @@ def drop_weapons(player, dropped_list):
                 item = DroppedWeapon(new_id, drop_x,drop_y, w_type)
                 dropped_list.append(item)
 
-    player["inventory"] = S.INVENTORI.copy()
+    player["inventory"] = S.BASIC_INV.copy()
     player["weapon"] = 0
 
 def pickup_weapons(server, player, dropped_list):

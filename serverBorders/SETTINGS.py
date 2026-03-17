@@ -98,6 +98,12 @@ CMDS = {
     "FART_READY": 0x16,
     "PICKUP_ITEM": 0x17,
     "ADD_ITEM": 0x18,
+    "TRANSFER_P": 0x19,
+    "HELLO_FROM_LB": 0x1A,
+    "INVIS": 0x1B,
+    "LASER": 0x1C,
+    "BRIT": 0x1D,
+    "FARTING": 0x1E,
 }
 
 LOAD_BALANCER = {
@@ -120,12 +126,14 @@ BULLET_SIZE = 5
 
 #fart settings
 FART_RUADIOS=100
-FART_TIME=200
+FART_TIME = 200
 FART_COOLDOWN = 2000
 FART_DAMEG = 0.3
 
 #inventory
-INVENTORI = ['gu','da','h','s','i','b','la', 0, 0]
+BASIC_INV = ['da',0,0,0,0,0,0,0,0]
+INVENTORI = ['da','gu','h','s','i','b','la', 0, 0]
+INVENTORY_SIZE = len(INVENTORI)
 
 INVENTORY_MAP = {
     0: "e",

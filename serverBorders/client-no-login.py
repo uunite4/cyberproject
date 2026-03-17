@@ -76,10 +76,10 @@ class MyClient:
                     self.iInActive = self.iControl - 1
 
                 print(self.iInActive)
-
-                pk = struct.pack("!b16shhhhbbb", S.CMDS["ADD_ME"], self.pid.encode("utf-8"), self.player.x,
+                pk = struct.pack("!b16shhhhbbhhhh", S.CMDS["ADD_ME"], self.pid.encode("utf-8"), self.player.x,
                                  self.player.y,
-                                 self.player.dir, self.player.health, self.player.att, self.player.weapon, self.player.fartp)
+                                 self.player.dir, self.player.health, self.player.att, self.player.weapon, self.player.fart_timer,
+                                 self.player.invis_timer, self.player.laser_timer, self.player.brit)
                 self.client.send(self.connections[self.iInActive], pk)
 
         elif (cmd == S.CMDS["OUT_OF_OVERLAP"]):
@@ -100,19 +100,47 @@ class MyClient:
         elif (cmd == S.CMDS["RENDER"]):
             # render the screen
             if connection_id == self.connections[self.iControl] or (self.iInActive != None and connection_id == self.connections[self.iInActive]):
-                fart, invi, laser = struct.unpack_from('!bbb', data, 1)
-                self.player.fartp = fart
-                self.player.invisible = invi
-                self.player.laser = laser
-                if fart == 1:
-                    print("farting")
+                fart, invi, laser, brit = struct.unpack_from('!hhhh', data, 1)
+                if fart>0:
+                    if self.iInActive != None and self.player.laser == 0:
+                        pk = struct.pack("!b16s", S.CMDS["FARTING"], self.pid.encode("utf-8"))
+                        self.client.send(self.connections[self.iInActive], pk)
+                    self.player.fartp = 1
+                else:
+                    self.player.fartp = 0
+                self.player.fart_timer = fart
+
+                if invi>0:
+                    if self.iInActive != None and self.player.invisible == 0:
+                        pk = struct.pack("!b16s", S.CMDS["INVIS"], self.pid.encode("utf-8"))
+                        self.client.send(self.connections[self.iInActive], pk)
+                    self.player.invisible = 1
+                else:
+                    self.player.invisible = 0
+                self.player.invis_timer = invi
+
+                if laser>0:
+                    if self.iInActive != None and self.player.laser == 0:
+                        pk = struct.pack("!b16s", S.CMDS["LASER"], self.pid.encode("utf-8"))
+                        self.client.send(self.connections[self.iInActive], pk)
+                    self.player.laser = 1
+                else:
+                    self.player.laser = 0
+                self.player.laser_timer = laser
+
+                if brit>0:
+                    if self.iInActive != None and self.player.brit == 0:
+                        pk = struct.pack("!b16s", S.CMDS["BRIT"], self.pid.encode("utf-8"))
+                        self.client.send(self.connections[self.iInActive], pk)
+                self.player.brit = brit
+
                 self.players = []
-                count = struct.unpack_from('!h', data, 4)[0]
+                count = struct.unpack_from('!h', data, 9)[0]
                 for i in range(count):
-                    offset = 6+12*i
+                    offset = 11+12*i
                     x, y, dir, health, att, weapon, fart, invi = struct.unpack_from('!hhhhbbbb', data, offset)
-                    self.players.append({"x":x,"y": y, "dir": dir, "hp": health, "att": att, "weapon": weapon, "fart": fart, "invi": invi})
-                offset = 6+12*count
+                    self.players.append({"x": x,"y": y, "dir": dir, "hp": health, "att": att, "weapon": weapon, "fart": fart, "invi": invi})
+                offset = 11+12*count
                 self.bullets = []
                 countb = struct.unpack_from('!h', data, offset)[0]
                 offset += 2
@@ -121,7 +149,7 @@ class MyClient:
                     self.bullets.append({"x":bx, "y":by})
                     offset+=4
                     print("bullet in ", bx, " ", by)
-                offset = 8+12*count+4*countb
+                offset = 13+12*count+4*countb
                 self.dropped = []
                 counti = struct.unpack_from('!h', data, offset)[0]
                 offset += 2
@@ -140,7 +168,7 @@ class MyClient:
             x,y = struct.unpack_from('!hh', data, 1)
             self.player.tp(x,y,3)
             self.player.health = S.PLAYER_HEALTH
-            self.player.weapons = S.INVENTORI
+            self.player.weapons = S.BASIC_INV
             if self.iInActive != None:
                 pk = struct.pack("!b16s", S.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
                 self.client.send(self.connections[self.iInActive], pk)

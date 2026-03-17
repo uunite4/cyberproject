@@ -39,7 +39,10 @@ class MyServer:
             # send pos to server
             pk2Server = struct.pack("!b16shh", S.CMDS["LB_ADDING_PLAYER"], pid.encode("utf-8"), x, y)
             self.server.send(self.connections[iServer], pk2Server)
-
+        elif (cmd == S.CMDS["TRANSFER_P"]):
+            print("GOT TRANSFER")
+            nS = data[17]
+            self.server.send(self.connections[nS-1], data)
 
     def on_connect(self, connection_id: int):
         pass
@@ -53,6 +56,7 @@ class MyServer:
         await self.server.start()
         print("Server started")
 
+        token = generateToken().encode("utf-8")
         # Connect to all servers
         for server in S.SERVERS:
             server_id = await self.server.connect_to_server(
@@ -60,6 +64,8 @@ class MyServer:
                 port=server["port"],
             )
             self.connections.append(server_id)
+            pk = struct.pack("!b16s", S.CMDS["HELLO_FROM_LB"], token)
+            self.server.send(server_id, pk)
             print(server_id)
 
         await asyncio.Future()
