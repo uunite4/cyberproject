@@ -7,6 +7,7 @@ import Dagger
 import Fart
 from Bullet import *
 from Player import *
+from DroppedWeapon import *
 import SETTINGS as S
 from networking.wrappers.server_wrapper import QuicServer
 from map_data import *
@@ -157,13 +158,13 @@ class MyServer:
             print("attacking with weapon ", self.clients[pid]["weapon"])
             if att != 1:
                 return
-            if placeToWeapon(self.clients[pid]) == 2 and self.clients[pid]["gun_cd"] <= 0:
+            if nameToWeapon(self.clients[pid]) == 2 and self.clients[pid]["gun_cd"] <= 0:
                 b_id = get_next_bullet_id(self.bullets)
                 new_bullet = Bullet(b_id, self.clients[pid]["x"], self.clients[pid]["y"], self.clients[pid]["dir"], S.BULLET_DISTANS, pid)
                 self.bullets.append(new_bullet)
                 self.clients[pid]["gun_cd"] = S.BULLET_COOLDOWN
 
-            elif placeToWeapon(self.clients[pid]) == 3:
+            elif nameToWeapon(self.clients[pid]) == 3:
                     if self.clients[pid]["hp"] < 100:
                         self.clients[pid]["hp"] = min(self.clients[pid]["hp"]+50, 100)
                         pk = struct.pack('!bh', S.CMDS["DAMAGE"], int(self.clients[pid]["hp"]))
@@ -172,26 +173,26 @@ class MyServer:
                         destroyItem(self, self.clients[pid]["cid"], self.clients[pid]["weapon"] - 1)
 
 
-            elif placeToWeapon(self.clients[pid]) == 4:
+            elif nameToWeapon(self.clients[pid]) == 4:
                 self.clients[pid]["speed"] = 1
                 self.clients[pid]["speed_timer"] = S.SPEED_POSSION_TIME
                 self.clients[pid]["inventory"][self.clients[pid]["weapon"] - 1] = 0
                 destroyItem(self, self.clients[pid]["cid"], self.clients[pid]["weapon"] - 1)
 
 
-            elif placeToWeapon(self.clients[pid]) == 5:
+            elif nameToWeapon(self.clients[pid]) == 5:
                 self.clients[pid]["invis"] = 1
                 self.clients[pid]["i_cooldown"] = S.INVESIBEL_TIME
                 self.clients[pid]["inventory"][self.clients[pid]["weapon"] - 1] = 0
                 destroyItem(self, self.clients[pid]["cid"], self.clients[pid]["weapon"] - 1)
 
 
-            elif placeToWeapon(self.clients[pid]) == 6:
+            elif nameToWeapon(self.clients[pid]) == 6:
                 self.clients[pid]["brit_timer"] = S.BRIT_TIMER
                 self.clients[pid]["inventory"][self.clients[pid]["weapon"] - 1] = 0
                 destroyItem(self, self.clients[pid]["cid"], self.clients[pid]["weapon"] - 1)
 
-            elif placeToWeapon(self.clients[pid]) == 7 and self.clients[pid]["laser_cooldown"] <= 0:
+            elif nameToWeapon(self.clients[pid]) == 7 and self.clients[pid]["laser_cooldown"] <= 0:
                 self.clients[pid]["laser_timer"] = S.LASER_TIME
                 self.clients[pid]["laser_cooldown"] = S.LASER_COOLDOWN
 
@@ -199,9 +200,9 @@ class MyServer:
             weapon = struct.unpack_from('!b', data, 17)[0]
             self.clients[pid]["weapon"] = weapon
             print("changed weapon to ", weapon)
-            if placeToWeapon(self.clients[pid]) == 2:
+            if nameToWeapon(self.clients[pid]) == 2:
                 self.clients[pid]["gun_cd"] = S.BULLET_COOLDOWN
-            if placeToWeapon(self.clients[pid]) != 7:
+            if nameToWeapon(self.clients[pid]) != 7:
                 self.clients[pid]["laser_timer"] = 0
         elif (cmd == S.CMDS["FART"]):
             fart = struct.unpack_from('!b', data, 17)[0]
@@ -215,11 +216,20 @@ class MyServer:
                     self.farts.append(new_fart)
                     self.clients[pid]["f_cooldown"] = S.FART_COOLDOWN
 
+        elif (cmd == S.CMDS["PICKUP_ITEM"]):
+            pickup_weapons(self.server, self.clients[pid], self.items)
+
+
+
     def on_connect(self, connection_id: int):
         print(f"connected {connection_id}")
 
     def on_disconnect(self, connection_id: int):
         print(f"disconnected {connection_id}")
+        for pid, client in self.clients.items():
+            if connection_id == client["cid"]:
+                del self.clients[pid]
+                break
 
     async def broadcast_loop(self):
         lastBroadcast = time.time()
@@ -288,12 +298,12 @@ def broadcast(self, dagger):
     for pid,client in self.clients.items():
         temp = copy_dic(self.clients)
         del temp[pid]
-        pk = build_state_payload(temp, self.bullets, client["fart"], client["invis"], min(1,client["laser_timer"]))
+        pk = build_state_payload(temp, self.bullets, self.items, client["fart"], client["invis"], min(1,client["laser_timer"]))
         self.server.send(client["cid"],pk)
         if client["fart"] == 1:
             print("player is farting ", i)
         #health related changes
-        if client["att"] == 1 and placeToWeapon(client) == 1:  # daggers
+        if client["att"] == 1 and nameToWeapon(client) == 1:  # daggers
             print("player attacking", i)
             arr = dagger.attack(client, self.clients)
             j = 0
@@ -328,6 +338,7 @@ def broadcast(self, dagger):
                 print("damage taken")
                 pk = struct.pack('!bh', S.CMDS["DAMAGE"], int(client["hp"]))
             elif client["hp"] <= 0:
+                drop_weapons(client, self.items)
                 x, y = respawn(self.serverNumber-1)
                 print("DECIDED ON POS: ", x, y)
                 client["x"],client["y"],client["hp"] = x,y,S.PLAYER_HEALTH
@@ -363,7 +374,7 @@ def copy_dic(dic):
         ndic[k] = v
     return ndic
 
-def build_state_payload(clients, bullets, fart, invi, laser):
+def build_state_payload(clients, bullets, items, fart, invi, laser):
     count = len(clients)
     format = "!bbbbh" + "hhhhbbbb" * count #the b is for byte - 0\1
     payload = [S.CMDS["RENDER"], fart, invi, laser, count]
@@ -374,7 +385,7 @@ def build_state_payload(clients, bullets, fart, invi, laser):
         payload.append(int(c["dir"]))
         payload.append(int(c["hp"]))
         payload.append(int(c["att"]))
-        wp = placeToWeapon(c)
+        wp = nameToWeapon(c)
         payload.append(int(wp))
         payload.append(int(c["fart"]))
         payload.append(int(c["invis"]))
@@ -385,7 +396,14 @@ def build_state_payload(clients, bullets, fart, invi, laser):
     for b in bullets:
         payload.append(int(b.x))
         payload.append(int(b.y))
-        print("bullet in ", b.x, b.y)
+
+    counti = len(items)
+    payload.append(counti)
+    format += "h" + "hhb" * counti
+    for i in items:
+        payload.append(int(i.x))
+        payload.append(int(i.y))
+        payload.append(int(i.weapon_type))
 
     return struct.pack(format, *payload)
 
@@ -397,7 +415,7 @@ def build_total_client(pid,client):
     payload.append(client["dir"])
     payload.append(client["hp"])
 
-def placeToWeapon(client):
+def nameToWeapon(client):
     weapon = client["inventory"][client["weapon"]-1]
     if weapon == 'da':
         return 1
@@ -441,7 +459,7 @@ def get_dir(dx,dy):
 
 def tick_cooldowns(server,clients, farts):
     for c in clients.values():
-        if placeToWeapon(c) == 2 and c["gun_cd"] > 0:
+        if nameToWeapon(c) == 2 and c["gun_cd"] > 0:
             c["gun_cd"] -= 1
         if c["f_cooldown"] > 0:
             c["f_cooldown"] -= 1
@@ -457,7 +475,7 @@ def tick_cooldowns(server,clients, farts):
             c["i_cooldown"] -= 1
             if c["i_cooldown"] == 0:
                 c["invis"] = 0
-        if placeToWeapon(c) == 7 and c["laser_cooldown"] > 0:
+        if nameToWeapon(c) == 7 and c["laser_cooldown"] > 0:
             c["laser_cooldown"] -= 1
             if c["laser_timer"] > 0:
                 c["laser_timer"] -= 1
@@ -564,6 +582,64 @@ def fart(farts,p,pid):
 def destroyItem(self, cid, item):
     pk = struct.pack('!bb', S.CMDS["DELETE_ITEM"], int(item))
     self.server.send(cid, pk)
+
+def drop_weapons(player, dropped_list):
+    for w_type in player["inventory"]:
+        if w_type != 0:
+            new_id = 1 #because i can
+            if w_type == 'da':
+                w_type = 1
+            elif w_type == 'gu':
+                w_type = 2
+            elif w_type == 'h':
+                w_type = 3
+            elif w_type == 's':
+                w_type = 4
+            elif w_type == 'i':
+                w_type = 5
+            elif w_type == 'b':
+                w_type = 6
+            elif w_type == 'la':
+                w_type = 7
+            angle = random.uniform(0, 2 * math.pi)
+            print (angle)
+            radius = 40
+            drop_x = player["x"] + math.cos(angle) * radius
+            drop_y = player["y"] + math.sin(angle) * radius
+            if w_type != 1:
+                item = DroppedWeapon(new_id, drop_x,drop_y, w_type)
+                dropped_list.append(item)
+
+    player["inventory"] = S.INVENTORI.copy()
+    player["weapon"] = 0
+
+def pickup_weapons(server, player, dropped_list):
+    min_dis = 80
+    closest_item = None
+    wt_map = {1: 'da', 2: 'gu', 3: 'h', 4: 's', 5: 'i', 6: 'b',7:'la'}
+    for weapon in dropped_list:
+        dis = ((player["x"] - weapon.x) ** 2 + (player["y"] - weapon.y) ** 2) ** 0.5
+        if dis < min_dis:
+
+            wt = wt_map.get(weapon.weapon_type)
+
+            if wt:
+
+                if wt not in player["inventory"] or wt in ['h', 's', 'i', 'b']:
+                    min_dis = dis
+                    closest_item = weapon
+
+    if closest_item:
+        wt = wt_map.get(closest_item.weapon_type)
+        for i in range(len(player["inventory"])-1):
+            if player["inventory"][i] == 0:
+                player["inventory"][i] = wt
+                if closest_item in dropped_list:
+                    dropped_list.remove(closest_item)
+                    pk = struct.pack("!bbb", S.CMDS["ADD_ITEM"], closest_item.weapon_type, i)
+                    server.send(player["cid"], pk)
+
+    return
 
 if __name__ == "__main__":
     s = MyServer()

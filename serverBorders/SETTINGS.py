@@ -96,6 +96,8 @@ CMDS = {
     "LOGIN_BACK_TO_CLIENT": 0x14,
     "DELETE_ITEM": 0x15,
     "FART_READY": 0x16,
+    "PICKUP_ITEM": 0x17,
+    "ADD_ITEM": 0x18,
 }
 
 LOAD_BALANCER = {

@@ -121,7 +121,14 @@ class MyClient:
                     self.bullets.append({"x":bx, "y":by})
                     offset+=4
                     print("bullet in ", bx, " ", by)
-
+                offset = 8+12*count+4*countb
+                self.dropped = []
+                counti = struct.unpack_from('!h', data, offset)[0]
+                offset += 2
+                for i in range(counti):
+                    ix, iy, iw = struct.unpack_from('!hhb', data, offset)
+                    self.dropped.append({"x":ix, "y":iy, "weapon_type":iw})
+                    offset+=5
 
         elif (cmd == S.CMDS["DAMAGE"]):
             nhp = struct.unpack_from('!h', data, 1)[0]
@@ -133,6 +140,7 @@ class MyClient:
             x,y = struct.unpack_from('!hh', data, 1)
             self.player.tp(x,y,3)
             self.player.health = S.PLAYER_HEALTH
+            self.player.weapons = S.INVENTORI
             if self.iInActive != None:
                 pk = struct.pack("!b16s", S.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
                 self.client.send(self.connections[self.iInActive], pk)
@@ -141,6 +149,11 @@ class MyClient:
             self.player.weapons[index] = 0
         elif (cmd == S.CMDS["FART_READY"]):
             self.player.fart_ready = 1
+        elif (cmd == S.CMDS["ADD_ITEM"]):
+            weapon_type, i = struct.unpack_from('!bb', data, 1)
+            weapon = S.INVENTORY_MAP[weapon_type]
+
+            self.player.weapons[i] = weapon
 
 
     # ----------
@@ -215,7 +228,9 @@ class MyClient:
 
             if inputs["i"] == 1: #toggle inventory
                 self.open = not self.open
-
+            if inputs["e"] == 1:
+                pk = struct.pack("!b16s", S.CMDS["PICKUP_ITEM"], self.pid.encode("utf-8"))
+                self.client.send(self.connections[self.iControl], pk)
             if (pressedM): #movement related inputs
                 self.sendInputs(inputs)
 
@@ -242,6 +257,7 @@ class MyClient:
 
         draw_map(screen, MAP, cam_x, cam_y, S.WINDOW_WIDTH, S.WINDOW_HEIGHT)
         draw_bullets(screen, self.bullets, cam_x, cam_y)
+        draw_dropped(screen, self.dropped, cam_x, cam_y)
         draw_players(screen, self.player, self.players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS, DEFAULT_FARTS, FARTS)
 
         fps_font = pygame.font.SysFont("Arial", 20, bold=True)
@@ -348,25 +364,12 @@ def draw_laser(screen, dir, px, py):
     pygame.draw.line(screen, (255, 255, 255), (start_x, start_y), (end_x, end_y), 3)
     pygame.draw.circle(screen, (255, 255, 255), (int(start_x), int(start_y)), 5)
 
-def draw_dropped(screen, dropped, DAGGERS,DEFAULT_DAGGER, cam_x, cam_y):
-    for _, d in dropped.items():
-        dx = d.x - cam_x
-        dy = d.y - cam_y
-        print (int(d.id), int(d.x), int(d.y), d.weapon_type)
-        if d.weapon_type == 1:
-            screen.blit(DAGGERS.get(3, DEFAULT_DAGGER), (dx, dy))
-        elif d.weapon_type == 2:
-            pygame.draw.circle(screen, "yellow", (dx, dy), S.BULLET_SIZE)
-        elif d.weapon_type == 3:
-            pygame.draw.circle(screen, "red", (dx, dy), S.BULLET_SIZE)
-        elif d.weapon_type == 4:
-            pygame.draw.circle(screen, "green", (dx, dy), S.BULLET_SIZE)
-        elif d.weapon_type == 5:
-            pygame.draw.circle(screen, "black", (dx, dy), S.BULLET_SIZE)
-        elif d.weapon_type == 6:
-            pygame.draw.circle(screen, "blue", (dx, dy), S.BULLET_SIZE)
-        elif d.weapon_type == 7:
-            pygame.draw.circle(screen, "white", (dx, dy), S.BULLET_SIZE)
+def draw_dropped(screen, dropped, cam_x, cam_y):
+    for d in dropped:
+        dx = d["x"] - cam_x
+        dy = d["y"] - cam_y
+        weponn = load_inventory_sprites(d["weapon_type"])
+        screen.blit(weponn, (dx, dy))
 
 def draw_fps(clock, fps_font, screen):
     fps_val = int(clock.get_fps())
@@ -520,19 +523,19 @@ def load_dagger_sprites() -> dict[int, pygame.Surface]:
         6: rot(base, 45),
     }
 def load_inventory_sprites(i):
-    if i == 'da':
+    if i == 'da' or i == 1:
         i = bolbolb
-    elif i == 'gu':
+    elif i == 'gu' or  i == 2:
         i = gunb
-    elif i == 'h':
+    elif i == 'h' or i == 3:
         i = lcon1b
-    elif i == 's':
+    elif i == 's' or i == 4:
         i = lcon5b
-    elif i == 'i':
+    elif i == 'i' or i == 5:
         i = lcon28b
-    elif i == 'b':
+    elif i == 'b' or i == 6:
         i = scissorsb
-    elif i =='la':
+    elif i =='la' or i == 7:
         i=lazerb
     else : i = poopb
     return  i
@@ -580,6 +583,7 @@ def getInputs():
         "sf": 0,
         "sp": 0,
         "i": 0,
+        "e": 0,
     }
     pressedM = False
     pressedA = 0
@@ -602,6 +606,8 @@ def getInputs():
         inputs["sp"] = 1
     if keys[pygame.K_i]:
         inputs["i"] = 1
+    if keys[pygame.K_e]:
+        inputs["e"] = 1
     if keys[pygame.K_1]:
         pressedA = 1
     elif keys[pygame.K_2]:
