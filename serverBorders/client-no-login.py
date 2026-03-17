@@ -180,9 +180,11 @@ class MyClient:
         elif (cmd == S.CMDS["ADD_ITEM"]):
             weapon_type, i = struct.unpack_from('!bb', data, 1)
             weapon = S.INVENTORY_MAP[weapon_type]
-
-            self.player.weapons[i] = weapon
-
+            if self.player.weapons[i] == 0:
+                self.player.weapons[i] = weapon
+            else:
+                if connection_id == self.connections[self.iControl]:
+                    self.player.weapons[i] = weapon
 
     # ----------
     # RUNNING
@@ -259,6 +261,8 @@ class MyClient:
             if inputs["e"] == 1:
                 pk = struct.pack("!b16s", S.CMDS["PICKUP_ITEM"], self.pid.encode("utf-8"))
                 self.client.send(self.connections[self.iControl], pk)
+                if self.iInActive != None:
+                    self.client.send(self.connections[self.iInActive], pk)
             if (pressedM): #movement related inputs
                 self.sendInputs(inputs)
 
