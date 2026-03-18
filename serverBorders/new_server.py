@@ -205,20 +205,20 @@ class LoginServer:
         return ''.join(secrets.choice(alphabet) for _ in range(length))
 
     def handle_load_balancer(self, data):
-        loginData = struct.unpack_from(f"16shhh{S.INVENTORY_SIZE}b", data, 1)
+        loginData = struct.unpack_from(f"b16siib{S.INVENTORY_SIZE}b", data)
 
-        token = loginData[0].decode('utf-8')
-        x_position = loginData[1]
-        y_position = loginData[2]
-        health = loginData[3]
-        item1 = loginData[4]
-        item2 = loginData[5]
-        item3 = loginData[6]
-        item4 = loginData[6]
-        item5 = loginData[7]
-        item6 = loginData[8]
-        item7 = loginData[9]
-        item8 = loginData[10]
+        token = loginData[1].decode('utf-8')
+        x_position = loginData[2]
+        y_position = loginData[3]
+        health = loginData[4]
+        item1 = loginData[5]
+        item2 = loginData[6]
+        item3 = loginData[7]
+        item4 = loginData[8]
+        item5 = loginData[9]
+        item6 = loginData[10]
+        item7 = loginData[11]
+        item8 = loginData[12]
         print(loginData)
         self.player_info_update(token, x_position, y_position, health, item1, item2, item3, item4, item5, item6, item7, item8)
         print("updated successfully!")

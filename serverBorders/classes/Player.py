@@ -52,7 +52,8 @@ def check_collision_with_lava(next_x, next_y, size):  # True = lava
     for px, py in corners:  # test each corner
         tile_x = int(px // S.TILE_SIZE)  # pixel -> tile col
         tile_y = int(py // S.TILE_SIZE)  # pixel -> tile row
-
+        if tile_x < 0 or tile_x >= S.WIDTH or tile_y < 0 or tile_y >= S.HEIGHT:
+            continue
         if M.MAP[tile_y][tile_x] == "b":
             return True
     return False
@@ -70,10 +71,10 @@ def get_corners(x,y,size):
 
 
 def get_sides(x,y, size):
-    left = x - size // 2  # player box left (pixels)
-    right = x + size // 2 - 1  # player box right (pixels)
-    top = y - size // 2  # player box top (pixels)
-    bottom = y + size // 2 - 1  # player box bottom (pixels)
+    left = max(x - size // 2, 0)  # player box left (pixels)
+    right = min(x + size // 2 - 1, S.WIDTH -1)  # player box right (pixels)
+    top = min(y - size // 2, S.WIDTH -1)  # player box top (pixels)
+    bottom = max(y + size // 2 - 1, 0)  # player box bottom (pixels)
 
     return left,right,top,bottom
 

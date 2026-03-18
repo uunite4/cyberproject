@@ -169,14 +169,14 @@ class MyClient:
                     count = struct.unpack_from('!h', data, 9)[0]
                     for i in range(count):
                         offset = 11+14*i
-                        x, y, dir, health, att, weapon, fart, invi = struct.unpack_from('!IIbbbbbb', data, offset)
+                        x, y, dir, health, att, weapon, fart, invi = struct.unpack_from('!iibbbbbb', data, offset)
                         self.players.append({"x": x,"y": y, "dir": dir, "hp": health, "att": att, "weapon": weapon, "fart": fart, "invi": invi})
                     offset = 11+14*count
                     self.bullets = []
                     countb = struct.unpack_from('!h', data, offset)[0]
                     offset += 2
                     for i in range(countb):
-                        bx, by = struct.unpack_from('!II', data, offset)
+                        bx, by = struct.unpack_from('!ii', data, offset)
                         self.bullets.append({"x":bx, "y":by})
                         offset+=8
                         print("bullet in ", bx, " ", by)
@@ -185,20 +185,21 @@ class MyClient:
                     counti = struct.unpack_from('!h', data, offset)[0]
                     offset += 2
                     for i in range(counti):
-                        ix, iy, iw = struct.unpack_from('!IIb', data, offset)
+                        ix, iy, iw = struct.unpack_from('!iib', data, offset)
                         self.dropped.append({"x":ix, "y":iy, "weapon_type":iw})
                         offset+=9
-                    offset = 15+14*counti+8*counti+9*counti
+                    offset = 15+14*count+8*countb+9*counti
+                    self.enemies = []
                     counte = struct.unpack_from('!h', data, offset)[0]
                     offset += 2
                     for i in range(counte):
-                        ex, ey, dir, hp, type = struct.unpack_from('!IIbbb', data, offset)
+                        ex, ey, dir, hp, type = struct.unpack_from('!iibbb', data, offset)
                         if type==0:
                             type = "GOBLIN"
                         elif type==1:
                             type = "BEAR"
                         self.enemies.append({"x": ex, "y": ey, "dir": dir, "hp": hp, "type": type})
-                        offset+=8
+                        offset+=11
 
             elif (cmd == S.CMDS["DAMAGE"]):
                 nhp = struct.unpack_from('!b', data, 1)[0]
@@ -317,8 +318,7 @@ class MyClient:
                         success[1] = True
                         self.draw_text("the next server: " + status_msg[2], 100, 460, color=(255, 0, 0)) #SUCCESFULL
 
-                    if success[0] and success[1]:
-                        print("login or sighup successful")
+
             elif status_msg[0] == "OK":
                 print("login\ sighup was successful")
 
@@ -402,11 +402,6 @@ class MyClient:
         pk = struct.pack("!b16s", S.CMDS["HELLO"], self.pid.encode("utf-8"))
         self.client.send(self.connections[self.iControl], pk)
 
-        # connect to LB and send initial
-        lb_id = await self.client.connect(
-            server_ip=S.LOAD_BALANCER["ip"],
-            server_port=S.LOAD_BALANCER["port"]
-        )
         #pk = struct.pack("!b", S.CMDS["INIT_LB"])
         #self.client.send(lb_id, pk)
 

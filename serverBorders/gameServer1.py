@@ -81,6 +81,7 @@ class MyServer:
 
             if (cmd == S.CMDS["HELLO"]):
                 self.clients[pid]["cid"] = connection_id
+                print("connected to client", pid)
             elif (cmd == S.CMDS["MOVE"]):
                 currentClient = self.clients[pid]
 
@@ -88,7 +89,7 @@ class MyServer:
                 print(f"GOT MOVE PACKET")
                 xDir, yDir, sprint = struct.unpack_from('!bbb', data, 17)
 
-                if not (xDir in [0,1] and yDir in [0,1] and sprint in [0,1]):
+                if not (xDir in [-1,0,1] and yDir in [-1,0,1] and sprint in [0,1]):
                     return
 
                 nx,ny = apply_movement(currentClient["x"],currentClient["y"],xDir,yDir, sprint + 2*currentClient["speed"])
@@ -286,7 +287,8 @@ class MyServer:
         for pid, client in self.clients.items():
             if connection_id == client["cid"]:
                 inv = get_inventory_in_format(client["inventory"])
-                pk = struct.pack(f"b16sIIb{S.INVENTORY_SIZE}b",S.CMDS["PLAYER_LEFT"], pid.encode('utf-8'), client["x"], client["y"], client["hp"], *inv)
+                pk = struct.pack(f"b16siib{S.INVENTORY_SIZE}b",S.CMDS["PLAYER_LEFT"], pid.encode('utf-8'), client["x"], client["y"], client["hp"], *inv)
+                print(client["x"], client["y"], client["hp"], *inv)
                 self.server.send(self.load_id, pk)
                 del self.clients[pid]
                 break
@@ -533,7 +535,7 @@ def copy_dic(dic):
 
 def build_state_payload(clients, bullets, items, enemies, client):
     count = len(clients)
-    format = "!bhhhhh" + "IIbbbbbb" * count #the b is for byte - 0\1
+    format = "!bhhhhh" + "iibbbbbb" * count #the b is for byte - 0\1
     payload = [S.CMDS["RENDER"], int(client["f_timer"]), int(client["i_timer"]), int(client["laser_timer"]), int(client["brit_timer"]), count]
 
     for c in clients.values():
@@ -549,14 +551,14 @@ def build_state_payload(clients, bullets, items, enemies, client):
 
     countb = len(bullets)
     payload.append(countb)
-    format += "h" + "II" * countb
+    format += "h" + "ii" * countb
     for b in bullets:
         payload.append(int(b.x))
         payload.append(int(b.y))
 
     counti = len(items)
     payload.append(counti)
-    format += "h" + "IIb" * counti
+    format += "h" + "ii" * counti
     for i in items:
         payload.append(int(i.x))
         payload.append(int(i.y))
@@ -564,7 +566,7 @@ def build_state_payload(clients, bullets, items, enemies, client):
 
     counte = len(enemies)
     payload.append(counte)
-    format += "h" + "IIbbb" * counte
+    format += "h" + "iibbb" * counte
     for e,pos in enemies:
         i = e.entity
         payload.append(int(i.x))
@@ -572,7 +574,6 @@ def build_state_payload(clients, bullets, items, enemies, client):
         payload.append(int(i.dir))
         payload.append(int(i.health))
         payload.append(int(S.MONSTERS[e.type]["code"]))
-    
     return struct.pack(format, *payload)
 
 def build_total_client(pid,client, nServer):

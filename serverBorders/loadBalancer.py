@@ -42,6 +42,8 @@ class MyServer:
             self.server.send(self.connections[server], data)
         elif (cmd == S.CMDS["PLAYER_LEFT"]):
             print("transfering player")
+            loginData = struct.unpack_from(f"b16siib{S.INVENTORY_SIZE}b", data)
+            print(loginData)
             self.server.send(self.login, data)
 
     def on_connect(self, connection_id: int):
