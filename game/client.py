@@ -3,6 +3,7 @@ import json
 import sys
 import os
 
+from game.chat.protobufs.chat_pb2 import ChatMessagesList, ChatMessage
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import struct
@@ -27,6 +28,8 @@ gunb = pygame.image.load(S.gun).convert_alpha()
 class Client:
 
     def __init__(self):
+        self.username = None
+        self.server_chat_id = None
         self.client = None
         self.pid = None
         self.connections = []
@@ -54,6 +57,13 @@ class Client:
     # RECEIVE DATA
     # ----------
     def on_receive(self, connection_id: int, data: bytes):
+
+        if connection_id == self.server_chat_id:
+            message_list = ChatMessagesList()
+            message_list.ParseFromString(data)
+
+            for m in message_list.messages:
+                print(f"{m.username}: {m.message}")
 
         if connection_id == self.login_server_id:
             cmd = struct.unpack_from('!b', data, 0)[0]
@@ -229,8 +239,6 @@ class Client:
                     if connection_id == self.connections[self.iControl]:
                         self.player.weapons[i] = weapon
 
-
-
     #-----------
     #running login-server
     #-----------
@@ -323,6 +331,8 @@ class Client:
                 print("login-server\ sighup was successful")
 
             pygame.display.flip()
+        self.username = username
+
     def draw_text(self, text, x, y, color=S.BLACK):
         font = pygame.font.SysFont("Arial", 24)
         img = font.render(text, True, color)
@@ -351,6 +361,20 @@ class Client:
     def send_to_login_server(self, data):
         self.client.send(self.login_server_id, data)
 
+
+    def send_to_chat(self, message: str):
+        response = ChatMessage(
+            message=message,
+            username=self.username
+        ).SerializeToString()
+
+        self.client.send(self.server_chat_id, response)
+
+    async def chat_task(self):
+        while self.running:
+            self.send_to_chat("hello")
+            await asyncio.sleep(0.5)
+
     # ----------
     # RUNNING
     # ----------
@@ -370,7 +394,7 @@ class Client:
             server_ip=S.LOGIN_SERVER["ip"],
             server_port=S.LOGIN_SERVER["port"],
         )
-        print('connected to server')
+        print('connected to login server')
 
         try:
 
@@ -389,8 +413,24 @@ class Client:
         GAME PLAY
         -------------------------------------------------------------------------
         """
-        print("worked - HELL YEAH")
+
+        print("logged in!")
+
+        """
+        CHAT
+        """
+
         self.running = True
+
+        self.server_chat_id = await self.client.connect(
+            server_ip=CHAT_SERVER_IP,
+            server_port=CHAT_SERVER_PORT,
+        )
+
+        asyncio.create_task(self.chat_task())
+
+        print('chat server is up!')
+
         # Connect to all servers
         for server in S.SERVERS:
             server_id = await self.client.connect(
@@ -398,6 +438,8 @@ class Client:
                 server_port=server["port"],
             )
             self.connections.append(server_id)
+
+        print('connected to all game servers')
 
         pk = struct.pack("!b16s", S.CMDS["HELLO"], self.pid.encode("utf-8"))
         self.client.send(self.connections[self.iControl], pk)

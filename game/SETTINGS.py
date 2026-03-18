@@ -217,3 +217,7 @@ MONSTERS = {
         "code" : 1,
     }
 }
+
+CHAT_SERVER_IP: str = "127.0.0.1"
+CHAT_SERVER_PORT: int = 8000
+CHAT_SERVER_SEND_FPS: int = 10
