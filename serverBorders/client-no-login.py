@@ -11,7 +11,8 @@ from serverBorders.classes import Player
 #from Player import *
 from networking.wrappers.client_wrapper import QuicClient
 from map import *
-from map_data import *
+from map_data import MAP
+import SETTINGS as S
 
 poopb=pygame.image.load(S.poop).convert_alpha()
 inventoryb = pygame.image.load(S.inventory1).convert_alpha()
@@ -39,7 +40,7 @@ class MyClient:
         pygame.init()
         self.screen = pygame.display.set_mode((S.WINDOW_WIDTH, S.WINDOW_HEIGHT))
         pygame.display.set_caption("Game")
-        self.player = Player.Player()
+        self.player = Player()
 
 
         #login data client

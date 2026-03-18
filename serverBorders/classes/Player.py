@@ -1,4 +1,3 @@
-import pygame
 import math
 import serverBorders.SETTINGS as S
 import serverBorders.map_data as M

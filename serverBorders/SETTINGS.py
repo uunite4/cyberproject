@@ -1,8 +1,11 @@
 from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
+from map_data import MAP
 
-MAP_WIDTH = 192*40
-MAP_HEIGHT = 108*40
+WIDTH = 1920
+HEIGHT = 1080
+MAP_WIDTH = 1920*40
+MAP_HEIGHT = 1080*40
 WINDOW_WIDTH = 960
 WINDOW_HEIGHT = 540
 BROADCAST_INTERVAL = 0.01
@@ -13,8 +16,7 @@ PLAYER_HEALTH =100
 
 TILE_SIZE = 40
 BUILDING_SIZE = 40
-WIDTH = 192
-HEIGHT = 108
+
 #Obgects
 grass='sprites\grass.png'
 stone='sprites\stone.png'
@@ -37,7 +39,7 @@ lcon28 = 'wepons\\Icon28.png'
 bolbol = 'wepons\\bolbol.png'
 scissors = 'wepons\\scissors.png'
 
-OVERLAP_WIDTH = 600
+OVERLAP_WIDTH = 6000
 SERVER_NUMBER = 4
 
 GENERAL_OVERLAP = {
