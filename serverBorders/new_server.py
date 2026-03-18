@@ -254,7 +254,9 @@ class LoginServer:
                 else:
                     print(curServer["x"], curServer["width"])
 
-            pk = struct.pack(f"!b16sbhhh{S.INVENTORY_SIZE}b", S.CMDS["CLIENT_DATA"], tkn.encode('utf-8'), serverIndex, playerX, playerY, playerHealth, *playerInventory)
+            print(serverIndex, playerX, playerY, playerHealth, playerInventory)
+
+            pk = struct.pack(f"!b16sbIIb{S.INVENTORY_SIZE}b", S.CMDS["CLIENT_DATA"], tkn.encode('utf-8'), serverIndex, playerX, playerY, playerHealth, *playerInventory)
             return pk
 
 def handle_login_client(self, raw_data, connection_id):

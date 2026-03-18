@@ -44,7 +44,7 @@ class MyServer:
 
             if (cmd == S.CMDS["CLIENT_DATA"]):
                 print("GOT LB PACKET")
-                info = struct.unpack_from(f'!16sbhhh{S.INVENTORY_SIZE}b', data, 1)
+                info = struct.unpack_from(f'!16sbIIb{S.INVENTORY_SIZE}b', data, 1)
                 pid = info[0].decode('utf-8')
                 inv = [None] * S.INVENTORY_SIZE
                 for i in range(S.INVENTORY_SIZE):
@@ -78,12 +78,6 @@ class MyServer:
                 print("got player")
                 pid = struct.unpack_from('!16s', data, 1)[0].decode("utf-8")
                 take_client(self, pid, data)
-            elif (cmd == S.CMDS["TRANSFER_ITEMS"]):
-                count = struct.unpack_from('!b', data, 1)[0]
-                for i in range(count):
-                    x, y, type = struct.unpack_from('!hhb', data, 3 + 5 * i)
-                    item = DroppedWeapon(1, x, y, type)
-                    self.items.append(item)
         else:
             pid = struct.unpack_from('!16s', data, 1)[0].decode("utf-8")
 
@@ -96,6 +90,9 @@ class MyServer:
                 print(f"GOT MOVE PACKET")
                 xDir, yDir, sprint = struct.unpack_from('!bbb', data, 17)
 
+                if not (xDir in [0, 1] and yDir in [0, 1] and sprint in [0, 1]):
+                    return
+
                 nx, ny = apply_movement(currentClient["x"], currentClient["y"], xDir, yDir,
                                         sprint + 2 * currentClient["speed"])
                 currentClient["dir"] = get_dir(nx - currentClient["x"], ny - currentClient["y"])
@@ -103,7 +100,7 @@ class MyServer:
                 currentClient["cid"] = connection_id
 
                 # SEND MOVE
-                pk = struct.pack('!bhhh', S.CMDS["MOVE"], currentClient["x"], currentClient["y"], currentClient["dir"])
+                pk = struct.pack('!bIIb', S.CMDS["MOVE"], currentClient["x"], currentClient["y"], currentClient["dir"])
                 self.server.send(connection_id, pk)
 
                 # NOW THAT WE UPDATED POSITION, WE CAN CHECK FOR RANGES
@@ -147,7 +144,7 @@ class MyServer:
                     self.server.send(connection_id, pk)
                     del self.clients[pid]
             elif (cmd == S.CMDS["POS_DONT_RESPOND"] and self.clients[pid]["imOverlap"]):
-                x, y, dir = struct.unpack_from('!hhh', data, 17)
+                x, y, dir = struct.unpack_from('!IIb', data, 17)
                 new_data = {
                     "x": x,
                     "y": y,
@@ -156,13 +153,13 @@ class MyServer:
                 self.clients[pid].update(new_data)
                 print(f"GOT OVERLAP PACKET")
             elif (cmd == S.CMDS["HP_DONT_RESPOND"]):
-                nhp = struct.unpack_from('!h', data, 17)[0]
+                nhp = struct.unpack_from('!b', data, 17)[0]
                 self.clients[pid]["hp"] = nhp
             elif (cmd == S.CMDS["REMOVE_ME"]):
                 del self.clients[pid]
             elif (cmd == S.CMDS["ADD_ME"] and pid not in self.clients):
                 print("added player ", pid)
-                x, y, dir, health, att, weapon, fart, invis, laser, brit = struct.unpack_from('!hhhhbbhhhh', data, 17)
+                x, y, dir, health, att, weapon, fart, invis, laser, brit = struct.unpack_from('!IIbbbbhhhh', data, 17)
                 self.clients[pid] = {
                     "x": x,
                     "y": y,
@@ -190,8 +187,7 @@ class MyServer:
                 if fart > 0:
                     print("added fart")
                     f_id = pid
-                    new_fart = Fart.Fart(f_id, self.clients[pid]["x"], self.clients[pid]["y"], self.clients[pid]["dir"],
-                                         fart)
+                    new_fart = Fart.Fart(f_id, x, y, dir, fart)
                     self.farts.append(new_fart)
 
             elif (cmd == S.CMDS["INVIS"]):
@@ -229,7 +225,7 @@ class MyServer:
                 elif nameToWeapon(self.clients[pid]) == 3:
                     if self.clients[pid]["hp"] < 100:
                         self.clients[pid]["hp"] = min(self.clients[pid]["hp"] + 50, 100)
-                        pk = struct.pack('!bh', S.CMDS["DAMAGE"], int(self.clients[pid]["hp"]))
+                        pk = struct.pack('!bb', S.CMDS["DAMAGE"], int(self.clients[pid]["hp"]))
                         self.server.send(connection_id, pk)
                         self.clients[pid]["inventory"][self.clients[pid]["weapon"] - 1] = 0
                         destroyItem(self, self.clients[pid]["cid"], self.clients[pid]["weapon"] - 1)
@@ -291,7 +287,7 @@ class MyServer:
         for pid, client in self.clients.items():
             if connection_id == client["cid"]:
                 inv = get_inventory_in_format(client["inventory"])
-                pk = struct.pack(f"b16shhh{S.INVENTORY_SIZE}b", S.CMDS["PLAYER_LEFT"], pid.encode('utf-8'), client["x"],
+                pk = struct.pack(f"b16sIIb{S.INVENTORY_SIZE}b", S.CMDS["PLAYER_LEFT"], pid.encode('utf-8'), client["x"],
                                  client["y"], client["hp"], *inv)
                 self.server.send(self.load_id, pk)
                 del self.clients[pid]
@@ -507,14 +503,14 @@ def broadcast(self, dagger):
         if hp_change[i]:
             if client["hp"] > 0:
                 print("damage taken")
-                pk = struct.pack('!bh', S.CMDS["DAMAGE"], int(client["hp"]))
+                pk = struct.pack('!bb', S.CMDS["DAMAGE"], int(client["hp"]))
             elif client["hp"] <= 0:
                 drop_weapons(client, self.items)
                 x, y = respawn(self.serverNumber - 1)
                 print("DECIDED ON POS: ", x, y)
                 client["x"], client["y"], client["hp"] = x, y, S.PLAYER_HEALTH
                 # send information to client
-                pk = struct.pack("!bhh", S.CMDS["RESPAWN"], x, y)
+                pk = struct.pack("!bII", S.CMDS["RESPAWN"], x, y)
             self.server.send(client["cid"], pk)
         i += 1
 
@@ -549,7 +545,7 @@ def copy_dic(dic):
 
 def build_state_payload(clients, bullets, items, enemies, client):
     count = len(clients)
-    format = "!bhhhhh" + "hhhhbbbb" * count  # the b is for byte - 0\1
+    format = "!bhhhhh" + "IIbbbbbb" * count  # the b is for byte - 0\1
     payload = [S.CMDS["RENDER"], int(client["f_timer"]), int(client["i_timer"]), int(client["laser_timer"]),
                int(client["brit_timer"]), count]
 
@@ -566,14 +562,14 @@ def build_state_payload(clients, bullets, items, enemies, client):
 
     countb = len(bullets)
     payload.append(countb)
-    format += "h" + "hh" * countb
+    format += "h" + "II" * countb
     for b in bullets:
         payload.append(int(b.x))
         payload.append(int(b.y))
 
     counti = len(items)
     payload.append(counti)
-    format += "h" + "hhb" * counti
+    format += "h" + "IIb" * counti
     for i in items:
         payload.append(int(i.x))
         payload.append(int(i.y))
@@ -581,7 +577,7 @@ def build_state_payload(clients, bullets, items, enemies, client):
 
     counte = len(enemies)
     payload.append(counte)
-    format += "h" + "hhbhb" * counte
+    format += "h" + "IIbbb" * counte
     for e, pos in enemies:
         i = e.entity
         payload.append(int(i.x))
@@ -596,7 +592,7 @@ def build_state_payload(clients, bullets, items, enemies, client):
 def build_total_client(pid, client, nServer):
     inv = get_inventory_in_format(client["inventory"])
     return struct.pack(
-        f"!b16sbhhbbbb{S.INVENTORY_SIZE}bhbhhbhbhhhh",
+        f"!b16sbIIbbbb{S.INVENTORY_SIZE}bhbhhbhbhhhh",
         S.CMDS["TRANSFER_P"],
         pid.encode("utf-8"),  # 0: 16s
         int(nServer),
@@ -623,7 +619,7 @@ def build_total_client(pid, client, nServer):
 
 def take_client(self, pid, data):
     # הפורמט חייב להיות זהה לחלוטין לפונקציית ה-build שלך
-    fmt = f"!bhhbbbb{S.INVENTORY_SIZE}bhbhhbhbhhhh"
+    fmt = f"!bIIbbbb{S.INVENTORY_SIZE}bhbhhbhbhhhh"
 
     # פריקת כל הנתונים לתוך משתנה אחד (Tuple)
     unpacked = (struct.unpack_from(fmt, data, 17))

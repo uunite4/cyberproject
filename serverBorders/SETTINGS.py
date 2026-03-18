@@ -158,7 +158,7 @@ BASIC_INV = ['da',0,0,0,0,0,0,0]
 INVENTORY_SIZE = len(BASIC_INV)
 
 INVENTORY_MAP = {
-    0: "e",
+    0: 0,
     1: "da",
     2: "gu",
     3: "h",

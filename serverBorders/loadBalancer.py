@@ -30,17 +30,8 @@ class MyServer:
     # ----------
     def on_receive(self, connection_id: int, data: bytes):
         cmd = struct.unpack_from('!b', data, 0)[0]
-        if (cmd == S.CMDS["INIT_LB"]):
-            print("GOT INIT")
-            x,y, iServer, pid = get_random_position()
-            print("DECIDED ON POS: ", x, y, " | SERVER INDEX: ", iServer)
-            # send server index to client
-            pk2Client = struct.pack("!b16sbhh", S.CMDS["INIT_LB"], pid.encode("utf-8"), iServer, x, y)
-            self.server.send(connection_id, pk2Client)
-            # send pos to server
-            pk2Server = struct.pack("!b16shh", S.CMDS["LB_ADDING_PLAYER"], pid.encode("utf-8"), x, y)
-            self.server.send(self.connections[iServer], pk2Server)
-        elif (cmd == S.CMDS["TRANSFER_P"]):
+
+        if (cmd == S.CMDS["TRANSFER_P"]):
             print("GOT TRANSFER")
             nS = data[17]
             self.server.send(self.connections[nS-1], data)
@@ -65,7 +56,6 @@ class MyServer:
         await self.server.start()
         print("Server started")
 
-        token = generateToken().encode("utf-8")
         # Connect to all servers
         for server in S.SERVERS:
             server_id = await self.server.connect_to_server(
@@ -73,38 +63,11 @@ class MyServer:
                 port=server["port"],
             )
             self.connections.append(server_id)
-            pk = struct.pack("!b16s", S.CMDS["HELLO_FROM_LB"], token)
+            pk = struct.pack("!b", S.CMDS["HELLO_FROM_LB"])
             self.server.send(server_id, pk)
             print(server_id)
 
         await asyncio.Future()
-def get_random_position():
-
-    # Choose a random server
-    server_index = random.randint(0, S.SERVER_NUMBER - 1)
-    server = S.SERVERS[server_index]
-
-    left = server["x"]
-    right = server["x"] + S.SERVER_WIDTH
-
-    # Remove overlap zones
-    if server_index > 0:
-        left += S.OVERLAP_WIDTH
-
-    if server_index < S.SERVER_NUMBER - 1:
-        right -= S.OVERLAP_WIDTH
-
-    while True:
-
-        # Random position inside safe horizontal zone
-        x = random.randint(left, right - 1)
-        y = random.randint(0, S.MAP_HEIGHT - 1)
-        if not check_collision_with_stone(x,y,S.PLAYER_SIZE) and not check_collision_with_lava(x,y,S.PLAYER_SIZE): #and collision with lava
-            return x, y, server_index, generateToken()
-
-def generateToken(length=16):
-    alphabet = string.ascii_letters + string.digits
-    return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 if __name__ == "__main__":
     s = MyServer()

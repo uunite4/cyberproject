@@ -64,7 +64,7 @@ class MyClient:
                 self.status_msg.append(S.BYTESERRORS[typeE])
                 self.status_msg.append(S.BYTESERRORS[action])
             elif (cmd == S.CMDS["CLIENT_DATA"]):
-                info = struct.unpack_from(f'!16sbhhh{S.INVENTORY_SIZE}b', data, 1)
+                info = struct.unpack_from(f'!16sbIIb{S.INVENTORY_SIZE}b', data, 1)
                 self.pid = info[0].decode("utf-8")
                 print(self.pid)
                 self.iControl = info[1]
@@ -79,6 +79,7 @@ class MyClient:
                 for i in range(S.INVENTORY_SIZE):
                     weapon = S.INVENTORY_MAP[info[i+5]]
                     self.player.weapons[i] = weapon
+                print(self.player.weapons)
 
                 self.status_msg = ["OK"]
                 self.running = False
@@ -88,28 +89,14 @@ class MyClient:
             self.response_event.set()
         else:
             cmd = struct.unpack_from('!b', data, 0)[0]
-            if (cmd == S.CMDS["INIT_LB"]):
-                pid, controlIndex, x, y = struct.unpack_from('!16sbhh', data, 1)
-                print(pid, controlIndex, x, y)
-                self.iControl = controlIndex
-                self.pid = pid.decode("utf-8")
-                print("RESPONSE FROM LB (SERVER INDEX): ", self.iControl, "(X,Y): (", x, ",", y, ")", "PID", self.pid)
-                self.player.x = x
-                self.player.y = y
-                self.player.dir = 3
-                self.player.health = S.PLAYER_HEALTH
-                self.player.att = 0
-                self.player.weapon = 1
 
-                pk = struct.pack("!b16s", S.CMDS["HELLO"], self.pid.encode("utf-8"))
-                self.client.send(self.connections[self.iControl], pk)
-            elif (cmd == S.CMDS["MOVE"]):
+            if (cmd == S.CMDS["MOVE"]):
                 moveOffPackt(data, self.player)
 
             elif (cmd == S.CMDS["OVERLAP"]):
                 # SEND POS TO SECOND SERVER
                 if self.iInActive != None:
-                    pk = struct.pack("!b16shhh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x,
+                    pk = struct.pack("!b16sIIb", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x,
                                      self.player.y, self.player.dir)
                     self.client.send(self.connections[self.iInActive], pk)
                 else:
@@ -120,7 +107,7 @@ class MyClient:
                         self.iInActive = self.iControl - 1
 
                     print(self.iInActive)
-                    pk = struct.pack("!b16shhhhbbhhhh", S.CMDS["ADD_ME"], self.pid.encode("utf-8"), self.player.x,
+                    pk = struct.pack("!b16sIIbbbbhhhh", S.CMDS["ADD_ME"], self.pid.encode("utf-8"), self.player.x,
                                      self.player.y,
                                      self.player.dir, self.player.health, self.player.att, self.player.weapon, self.player.fart_timer,
                                      self.player.invis_timer, self.player.laser_timer, self.player.brit)
@@ -181,42 +168,46 @@ class MyClient:
                     self.players = []
                     count = struct.unpack_from('!h', data, 9)[0]
                     for i in range(count):
-                        offset = 11+12*i
-                        x, y, dir, health, att, weapon, fart, invi = struct.unpack_from('!hhhhbbbb', data, offset)
+                        offset = 11+14*i
+                        x, y, dir, health, att, weapon, fart, invi = struct.unpack_from('!IIbbbbbb', data, offset)
                         self.players.append({"x": x,"y": y, "dir": dir, "hp": health, "att": att, "weapon": weapon, "fart": fart, "invi": invi})
-                    offset = 11+12*count
+                    offset = 11+14*count
                     self.bullets = []
                     countb = struct.unpack_from('!h', data, offset)[0]
                     offset += 2
                     for i in range(countb):
-                        bx, by = struct.unpack_from('!hh', data, offset)
+                        bx, by = struct.unpack_from('!II', data, offset)
                         self.bullets.append({"x":bx, "y":by})
-                        offset+=4
+                        offset+=8
                         print("bullet in ", bx, " ", by)
-                    offset = 13+12*count+4*countb
+                    offset = 13+14*count+8*countb
                     self.dropped = []
                     counti = struct.unpack_from('!h', data, offset)[0]
                     offset += 2
                     for i in range(counti):
-                        ix, iy, iw = struct.unpack_from('!hhb', data, offset)
+                        ix, iy, iw = struct.unpack_from('!IIb', data, offset)
                         self.dropped.append({"x":ix, "y":iy, "weapon_type":iw})
-                        offset+=5
-                    offset = 15+12*counti+4*counti+5*counti
+                        offset+=9
+                    offset = 15+14*counti+8*counti+9*counti
                     counte = struct.unpack_from('!h', data, offset)[0]
                     offset += 2
                     for i in range(counte):
-                        ex, ey, dir, hp, type = struct.unpack_from('!hhbhb', data, offset)
-                        self.enemies.append({"ex": ex, "ey": ey, "dir": dir, "hp": hp, "type": type})
+                        ex, ey, dir, hp, type = struct.unpack_from('!IIbbb', data, offset)
+                        if type==0:
+                            type = "GOBLIN"
+                        elif type==1:
+                            type = "BEAR"
+                        self.enemies.append({"x": ex, "y": ey, "dir": dir, "hp": hp, "type": type})
                         offset+=8
 
             elif (cmd == S.CMDS["DAMAGE"]):
-                nhp = struct.unpack_from('!h', data, 1)[0]
+                nhp = struct.unpack_from('!b', data, 1)[0]
                 self.player.health = nhp
                 if self.iInActive != None:
-                    pk = struct.pack("!b16shhhhb", S.CMDS["HP_DONT_RESPOND"], self.pid.encode("utf-8"), nhp)
+                    pk = struct.pack("!b16sb", S.CMDS["HP_DONT_RESPOND"], self.pid.encode("utf-8"), nhp)
                     self.client.send(self.connections[self.iInActive], pk)
             elif (cmd == S.CMDS["RESPAWN"]):
-                x,y = struct.unpack_from('!hh', data, 1)
+                x,y = struct.unpack_from('!II', data, 1)
                 self.player.tp(x,y,3)
                 self.player.health = S.PLAYER_HEALTH
                 self.player.weapons = S.BASIC_INV
@@ -545,9 +536,13 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
     # DRAW OWN PLAYER
     px = int(player.x - cam_x - S.PLAYER_SIZE // 2)
     py = int(player.y - cam_y - S.PLAYER_SIZE // 2)
+    sprite = SPRITES1.get(player.dir, DEFAULT_SPRITE1)
     if player.invisible == 0:
-        sprite = SPRITES1.get(player.dir, DEFAULT_SPRITE1)
         screen.blit(sprite, (px, py))
+    else:
+        temp_sprite = sprite.copy()
+        temp_sprite.set_alpha(100)
+        screen.blit(temp_sprite, (px, py))
 
     if player.att == 1 and player.weapons[player.weapon-1] == 'da':  # daggers
         d = player.dir
@@ -672,7 +667,7 @@ def draw_inventory_overlay(screen, p, font):
     screen.blit(health_txt, (inv_rect.x + 20, inv_rect.y + 20))
 
     # 4. משבצות הנשקים
-    num_slots = len(p.weapons)
+    num_slots = len(p.weapons) - 1
     slot_size = 50
     gap = 10
     total_w = (num_slots * slot_size) + ((num_slots - 1) * gap)
@@ -848,7 +843,7 @@ def camera_from_pos(x, y, map_w, map_h):
     return cam_x, cam_y
 
 def moveOffPackt(pkStruct, player):
-    x, y, dir = struct.unpack_from('!hhh', pkStruct, 1)
+    x, y, dir = struct.unpack_from('!IIb', pkStruct, 1)
     player.tp(x, y, dir)
 
 
