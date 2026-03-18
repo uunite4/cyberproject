@@ -9,21 +9,21 @@ import os
 import struct
 
 import SETTINGS as S
+
 from networking.wrappers.server_wrapper import QuicServer
-from serverBorders.classes.Player import check_collision_with_lava, check_collision_with_stone
+from serverBorders.classes.Player import check_collision_with_stone, check_collision_with_lava
 
 #DB_PATH = r"C:\Users\USER\PycharmProjects\PythonProject\Cyber-Proj-main\loginServerBasics\game.db"
 #DB_PATH = r"C:\Users\Itay\PycharmProjects\cyberproject\quic\game.db"
-DB_PATH = r"game.db"
+#DB_PATH = r"C:\Users\USER\PycharmProjects\cyberproject\quic\game.db"
+
+# 1. Get the directory where THIS script is saved
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# 2. Point to the game.db file in that same directory
+DB_PATH = os.path.join(current_dir, "game.db")
 
 
-def player_info_update(key, x_position, y_position, health, team, direaction):
-    with sqlite3.connect(DB_PATH, timeout=5) as conn:
-        curser = conn.cursor()
-        curser.execute("""UPDATE last_save SET x position = ?,y position = ?, health = ?, team = ?, direaction = ? WHERE token = ?""",(x_position, y_position, health, team, direaction,key))
-        conn.commit()
-        conn.close()
-        print(f"Successfully updated stats for Player {key}")
 
 class LoginServer:
 
@@ -39,16 +39,14 @@ class LoginServer:
         )
 
     def on_receive(self, connection_id: int, data: bytes):
-        if (connection_id == self.loadbalancer_id):
-            pass
-        else:
-            print("got client data")
-            raw_data = data.decode()
-            print(data)
-            if not raw_data: return
-            print("running login handle")
-            handle_login_client(self, raw_data, connection_id)
 
+        #if connection_id == self.loadbalancer_id:
+            #self.handle_load_balancer(self, raw_data, connection_id)
+
+        #else:
+        raw_data = data.decode()
+        if not raw_data: return
+        handle_login_client(self, raw_data, connection_id)
 
     def on_connect(self, connection_id: int):
         print(f"{connection_id} connected")
@@ -59,11 +57,21 @@ class LoginServer:
     async def run(self):
         await self.server.start()
         print("Server started")
-        await asyncio.Future()
+
         self.loadbalancer_id = await self.server.connect_to_server(
-            ip=S.LOAD_BALANCER["ip"],
-            port=S.LOAD_BALANCER["port"],
+            ip= S.LOAD_BALANCER["ip"],
+            port= S.LOAD_BALANCER["port"]
         )
+
+        try:
+            await asyncio.Future()
+
+        except asyncio.CancelledError:
+            print("Server shutting down...")
+
+        finally:
+            await self.server.stop()
+            print("Server shut down")
 
     def hash_password(self, password):
         # We will keep it simple for now so your Login still works
@@ -87,33 +95,39 @@ class LoginServer:
         hash_obj = hashlib.sha256(combined)
         return salt_hex, hash_obj.hexdigest()
 
-    def player_inventory_upload(self, item1, item2, item3, item4, item5, item6, item7, item8, item9, item10, token):
+    def player_info_get(self, token):
         with sqlite3.connect(DB_PATH, timeout=5) as conn:
-            cursor = conn.cursor()
-            # You must list every column you want to update
-            cursor.execute("""UPDATE inventory 
-                            SET item1 = ?, item2 = ?, item3 = ?, item4 = ?, item5 = ?,
-                                item6 = ?, item7 = ?, item8 = ?, item9 = ?, item10 = ?
-                            WHERE token = ?""",
-                           (item1, item2, item3, item4, item5, item6, item7, item8, item9, item10, token))
-            conn.commit()
-            conn.close()
-            print("invertory uploaded!")
-    def player_info_update(self, token, x_position, y_position, health, team, direaction, item1, item2, item3, item4, item5, item6, item7, item8, item9, item10):
-        self.player_inventory_upload(item1, item2, item3, item4, item5, item6, item7, item8, item9, item10, token)
+            curser = conn.cursor()
+            curser.execute("SELECT * FROM last_save WHERE token = ?", (token,))
+            row = curser.fetchone()
+            if row:
+                x, y, hp, i1, i2, i3, i4, i5, i6, i7, i8 = row
+                print(f"Player is at {x}, {y} with {hp} health. and with the following items {i1, i2, i3, i4, i5, i6, i7, i8}")
+                return x, y, hp, i1, i2, i3, i4, i5, i6, i7, i8
+            else:
+                print("No player found with that token.")
+                return None
+
+    def player_info_update(self, token, x_position, y_position, health, item1, item2, item3, item4, item5, item6, item7, item8):
+        #self.player_inventory_upload(item1, item2, item3, item4, item5, item6, item7, item8, item9, item10, token)
         with sqlite3.connect(DB_PATH, timeout=5) as conn:
             curser = conn.cursor()
             curser.execute("""UPDATE last_save
                               SET x_position = ?,
                                   y_position = ?,
                                   health     = ?,
-                                  team       = ?,
-                                  direaction = ?
-                              WHERE token = ?""", (x_position, y_position, health, team, direaction, token))
+                                  item1      = ?,
+                                  item2      = ?,
+                                  item3      = ?, 
+                                  item4      = ?, 
+                                  item5      = ?,
+                                  item6      = ?, 
+                                  item7      = ?, 
+                                  item8      = ?
+                              WHERE token = ?""", (x_position, y_position, health, item1, item2, item3, item4, item5, item6, item7, item8,  token))
 
-            conn.commit()
-            conn.close()
-            print(f"Successfully updated stats for Player {token}")
+        conn.close()
+        print(f"Successfully updated stats for Player {token}")
 
     def sendTokenToLB(self, token):
         return "38.97.84.242"  # Mock IP for game server
@@ -152,12 +166,15 @@ class LoginServer:
         token = self.get_unique_token()
         # Generate the salt and the hash
         salt, pass_hash = self.hash_password_with_salt(password)
-
+        x_position, y_position, health, item1, item2, item3, item4, item5, item6, item7, item8 = getStarterPack()
         with sqlite3.connect(DB_PATH, timeout=5) as conn:
             cursor = conn.cursor()
             # You MUST have a 'salt' column in your 'login' table
             cursor.execute("INSERT INTO login (username, password, salt, token) VALUES (?, ?, ?, ?)",
                            (username, pass_hash, salt, token))
+            cursor.execute("""INSERT INTO last_save (token, x_position, y_position, health, item1, item2, item3, item4, item5, item6, item7, item8)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                           (token, x_position, y_position, health, item1, item2, item3, item4, item5, item6, item7, item8))
             conn.commit()
         return token
 
@@ -204,9 +221,7 @@ class LoginServer:
         item6 = loginData["item6"]
         item7 = loginData["item7"]
         item8 = loginData["item8"]
-        item9 = loginData["item9"]
-        item10 = loginData["item10"]
-        self.player_info_update(token, x_position, y_position, health, team, direaction,item1, item2, item3, item4, item5, item6, item7, item8, item9, item10)
+        self.player_info_update(token, x_position, y_position, health, team, direaction,item1, item2, item3, item4, item5, item6, item7, item8)
         print("updated successfully!")
         response_packet = f"OK={token}={connection_id}"
         try:
@@ -215,16 +230,13 @@ class LoginServer:
         except Exception as e:
             print(f"Error handling request: {e}")
 
-    def createStarterPack(self, token, x, y):
-        self.player_info_update(token, x, y, 100,  3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-
-    def createResponsePacket(self, tkn, serverIndex):
+    def createResponsePacket(self, tkn):
         with sqlite3.connect(DB_PATH, timeout=5) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
             # 1. Find the user first to get THEIR specific salt
-            cursor.execute("SELECT * FROM last_save WHERE token = ?", (tkn))
+            cursor.execute("SELECT * FROM last_save WHERE token = ?", (tkn,))
             user_row = cursor.fetchone()
 
             # Basics
@@ -233,83 +245,93 @@ class LoginServer:
             playerHealth = user_row["health"]
             playerInventory = []
 
+
             # Inventory
-            for i in range(1, 11):
+            for i in range(1, S.INVENTORY_SIZE+1):
                 itemslot = user_row["item" + str(i)]
                 playerInventory.append(itemslot)
 
             i = 0
+            serverIndex = None
             while serverIndex is None:
                 curServer = S.SERVERS[i]
                 if (playerX > curServer["x"] and playerX < curServer["x"] + curServer["width"]):
                     serverIndex = i
                 i += 1
 
-            pk = struct.pack("!b16sbhhbbbbbbbbbbb", S.CMDS["LOGIN_BACK_TO_CLIENT"], tkn, serverIndex, playerX, playerY, playerHealth, *playerInventory)
+            pk = struct.pack(f"!b16sbhhh{S.INVENTORY_SIZE}b", S.CMDS["CLIENT_DATA"], tkn.encode('utf-8'), serverIndex, playerX, playerY, playerHealth, *playerInventory)
             return pk
 
 def handle_login_client(self, raw_data, connection_id):
-   # still needs to make a new one also for the updating
-   # in general make a new system that will be hashed with quic and will not be easy manupulated like the seperation with = sign
-   global userToken
-   global pk
-   loginData = json.loads(raw_data)
-   # loginData[0] = username, [1] = password, [2] = action (LOGIN/SIGNUP)
+       # still needs to make a new one also for the updating
+       # in general make a new system that will be hashed with quic and will not be easy manupulated like the seperation with = sign
+       global userToken
+       loginData = json.loads(raw_data)
+       # loginData[0] = username, [1] = password, [2] = action (LOGIN/SIGNUP)
 
-   username = loginData["username"]
-   password = loginData["password"]  # not going to be ""
-   action = loginData["action"]
-   response_packet = ""
+       username = loginData["username"]
+       password = loginData["password"]  # not going to be ""
+       action = loginData["action"]
+       response_packet = ""
 
-   if action == "LOGIN":
-       print("login")
-       print(username + " is username")
-       print(password + " is password")
-       print(action + " is action")
-       userToken = self.handleLogin(username, password)
-       print(userToken)
+       success = False
+       if action == "LOGIN":
+           print("login")
+           print(username + " is username")
+           print(password + " is password")
+           print(action + " is action")
 
-       if username == "":
-           response_packet = "ERROR=ERROR: username is empty= try again"
-       elif password == "":
-           response_packet = "ERROR=ERROR: password is empty= try again"
-       elif userToken == 404:
-           response_packet = "ERROR=ERROR: with login=NO USER FOUND"
-       else:
-           pk = self.createResponsePacket(userToken, None)
+           if username == "":
+               response_packet = struct.pack("!bbb", S.CMDS["ERROR"], S.ERRORSBYTES["ERROR: username is empty"], S.ERRORSBYTES["try again"])
+           elif password == "":
+               response_packet = struct.pack("!bbb", S.CMDS["ERROR"], S.ERRORSBYTES["ERROR: password is empty"], S.ERRORSBYTES["try again"])
+           else:
+               userToken = self.handleLogin(username, password)
+               print(userToken)
+               if userToken == 404:
+                    response_packet = struct.pack("!bbb", S.CMDS["ERROR"], S.ERRORSBYTES["ERROR: with login"], S.ERRORSBYTES["NO USER FOUND"])
+               else:
+                   success = True
+                   response_packet = self.createResponsePacket(userToken)
 
 
-   elif action == "SIGNUP":
-       print("signup")
-       print(username + " is username")
-       print(password + " is password")
-       print(action + " is action")
-       userToken = self.handleSignup(username, password)
-       print(userToken)
-       if username == "":
-           response_packet = "ERROR=ERROR: username is empty= try again"
-       elif password == "":
-           response_packet = "ERROR=ERROR: password is empty= try again"
-       elif userToken == "ALREADY FOUND":
-           response_packet = "ERROR=ERROR: with signup=User already found"
-       else:
-           # CREATE STARTER PACK
-           x, y, serverI = get_random_position()
-           self.createStarterPack(userToken, x, y)
-           pk = self.createResponsePacket(userToken, serverI)
+       elif action == "SIGNUP":
+           print("signup")
+           print(username + " is username")
+           print(password + " is password")
+           print(action + " is action")
+           if username == "":
+               response_packet = struct.pack("!bbb", S.CMDS["ERROR"], S.ERRORSBYTES["ERROR: username is empty"], S.ERRORSBYTES["try again"])
+           elif password == "":
+               response_packet = struct.pack("!bbb", S.CMDS["ERROR"], S.ERRORSBYTES["ERROR: password is empty"], S.ERRORSBYTES["try again"])
+           else:
+               userToken = self.handleSignup(username, password)
+               print(userToken)
+               if userToken == "ALREADY FOUND":
+                    response_packet = struct.pack("!bbb", S.CMDS["ERROR"], S.ERRORSBYTES["ERROR: with signup"], S.ERRORSBYTES["User already found"])
+               else:
+                   success = True
+                   response_packet = self.createResponsePacket(userToken)
 
-   rspk = self.createResponsePacket(userToken)
-   # SEND TO LOAD BALANCER
-   pk = struct.pack("!b16s", S.CMDS["LOGIN_TO_LB"], userToken)
-   self.server.send(self.loadbalancer_id, pk)
+       # Send response and CLOSE this specific client connection
+       # SEND TO LOAD BALANCER
+       #pk = struct.pack("!b16s", S.CMDS["LOGIN_TO_LB"], userToken)
+       if success:
+            self.server.send(self.loadbalancer_id, response_packet)
 
-def point_in_rect(px, py, rx, ry, w, h):
-    return (
-        rx <= px <= rx + w and
-        ry <= py <= ry + h
-    )
+
+       try:
+           self.server.send(connection_id, response_packet)
+           print(f"Handled {action} for {username}. Response sent.")
+       except Exception as e:
+           print(f"Error handling request: {e}")
+
+def getStarterPack():
+    x,y = get_random_position()
+    return x, y, 100, 1, 0, 0, 0, 0, 0, 0, 0
 
 def get_random_position():
+
     # Choose a random server
     server_index = random.randint(0, S.SERVER_NUMBER - 1)
     server = S.SERVERS[server_index]
@@ -325,11 +347,13 @@ def get_random_position():
         right -= S.OVERLAP_WIDTH
 
     while True:
+
         # Random position inside safe horizontal zone
         x = random.randint(left, right - 1)
         y = random.randint(0, S.MAP_HEIGHT - 1)
         if not check_collision_with_stone(x,y,S.PLAYER_SIZE) and not check_collision_with_lava(x,y,S.PLAYER_SIZE): #and collision with lava
-            return x, y, server_index
+            return x, y
+
 
 if __name__ == '__main__':
     s = LoginServer()

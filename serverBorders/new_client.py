@@ -3,7 +3,7 @@ import json
 
 import pygame
 
-from wrappers.client_wrapper import QuicClient
+from networking.wrappers.client_wrapper import QuicClient
 
 # Visual Settings
 WIDTH, HEIGHT = 700, 500

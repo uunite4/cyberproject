@@ -2,7 +2,7 @@
 
 # Dagger.py
 import time
-from SETTINGS import PLAYER_SIZE
+from serverBorders.SETTINGS import PLAYER_SIZE
 
 
 class Dagger:

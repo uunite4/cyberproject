@@ -1,8 +1,8 @@
 
 
-import SETTINGS as S
-from Entity import *
-from serverBorders.Player import check_collision_with_stone
+import serverBorders.SETTINGS as S
+from classes.Entity import *
+from serverBorders.classes.Player import check_collision_with_stone
 
 
 class Bullet(Entity):

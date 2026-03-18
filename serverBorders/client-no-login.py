@@ -1,13 +1,14 @@
 import asyncio
+import json
 import sys
 import os
+
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import struct
 
-import pygame
-import Player
+from serverBorders.classes import Player
 #from Player import *
-import SETTINGS as S
 from networking.wrappers.client_wrapper import QuicClient
 from map import *
 from map_data import *
@@ -39,152 +40,316 @@ class MyClient:
         self.screen = pygame.display.set_mode((S.WINDOW_WIDTH, S.WINDOW_HEIGHT))
         pygame.display.set_caption("Game")
         self.player = Player.Player()
+
+
+        #login data client
+        self.status_msg = None
+        self.login_server_id = None
+
+            # event used to signal server response
+        self.response_event = asyncio.Event()
     # ----------
     # RECEIVE DATA
     # ----------
     def on_receive(self, connection_id: int, data: bytes):
-        cmd = struct.unpack_from('!b', data, 0)[0]
-        if (cmd == S.CMDS["INIT_LB"]):
-            pid, controlIndex, x, y = struct.unpack_from('!16sbhh', data, 1)
-            print(pid, controlIndex, x, y)
-            self.iControl = controlIndex
-            self.pid = pid.decode("utf-8")
-            print("RESPONSE FROM LB (SERVER INDEX): ", self.iControl, "(X,Y): (", x, ",", y, ")", "PID", self.pid)
-            self.player.x = x
-            self.player.y = y
-            self.player.dir = 3
-            self.player.health = S.PLAYER_HEALTH
-            self.player.att = 0
-            self.player.weapon = 1
 
-            pk = struct.pack("!b16s", S.CMDS["HELLO"], self.pid.encode("utf-8"))
-            self.client.send(self.connections[self.iControl], pk)
-        elif (cmd == S.CMDS["MOVE"]):
-            moveOffPackt(data, self.player)
-
-        elif (cmd == S.CMDS["OVERLAP"]):
-            # SEND POS TO SECOND SERVER
-            if self.iInActive != None:
-                pk = struct.pack("!b16shhh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x,
-                                 self.player.y, self.player.dir)
-                self.client.send(self.connections[self.iInActive], pk)
-            else:
-                dir = struct.unpack_from('!1s', data, 1)[0].decode("utf-8")
-                if (dir == "r"):
-                    self.iInActive = self.iControl + 1
-                elif (dir == "l"):
-                    self.iInActive = self.iControl - 1
-
-                print(self.iInActive)
-                pk = struct.pack("!b16shhhhbbhhhh", S.CMDS["ADD_ME"], self.pid.encode("utf-8"), self.player.x,
-                                 self.player.y,
-                                 self.player.dir, self.player.health, self.player.att, self.player.weapon, self.player.fart_timer,
-                                 self.player.invis_timer, self.player.laser_timer, self.player.brit)
-                self.client.send(self.connections[self.iInActive], pk)
-
-        elif (cmd == S.CMDS["OUT_OF_OVERLAP"]):
-            # SEND TO INACTIVE SERVER TO REMOVE ME
-            pk = struct.pack("!b16s", S.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
-            self.client.send(self.connections[self.iInActive], pk)
-            self.iInActive = None
-
-        elif (cmd == S.CMDS["SWITCH_SERVER"]):
-            # SWITCH BETWEEN CONTROL AND INACTIVE
-            if self.iInActive != None:
-                pk = struct.pack("!b16s", S.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
-                self.client.send(self.connections[self.iControl], pk)
-                self.iControl = self.iInActive
-                self.iInActive = None
-            else:
-                print("fuck")
-        elif (cmd == S.CMDS["RENDER"]):
-            # render the screen
-            if connection_id == self.connections[self.iControl] or (self.iInActive != None and connection_id == self.connections[self.iInActive]):
-                fart, invi, laser, brit = struct.unpack_from('!hhhh', data, 1)
-                if fart>0:
-                    if self.iInActive != None and self.player.laser == 0:
-                        pk = struct.pack("!b16s", S.CMDS["FARTING"], self.pid.encode("utf-8"))
-                        self.client.send(self.connections[self.iInActive], pk)
-                    self.player.fartp = 1
-                else:
-                    self.player.fartp = 0
-                self.player.fart_timer = fart
-
-                if invi>0:
-                    if self.iInActive != None and self.player.invisible == 0:
-                        pk = struct.pack("!b16s", S.CMDS["INVIS"], self.pid.encode("utf-8"))
-                        self.client.send(self.connections[self.iInActive], pk)
-                    self.player.invisible = 1
-                else:
-                    self.player.invisible = 0
-                self.player.invis_timer = invi
-
-                if laser>0:
-                    if self.iInActive != None and self.player.laser == 0:
-                        pk = struct.pack("!b16s", S.CMDS["LASER"], self.pid.encode("utf-8"))
-                        self.client.send(self.connections[self.iInActive], pk)
-                    self.player.laser = 1
-                else:
-                    self.player.laser = 0
-                self.player.laser_timer = laser
-
-                if brit>0:
-                    if self.iInActive != None and self.player.brit == 0:
-                        pk = struct.pack("!b16s", S.CMDS["BRIT"], self.pid.encode("utf-8"))
-                        self.client.send(self.connections[self.iInActive], pk)
-                self.player.brit = brit
-
-                self.players = []
-                count = struct.unpack_from('!h', data, 9)[0]
-                for i in range(count):
-                    offset = 11+12*i
-                    x, y, dir, health, att, weapon, fart, invi = struct.unpack_from('!hhhhbbbb', data, offset)
-                    self.players.append({"x": x,"y": y, "dir": dir, "hp": health, "att": att, "weapon": weapon, "fart": fart, "invi": invi})
-                offset = 11+12*count
-                self.bullets = []
-                countb = struct.unpack_from('!h', data, offset)[0]
-                offset += 2
-                for i in range(countb):
-                    bx, by = struct.unpack_from('!hh', data, offset)
-                    self.bullets.append({"x":bx, "y":by})
-                    offset+=4
-                    print("bullet in ", bx, " ", by)
-                offset = 13+12*count+4*countb
-                self.dropped = []
-                counti = struct.unpack_from('!h', data, offset)[0]
-                offset += 2
-                for i in range(counti):
-                    ix, iy, iw = struct.unpack_from('!hhb', data, offset)
-                    self.dropped.append({"x":ix, "y":iy, "weapon_type":iw})
-                    offset+=5
-
-        elif (cmd == S.CMDS["DAMAGE"]):
-            nhp = struct.unpack_from('!h', data, 1)[0]
-            self.player.health = nhp
-            if self.iInActive != None:
-                pk = struct.pack("!b16shhhhb", S.CMDS["HP_DONT_RESPOND"], self.pid.encode("utf-8"), nhp)
-                self.client.send(self.connections[self.iInActive], pk)
-        elif (cmd == S.CMDS["RESPAWN"]):
-            x,y = struct.unpack_from('!hh', data, 1)
-            self.player.tp(x,y,3)
-            self.player.health = S.PLAYER_HEALTH
-            self.player.weapons = S.BASIC_INV
-            if self.iInActive != None:
-                pk = struct.pack("!b16s", S.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
-                self.client.send(self.connections[self.iInActive], pk)
-        elif (cmd == S.CMDS["DELETE_ITEM"]):
-            index = struct.unpack_from('!b', data, 1)[0]
-            self.player.weapons[index] = 0
-        elif (cmd == S.CMDS["FART_READY"]):
-            self.player.fart_ready = 1
-        elif (cmd == S.CMDS["ADD_ITEM"]):
-            weapon_type, i = struct.unpack_from('!bb', data, 1)
-            weapon = S.INVENTORY_MAP[weapon_type]
-            if self.player.weapons[i] == 0:
-                self.player.weapons[i] = weapon
-            else:
-                if connection_id == self.connections[self.iControl]:
+        if connection_id == self.login_server_id:
+            cmd = struct.unpack_from('!b', data, 0)[0]
+            self.status_msg = []
+            if (cmd == S.CMDS["ERROR"]):
+                self.status_msg.append("ERROR")
+                typeE, action = struct.unpack_from('!bb', data, 1)
+                self.status_msg.append(S.BYTESERRORS[typeE])
+                self.status_msg.append(S.BYTESERRORS[action])
+            elif (cmd == S.CMDS["CLIENT_DATA"]):
+                info = struct.unpack_from(f'!16sbhhh{S.INVENTORY_SIZE}b', data, 1)
+                self.pid = info[0].decode("utf-8")
+                print(self.pid)
+                self.iControl = info[1]
+                print(info)
+                self.player.x = info[2]
+                self.player.y = info[3]
+                self.player.dir = 3
+                self.player.health = info[4]
+                self.player.att = 0
+                self.player.weapon = 1
+                self.player.weapons = [None] * S.INVENTORY_SIZE
+                for i in range(S.INVENTORY_SIZE):
+                    weapon = S.INVENTORY_MAP[info[i+5]]
                     self.player.weapons[i] = weapon
+
+                self.status_msg = ["OK"]
+                self.running = False
+            print(f"login server: {self.status_msg}")
+
+            # notify response received
+            self.response_event.set()
+        else:
+            cmd = struct.unpack_from('!b', data, 0)[0]
+            if (cmd == S.CMDS["INIT_LB"]):
+                pid, controlIndex, x, y = struct.unpack_from('!16sbhh', data, 1)
+                print(pid, controlIndex, x, y)
+                self.iControl = controlIndex
+                self.pid = pid.decode("utf-8")
+                print("RESPONSE FROM LB (SERVER INDEX): ", self.iControl, "(X,Y): (", x, ",", y, ")", "PID", self.pid)
+                self.player.x = x
+                self.player.y = y
+                self.player.dir = 3
+                self.player.health = S.PLAYER_HEALTH
+                self.player.att = 0
+                self.player.weapon = 1
+
+                pk = struct.pack("!b16s", S.CMDS["HELLO"], self.pid.encode("utf-8"))
+                self.client.send(self.connections[self.iControl], pk)
+            elif (cmd == S.CMDS["MOVE"]):
+                moveOffPackt(data, self.player)
+
+            elif (cmd == S.CMDS["OVERLAP"]):
+                # SEND POS TO SECOND SERVER
+                if self.iInActive != None:
+                    pk = struct.pack("!b16shhh", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x,
+                                     self.player.y, self.player.dir)
+                    self.client.send(self.connections[self.iInActive], pk)
+                else:
+                    dir = struct.unpack_from('!1s', data, 1)[0].decode("utf-8")
+                    if (dir == "r"):
+                        self.iInActive = self.iControl + 1
+                    elif (dir == "l"):
+                        self.iInActive = self.iControl - 1
+
+                    print(self.iInActive)
+                    pk = struct.pack("!b16shhhhbbhhhh", S.CMDS["ADD_ME"], self.pid.encode("utf-8"), self.player.x,
+                                     self.player.y,
+                                     self.player.dir, self.player.health, self.player.att, self.player.weapon, self.player.fart_timer,
+                                     self.player.invis_timer, self.player.laser_timer, self.player.brit)
+                    self.client.send(self.connections[self.iInActive], pk)
+
+            elif (cmd == S.CMDS["OUT_OF_OVERLAP"]):
+                # SEND TO INACTIVE SERVER TO REMOVE ME
+                pk = struct.pack("!b16s", S.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
+                self.client.send(self.connections[self.iInActive], pk)
+                self.iInActive = None
+
+            elif (cmd == S.CMDS["SWITCH_SERVER"]):
+                # SWITCH BETWEEN CONTROL AND INACTIVE
+                if self.iInActive != None:
+                    pk = struct.pack("!b16s", S.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
+                    self.client.send(self.connections[self.iControl], pk)
+                    self.iControl = self.iInActive
+                    self.iInActive = None
+                else:
+                    print("fuck")
+            elif (cmd == S.CMDS["RENDER"]):
+                # render the screen
+                if connection_id == self.connections[self.iControl] or (self.iInActive != None and connection_id == self.connections[self.iInActive]):
+                    fart, invi, laser, brit = struct.unpack_from('!hhhh', data, 1)
+                    if fart>0:
+                        if self.iInActive != None and self.player.laser == 0:
+                            pk = struct.pack("!b16s", S.CMDS["FARTING"], self.pid.encode("utf-8"))
+                            self.client.send(self.connections[self.iInActive], pk)
+                        self.player.fartp = 1
+                    else:
+                        self.player.fartp = 0
+                    self.player.fart_timer = fart
+
+                    if invi>0:
+                        if self.iInActive != None and self.player.invisible == 0:
+                            pk = struct.pack("!b16s", S.CMDS["INVIS"], self.pid.encode("utf-8"))
+                            self.client.send(self.connections[self.iInActive], pk)
+                        self.player.invisible = 1
+                    else:
+                        self.player.invisible = 0
+                    self.player.invis_timer = invi
+
+                    if laser>0:
+                        if self.iInActive != None and self.player.laser == 0:
+                            pk = struct.pack("!b16s", S.CMDS["LASER"], self.pid.encode("utf-8"))
+                            self.client.send(self.connections[self.iInActive], pk)
+                        self.player.laser = 1
+                    else:
+                        self.player.laser = 0
+                    self.player.laser_timer = laser
+
+                    if brit>0:
+                        if self.iInActive != None and self.player.brit == 0:
+                            pk = struct.pack("!b16s", S.CMDS["BRIT"], self.pid.encode("utf-8"))
+                            self.client.send(self.connections[self.iInActive], pk)
+                    self.player.brit = brit
+
+                    self.players = []
+                    count = struct.unpack_from('!h', data, 9)[0]
+                    for i in range(count):
+                        offset = 11+12*i
+                        x, y, dir, health, att, weapon, fart, invi = struct.unpack_from('!hhhhbbbb', data, offset)
+                        self.players.append({"x": x,"y": y, "dir": dir, "hp": health, "att": att, "weapon": weapon, "fart": fart, "invi": invi})
+                    offset = 11+12*count
+                    self.bullets = []
+                    countb = struct.unpack_from('!h', data, offset)[0]
+                    offset += 2
+                    for i in range(countb):
+                        bx, by = struct.unpack_from('!hh', data, offset)
+                        self.bullets.append({"x":bx, "y":by})
+                        offset+=4
+                        print("bullet in ", bx, " ", by)
+                    offset = 13+12*count+4*countb
+                    self.dropped = []
+                    counti = struct.unpack_from('!h', data, offset)[0]
+                    offset += 2
+                    for i in range(counti):
+                        ix, iy, iw = struct.unpack_from('!hhb', data, offset)
+                        self.dropped.append({"x":ix, "y":iy, "weapon_type":iw})
+                        offset+=5
+
+            elif (cmd == S.CMDS["DAMAGE"]):
+                nhp = struct.unpack_from('!h', data, 1)[0]
+                self.player.health = nhp
+                if self.iInActive != None:
+                    pk = struct.pack("!b16shhhhb", S.CMDS["HP_DONT_RESPOND"], self.pid.encode("utf-8"), nhp)
+                    self.client.send(self.connections[self.iInActive], pk)
+            elif (cmd == S.CMDS["RESPAWN"]):
+                x,y = struct.unpack_from('!hh', data, 1)
+                self.player.tp(x,y,3)
+                self.player.health = S.PLAYER_HEALTH
+                self.player.weapons = S.BASIC_INV
+                if self.iInActive != None:
+                    pk = struct.pack("!b16s", S.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
+                    self.client.send(self.connections[self.iInActive], pk)
+            elif (cmd == S.CMDS["DELETE_ITEM"]):
+                index = struct.unpack_from('!b', data, 1)[0]
+                self.player.weapons[index] = 0
+            elif (cmd == S.CMDS["FART_READY"]):
+                self.player.fart_ready = 1
+            elif (cmd == S.CMDS["ADD_ITEM"]):
+                weapon_type, i = struct.unpack_from('!bb', data, 1)
+                weapon = S.INVENTORY_MAP[weapon_type]
+                if self.player.weapons[i] == 0:
+                    self.player.weapons[i] = weapon
+                else:
+                    if connection_id == self.connections[self.iControl]:
+                        self.player.weapons[i] = weapon
+
+
+
+    #-----------
+    #running login
+    #-----------
+    async def main_menu(self):
+        # Variables to track what we are typing
+        username = ""
+        password = ""
+        active_field = "username"  # Toggle between username and password
+        mode = "START"  # START, LOGIN_INPUT, SIGNUP_INPUT
+        status_msg = ["ERROR","WAITING","ROOM"]  # This is our 'waiting room'
+
+        while self.running:
+            await asyncio.sleep(0.001)
+            screen.fill(S.WHITE)
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+
+                if event.type == pygame.KEYDOWN:
+                    if mode == "START":
+                        if event.key == pygame.K_l:
+                            mode = "LOGIN_INPUT"
+                        if event.key == pygame.K_s:
+                            mode = "SIGNUP_INPUT"
+
+                    elif "INPUT" in mode:
+                        if event.key == pygame.K_ESCAPE:
+                            mode = "START"
+                            # Optional: Clear the text so it's empty when you come back
+                            username = ""
+                            password = ""
+                            status_msg = ["ERROR", "WAITING", "ROOM"]  # This is our 'waiting room'
+                        if event.key == pygame.K_TAB:  # Switch fields
+                            active_field = "password" if active_field == "username" else "username"
+                        elif event.key == pygame.K_RETURN:  # SEND TO SERVER
+                            print("username: " + username)
+                            print("password: " + password)
+                            status_msg = await self.send_to_server(
+                                username,
+                                password,
+                                "LOGIN" if mode == "LOGIN_INPUT" else "SIGNUP"
+                            )
+                        elif event.key == pygame.K_BACKSPACE:
+                            if active_field == "username":
+                                username = username[:-1]
+                            else:
+                                password = password[:-1]
+                        else:
+                            if active_field == "username":
+                                username += event.unicode
+                            else:
+                                password += event.unicode
+
+            # --- DRAWING LOGIC ---
+            if mode == "START":
+                self.draw_text("Welcome to the MMORPG", 230, 150)
+                self.draw_text("Press 'L' for Login", 250, 250)
+                self.draw_text("Press 'S' for Signup", 250, 300)
+
+            elif "INPUT" in mode:
+                if status_msg[0] == "ERROR":
+                    success = [False, False]
+                    self.draw_text(f"Mode: {mode}", 50, 50)
+                    self.draw_text(f"Username: {username} {'|' if active_field == 'username' else ''}", 100, 150)
+                    self.draw_text(f"Password: {'*' * len(password)} {'|' if active_field == 'password' else ''}", 100, 200)
+                    self.draw_text("Press TAB to switch, ENTER to submit, ESC to go back", 100, 300)
+
+                    if status_msg[1] == "ERROR: with signup":
+                        self.draw_text("SignUp failed!", 100, 400, color=(255, 0, 0))
+                    elif status_msg[1] == "ERROR: with login":
+                        self.draw_text("Login Failed!", 100, 400, color=(255, 0, 0))
+                    elif status_msg[1] == "ERROR: username is empty" or status_msg[1] == "ERROR: password is empty":
+                        self.draw_text("password or username is empty", 100, 400, color=(255, 0, 0))
+                    else:
+                        success[0] = True
+                        self.draw_text("the key: " + status_msg[1], 100, 400, color=(255, 0, 0)) #SUCCESSFULL
+                    if status_msg[2] == "NO USER FOUND":
+                        self.draw_text("NO USER FOUND ", 100, 460, color=(255, 0, 0))
+                    elif status_msg[2] == "User already found":
+                        self.draw_text("USER FOUND ", 100, 460, color=(255, 0, 0))
+                    elif status_msg[1] == "ERROR: username is empty" or status_msg[1] == "ERROR: password is empty":
+                        self.draw_text("password or username is empty", 100, 400, color=(255, 0, 0))
+                    else:
+                        success[1] = True
+                        self.draw_text("the next server: " + status_msg[2], 100, 460, color=(255, 0, 0)) #SUCCESFULL
+
+                    if success[0] and success[1]:
+                        print("login or sighup successful")
+            elif status_msg[0] == "OK":
+                print("login\ sighup was successful")
+
+            pygame.display.flip()
+    def draw_text(self, text, x, y, color=S.BLACK):
+        font = pygame.font.SysFont("Arial", 24)
+        img = font.render(text, True, color)
+        screen.blit(img, (x, y))
+
+    async def send_to_server(self, u, p, action):
+        data = json.dumps({"username": u, "password": p, "action": action})
+
+        # reset event before sending
+        self.response_event.clear()
+        self.send_to_login_server(data.encode())
+
+        try:
+            # wait for server response
+            await asyncio.wait_for(self.response_event.wait(), timeout=2)
+
+        except asyncio.TimeoutError:
+            print("Connection timeout")
+            return ["ERROR", "TIMEOUT", ""]
+
+        status_msg = self.status_msg
+        self.status_msg = None
+
+        return status_msg
+
+    def send_to_login_server(self, data):
+        self.client.send(self.login_server_id, data)
 
     # ----------
     # RUNNING
@@ -196,6 +361,36 @@ class MyClient:
             cert_file="../networking/certificate/cert.pem",
             on_receive=self.on_receive
         )
+        """
+        -------------------------------------------------------------------------
+        LOGIN
+        -------------------------------------------------------------------------
+        """
+        self.login_server_id = await self.client.connect(
+            server_ip=S.LOGIN_SERVER["ip"],
+            server_port=S.LOGIN_SERVER["port"],
+        )
+        print('connected to server')
+
+        try:
+
+            pygame_task = asyncio.create_task(self.main_menu())
+            print("got out main")
+            await asyncio.gather(pygame_task)
+            print("pygame task shit...")
+            print("future fuck")
+        except asyncio.CancelledError:
+            print("Client shutting down...")
+            await self.client.stop()
+            print("Client shut down")
+
+        """
+        -------------------------------------------------------------------------
+        GAME PLAY
+        -------------------------------------------------------------------------
+        """
+        print("worked - HELL YEAH")
+        self.running = True
         # Connect to all servers
         for server in S.SERVERS:
             server_id = await self.client.connect(
@@ -203,13 +398,17 @@ class MyClient:
                 server_port=server["port"],
             )
             self.connections.append(server_id)
+
+        pk = struct.pack("!b16s", S.CMDS["HELLO"], self.pid.encode("utf-8"))
+        self.client.send(self.connections[self.iControl], pk)
+
         # connect to LB and send initial
         lb_id = await self.client.connect(
             server_ip=S.LOAD_BALANCER["ip"],
             server_port=S.LOAD_BALANCER["port"]
         )
-        pk = struct.pack("!b", S.CMDS["INIT_LB"])
-        self.client.send(lb_id, pk)
+        #pk = struct.pack("!b", S.CMDS["INIT_LB"])
+        #self.client.send(lb_id, pk)
 
         # SEND INITIAL POS
         # pk = struct.pack("!bhh", S.CMDS["INIT_POS"], self.player.x, self.player.y)

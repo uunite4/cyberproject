@@ -1,4 +1,4 @@
-from Entity import *
+from classes.Entity import *
 
 class DroppedWeapon(Entity):
     def __init__(self, item_id, x, y, weapon_type):

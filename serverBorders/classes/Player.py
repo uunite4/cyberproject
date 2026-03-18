@@ -1,7 +1,7 @@
 import pygame
 import math
-import SETTINGS as S
-import map_data as M
+import serverBorders.SETTINGS as S
+import serverBorders.map_data as M
 
 class Player:
     def __init__(self, x=100, y=100, dir=3, health=100):

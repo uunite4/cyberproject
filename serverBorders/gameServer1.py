@@ -3,11 +3,10 @@ import struct
 import time
 import random
 #from xmlrpc.client import boolean
-import Dagger
-import Fart
-from Bullet import *
-from Player import *
-from DroppedWeapon import *
+from serverBorders.classes import Fart, Dagger
+from serverBorders.classes.Bullet import *
+from serverBorders.classes.Player import *
+from serverBorders.classes.DroppedWeapon import *
 import SETTINGS as S
 from networking.wrappers.server_wrapper import QuicServer
 
@@ -43,20 +42,25 @@ class MyServer:
             self.load_id = connection_id
         elif connection_id == self.load_id:
 
-            if (cmd == S.CMDS["LB_ADDING_PLAYER"]):
+            if (cmd == S.CMDS["CLIENT_DATA"]):
                 print("GOT LB PACKET")
-                pid, x, y = struct.unpack_from('!16shh', data, 1)
+                info = struct.unpack_from(f'!16sbhhh{S.INVENTORY_SIZE}b', data, 1)
+                pid = info[0].decode('utf-8')
+                inv = [None] * S.INVENTORY_SIZE
+                for i in range(S.INVENTORY_SIZE):
+                    weapon = S.INVENTORY_MAP[info[i + 5]]
+                    inv[i] = weapon
                 self.clients[pid] = {
-                    "x": x,
-                    "y": y,
+                    "x": info[2],
+                    "y": info[3],
                     "inOverlap": False,
                     "dir": 3,
-                    "hp": S.PLAYER_HEALTH,
+                    "hp": info[4],
                     "cid":connection_id,
                     "imOverlap": False,
                     "att": 0,
                     "weapon": 1,
-                    "inventory": S.INVENTORI,
+                    "inventory": inv,
                     "gun_cd": S.BULLET_COOLDOWN,
                     "fart": 0,
                     "f_cooldown": 0,

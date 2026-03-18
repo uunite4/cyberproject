@@ -5,10 +5,8 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import struct
 
-import pygame
-import Player
+from serverBorders.classes import Player
 #from Player import *
-import SETTINGS as S
 from networking.wrappers.client_wrapper import QuicClient
 from map import *
 from map_data import *

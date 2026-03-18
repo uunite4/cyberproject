@@ -7,7 +7,7 @@ from networking.wrappers.server_wrapper import QuicServer
 import SETTINGS as S
 import struct
 
-from Player import *
+from serverBorders.classes.Player import *
 
 
 class MyServer:
@@ -43,6 +43,10 @@ class MyServer:
             print("GOT TRANSFER")
             nS = data[17]
             self.server.send(self.connections[nS-1], data)
+        elif (cmd == S.CMDS["CLIENT_DATA"]):
+            server = data[17]
+            print("transfering package to server ", server)
+            self.server.send(self.connections[server], data)
 
     def on_connect(self, connection_id: int):
         pass

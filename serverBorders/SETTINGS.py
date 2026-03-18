@@ -93,7 +93,7 @@ CMDS = {
     "FART": 0x11,
     "HELLO": 0x12,
     "LOGIN_TO_LB": 0x13,
-    "LOGIN_BACK_TO_CLIENT": 0x14,
+    "CLIENT_DATA": 0x14,
     "DELETE_ITEM": 0x15,
     "FART_READY": 0x16,
     "PICKUP_ITEM": 0x17,
@@ -104,6 +104,26 @@ CMDS = {
     "LASER": 0x1C,
     "BRIT": 0x1D,
     "FARTING": 0x1E,
+    "ERROR": 0x1F,
+}
+
+ERRORSBYTES = {
+    "ERROR: username is empty": 0x01,
+    "ERROR: password is empty": 0x02,
+    "ERROR: with signup": 0x03,
+    "try again": 0x04,
+    "ERROR: with login": 0x05,
+    "User already found": 0x06,
+    "NO USER FOUND": 0x07,
+}
+BYTESERRORS = {
+    0x01: "ERROR: username is empty",
+    0x02: "ERROR: password is empty",
+    0x03: "ERROR: with signup",
+    0x04: "try again",
+    0x05: "ERROR: with login",
+    0x06: "User already found",
+    0x07: "NO USER FOUND",
 }
 
 LOAD_BALANCER = {
@@ -131,8 +151,8 @@ FART_COOLDOWN = 2000
 FART_DAMEG = 0.3
 
 #inventory
-BASIC_INV = ['da',0,0,0,0,0,0,0,0]
-INVENTORI = ['da','gu','h','s','i','b','la', 0, 0]
+BASIC_INV = ['da',0,0,0,0,0,0,0]
+INVENTORI = ['da','gu','h','s','i','b','la', 0]
 INVENTORY_SIZE = len(INVENTORI)
 
 INVENTORY_MAP = {
@@ -149,7 +169,6 @@ INVENTORY_MAP = {
 #POTIONS
 SPEED_POSSION_TIME = 500
 INVESIBEL_TIME = 500
-BRIT_TIMER = 3000
 
 #LASER
 LASER_TIME = 30
