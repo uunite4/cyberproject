@@ -40,13 +40,13 @@ class LoginServer:
 
     def on_receive(self, connection_id: int, data: bytes):
 
-        #if connection_id == self.loadbalancer_id:
-            #self.handle_load_balancer(self, raw_data, connection_id)
+        if connection_id == self.loadbalancer_id:
+            self.handle_load_balancer(data)
 
-        #else:
-        raw_data = data.decode()
-        if not raw_data: return
-        handle_login_client(self, raw_data, connection_id)
+        else:
+            raw_data = data.decode()
+            if not raw_data: return
+            handle_login_client(self, raw_data, connection_id)
 
     def on_connect(self, connection_id: int):
         print(f"{connection_id} connected")
@@ -125,9 +125,9 @@ class LoginServer:
                                   item7      = ?, 
                                   item8      = ?
                               WHERE token = ?""", (x_position, y_position, health, item1, item2, item3, item4, item5, item6, item7, item8,  token))
-
-        conn.close()
-        print(f"Successfully updated stats for Player {token}")
+            conn.commit()
+            conn.close()
+            print(f"Successfully updated stats for Player {token}")
 
     def sendTokenToLB(self, token):
         return "38.97.84.242"  # Mock IP for game server
@@ -204,31 +204,23 @@ class LoginServer:
         alphabet = string.ascii_letters + string.digits
         return ''.join(secrets.choice(alphabet) for _ in range(length))
 
-    def handle_load_balancer(self, raw_data, connection_id):
-        loginData = json.loads(raw_data)
+    def handle_load_balancer(self, data):
+        loginData = struct.unpack_from(f"16shhh{S.INVENTORY_SIZE}b", data, 1)
 
-        token = loginData["token"]
-        x_position = loginData["x_position"]
-        y_position = loginData["y_position"]
-        health = loginData["health"]
-        team = loginData["team"]
-        direaction = loginData["direaction"]
-        item1 = loginData["item1"]
-        item2 = loginData["item2"]
-        item3 = loginData["item3"]
-        item4 = loginData["item4"]
-        item5 = loginData["item5"]
-        item6 = loginData["item6"]
-        item7 = loginData["item7"]
-        item8 = loginData["item8"]
-        self.player_info_update(token, x_position, y_position, health, team, direaction,item1, item2, item3, item4, item5, item6, item7, item8)
+        token = loginData[0]
+        x_position = loginData[1]
+        y_position = loginData[2]
+        health = loginData[3]
+        item1 = loginData[4]
+        item2 = loginData[5]
+        item3 = loginData[6]
+        item4 = loginData[6]
+        item5 = loginData[7]
+        item6 = loginData[8]
+        item7 = loginData[9]
+        item8 = loginData[10]
+        self.player_info_update(token, x_position, y_position, health, item1, item2, item3, item4, item5, item6, item7, item8)
         print("updated successfully!")
-        response_packet = f"OK={token}={connection_id}"
-        try:
-            self.server.send(connection_id, response_packet.encode())
-            print(f"Handled update info for {connection_id}. Response sent.")
-        except Exception as e:
-            print(f"Error handling request: {e}")
 
     def createResponsePacket(self, tkn):
         with sqlite3.connect(DB_PATH, timeout=5) as conn:

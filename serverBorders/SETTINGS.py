@@ -105,6 +105,7 @@ CMDS = {
     "BRIT": 0x1D,
     "FARTING": 0x1E,
     "ERROR": 0x1F,
+    "PLAYER_LEFT": 0x20,
 }
 
 ERRORSBYTES = {

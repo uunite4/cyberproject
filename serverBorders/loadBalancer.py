@@ -23,6 +23,7 @@ class MyServer:
             on_disconnect=self.on_disconnect,
         )
         self.connections = []
+        self.login = 0
 
     # ----------
     # RECEIVE DATA
@@ -44,9 +45,13 @@ class MyServer:
             nS = data[17]
             self.server.send(self.connections[nS-1], data)
         elif (cmd == S.CMDS["CLIENT_DATA"]):
+            self.login = connection_id
             server = data[17]
             print("transfering package to server ", server)
             self.server.send(self.connections[server], data)
+        elif (cmd == S.CMDS["PLAYER_LEFT"]):
+            print("transfering player")
+            self.server.send(self.login, data)
 
     def on_connect(self, connection_id: int):
         pass

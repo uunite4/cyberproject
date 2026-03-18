@@ -290,6 +290,9 @@ class MyServer:
         print(f"disconnected {connection_id}")
         for pid, client in self.clients.items():
             if connection_id == client["cid"]:
+                inv = get_inventory_in_format(client["inventory"])
+                pk = struct.pack(f"b16shhh{S.INVENTORY_SIZE}b",S.CMDS["PLAYER_LEFT"], pid.encode('utf-8'), client["x"], client["y"], client["hp"], *inv)
+                self.server.send(self.load_id, pk)
                 del self.clients[pid]
                 break
 
