@@ -376,6 +376,7 @@ def run():
 
         # input
         if not send_input(sock):
+
             running = False
 
         # network

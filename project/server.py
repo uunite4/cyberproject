@@ -332,6 +332,7 @@ def keep_ai_count(type, list,num):
             x = random.randint(0, MAP_W)
             y = random.randint(0, MAP_H)
 
+
             if not check_collision_with_stone(x, y, S.MONSTERS[type]["size"]) and not check_collision_with_lava(x, y, S.MONSTERS[type]["size"]):
                 dir = 1
                 id = generate_id()
