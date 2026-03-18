@@ -7,11 +7,11 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import struct
 
-from serverBorders.classes import Player
+from game.classes import Player
 #from Player import *
 from networking.wrappers.client_wrapper import QuicClient
 from map import *
-from map_data import MAP
+from game.map_data import MAP
 import SETTINGS as S
 
 poopb=pygame.image.load(S.poop).convert_alpha()
@@ -24,7 +24,7 @@ lcon5b = pygame.image.load(S.lcon5).convert_alpha()
 scissorsb = pygame.image.load(S.scissors).convert_alpha()
 lazerb = pygame.image.load(S.lazer).convert_alpha()
 gunb = pygame.image.load(S.gun).convert_alpha()
-class MyClient:
+class Client:
 
     def __init__(self):
         self.client = None
@@ -44,7 +44,7 @@ class MyClient:
         self.player = Player()
 
 
-        #login data client
+        #login-server data client
         self.status_msg = None
         self.login_server_id = None
 
@@ -83,7 +83,7 @@ class MyClient:
 
                 self.status_msg = ["OK"]
                 self.running = False
-            print(f"login server: {self.status_msg}")
+            print(f"login-server server: {self.status_msg}")
 
             # notify response received
             self.response_event.set()
@@ -170,7 +170,7 @@ class MyClient:
                     for i in range(count):
                         offset = 11+14*i
                         x, y, dir, health, att, weapon, fart, invi = struct.unpack_from('!iibbbbbb', data, offset)
-                        self.players.append({"x": x,"y": y, "dir": dir, "hp": health, "att": att, "weapon": weapon, "fart": fart, "invi": invi})
+                        self.players.append({"x": x,"y": y, "dir": dir, "hp": health, "att": att, "weapons": weapon, "fart": fart, "invi": invi})
                     offset = 11+14*count
                     self.bullets = []
                     countb = struct.unpack_from('!h', data, offset)[0]
@@ -232,7 +232,7 @@ class MyClient:
 
 
     #-----------
-    #running login
+    #running login-server
     #-----------
     async def main_menu(self):
         # Variables to track what we are typing
@@ -301,7 +301,7 @@ class MyClient:
 
                     if status_msg[1] == "ERROR: with signup":
                         self.draw_text("SignUp failed!", 100, 400, color=(255, 0, 0))
-                    elif status_msg[1] == "ERROR: with login":
+                    elif status_msg[1] == "ERROR: with login-server":
                         self.draw_text("Login Failed!", 100, 400, color=(255, 0, 0))
                     elif status_msg[1] == "ERROR: username is empty" or status_msg[1] == "ERROR: password is empty":
                         self.draw_text("password or username is empty", 100, 400, color=(255, 0, 0))
@@ -320,7 +320,7 @@ class MyClient:
 
 
             elif status_msg[0] == "OK":
-                print("login\ sighup was successful")
+                print("login-server\ sighup was successful")
 
             pygame.display.flip()
     def draw_text(self, text, x, y, color=S.BLACK):
@@ -510,14 +510,14 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
             screen.blit(sprite, (px, py))
             S_health_bar_update(p["hp"], screen, px, py)
 
-        if p["att"]==1 and p["weapon"]==1: #daggers
+        if p["att"]==1 and p["weapons"]==1: #daggers
             print("A PLAYER IS daggering")
             d = p["dir"]
             vx, vy = dir_to_vec(d)
             dagger_x = int((p["x"] + vx * S.TILE_SIZE) - cam_x - S.TILE_SIZE // 2)
             dagger_y = int((p["y"] + vy * S.TILE_SIZE) - cam_y - S.TILE_SIZE // 2)
             screen.blit(DAGGERS.get(d, DEFAULT_DAGGER), (dagger_x, dagger_y))
-        if p["att"]==1 and p["weapon"]==7:
+        if p["att"]==1 and p["weapons"]==7:
             draw_laser(screen, p["dir"], px, py)
         if p["fart"] == 1:
             d = p["dir"]
@@ -740,9 +740,9 @@ def load(name: str, rotations_dir) -> pygame.Surface:
 
 def load_player_sprites(group):
     if group == 1:
-        rotations_dir = os.path.join(os.path.dirname(__file__), "rotations")
+        rotations_dir = os.path.join(os.path.dirname(__file__), "sprites/white-player-rotations")
     else:
-        rotations_dir = os.path.join(os.path.dirname(__file__), "rotation1")
+        rotations_dir = os.path.join(os.path.dirname(__file__), "sprites/black-player-rotations")
 
     return {
         1: load("east.png", rotations_dir),
@@ -811,9 +811,9 @@ def load_fart_sprites() -> dict[int, pygame.Surface]:
 
 def load_enemy_sprites(group):
     if group == 1:
-        rotationsenemy_dir = os.path.join(os.path.dirname(__file__), "sprites\\rotation1enemy")
+        rotationsenemy_dir = os.path.join(os.path.dirname(__file__), "sprites\\red-enemy-rotations")
     else:
-        rotationsenemy_dir = os.path.join(os.path.dirname(__file__), "sprites\\rotation2enemy")
+        rotationsenemy_dir = os.path.join(os.path.dirname(__file__), "sprites\\green-enemy-rotations")
 
 
     return {
@@ -909,5 +909,5 @@ def sendFart(self, boo):
         self.client.send(self.connections[self.iInActive], pk)
 
 if __name__ == "__main__":
-    c = MyClient()
+    c = Client()
     asyncio.run(c.run())

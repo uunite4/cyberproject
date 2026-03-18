@@ -1,7 +1,7 @@
 
-from serverBorders.general_func import *
+from game.general_func import *
 import time
-import serverBorders.SETTINGS as s
+import game.SETTINGS as s
 
 
 class Enemy:

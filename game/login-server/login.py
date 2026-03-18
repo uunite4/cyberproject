@@ -8,10 +8,10 @@ import string
 import os
 import struct
 
-import SETTINGS as S
+import game.SETTINGS as S
 
 from networking.wrappers.server_wrapper import QuicServer
-from serverBorders.classes.Player import check_collision_with_stone, check_collision_with_lava
+from game.classes.Player import check_collision_with_stone, check_collision_with_lava
 
 #DB_PATH = r"C:\Users\USER\PycharmProjects\PythonProject\Cyber-Proj-main\loginServerBasics\game.db"
 #DB_PATH = r"C:\Users\Itay\PycharmProjects\cyberproject\quic\game.db"
@@ -31,8 +31,8 @@ class LoginServer:
         self.server = QuicServer(
             ip=S.LOGIN_SERVER["ip"],
             port=S.LOGIN_SERVER["port"],
-            cert_file="../networking/certificate/cert.pem",
-            key_file="../networking/certificate/key.pem",
+            cert_file="../../networking/certificate/cert.pem",
+            key_file="../../networking/certificate/key.pem",
             on_receive=self.on_receive,
             on_connect=self.on_connect,
             on_disconnect=self.on_disconnect,

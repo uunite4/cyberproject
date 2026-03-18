@@ -7,10 +7,10 @@ from networking.wrappers.server_wrapper import QuicServer
 import SETTINGS as S
 import struct
 
-from serverBorders.classes.Player import *
+from game.classes.Player import *
 
 
-class MyServer:
+class LoadBalancer:
 
     def __init__(self):
         self.server = QuicServer(
@@ -31,19 +31,19 @@ class MyServer:
     def on_receive(self, connection_id: int, data: bytes):
         cmd = struct.unpack_from('!b', data, 0)[0]
 
-        if (cmd == S.CMDS["TRANSFER_P"]):
+        if cmd == S.CMDS["TRANSFER_P"]:
             print("GOT TRANSFER")
             nS = data[17]
             self.server.send(self.connections[nS-1], data)
-        elif (cmd == S.CMDS["CLIENT_DATA"]):
+        elif cmd == S.CMDS["CLIENT_DATA"]:
             self.login = connection_id
             server = data[17]
             print("transfering package to server ", server)
             self.server.send(self.connections[server], data)
-        elif (cmd == S.CMDS["PLAYER_LEFT"]):
+        elif cmd == S.CMDS["PLAYER_LEFT"]:
             print("transfering player")
-            loginData = struct.unpack_from(f"b16siib{S.INVENTORY_SIZE}b", data)
-            print(loginData)
+            login_data = struct.unpack_from(f"b16siib{S.INVENTORY_SIZE}b", data)
+            print(login_data)
             self.server.send(self.login, data)
 
     def on_connect(self, connection_id: int):
@@ -72,5 +72,5 @@ class MyServer:
         await asyncio.Future()
 
 if __name__ == "__main__":
-    s = MyServer()
+    s = LoadBalancer()
     asyncio.run(s.run())

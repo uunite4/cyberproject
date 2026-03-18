@@ -1,7 +1,7 @@
 import math
-import SETTINGS as S
+import game.SETTINGS as S
 import random
-from classes.Player import *
+from game.classes.Player import *
 from pygame import Vector2
 
 def distance(x1,y1,x2,y2):

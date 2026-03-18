@@ -1,16 +1,16 @@
 import asyncio
 import struct
-from serverBorders.classes import Fart, Dagger, Entity
-from serverBorders.classes.Bullet import *
-from serverBorders.classes.DroppedWeapon import *
-from serverBorders.classes.enemy import *
-from general_func import *
-import SETTINGS as S
+from game.classes import Fart, Dagger, Entity
+from game.classes.Bullet import *
+from game.classes.DroppedWeapon import *
+from game.classes.enemy import *
+from game.general_func import *
+import game.SETTINGS as S
 from networking.wrappers.server_wrapper import QuicServer
-class MyServer:
+class GameServer:
 
     def __init__(self):
-        self.serverNumber = 3
+        self.serverNumber = 2
         self.serverData = S.SERVERS[self.serverNumber - 1]
         self.nearOverlaps = getNearOverlaps(self.serverNumber - 1)
         self.load_id = None
@@ -22,8 +22,8 @@ class MyServer:
         self.server = QuicServer(
             ip=self.serverData["ip"],
             port=self.serverData["port"],
-            cert_file="../networking/certificate/cert.pem",
-            key_file="../networking/certificate/key.pem",
+            cert_file="../../networking/certificate/cert.pem",
+            key_file="../../networking/certificate/key.pem",
             on_receive=self.on_receive,
             on_connect=self.on_connect,
             on_disconnect=self.on_disconnect,
@@ -57,7 +57,7 @@ class MyServer:
                     "cid":connection_id,
                     "imOverlap": False,
                     "att": 0,
-                    "weapon": 1,
+                    "weapons": 1,
                     "inventory": inv,
                     "gun_cd": S.BULLET_COOLDOWN,
                     "fart": 0,
@@ -167,7 +167,7 @@ class MyServer:
                     "dir": dir,
                     "hp": health,
                     "att": att,
-                    "weapon": weapon,
+                    "weapons": weapon,
                     "gun_cd": S.BULLET_COOLDOWN,
                     "inventory": S.BASIC_INV, #needs to be recieved!!!!
                     "fart": 1 if fart > 0 else 0,
@@ -212,7 +212,7 @@ class MyServer:
             elif (cmd == S.CMDS["ATTACK"]):
                 att = struct.unpack_from('!b', data, 17)[0]
                 self.clients[pid]["att"] = att
-                print("attacking with weapon ", self.clients[pid]["weapon"])
+                print("attacking with weapons ", self.clients[pid]["weapons"])
                 if att != 1 or self.clients[pid]["imOverlap"]:
                     return
                 if nameToWeapon(self.clients[pid]) == 2 and self.clients[pid]["gun_cd"] <= 0:
@@ -226,28 +226,28 @@ class MyServer:
                             self.clients[pid]["hp"] = min(self.clients[pid]["hp"]+50, 100)
                             pk = struct.pack('!bb', S.CMDS["DAMAGE"], int(self.clients[pid]["hp"]))
                             self.server.send(connection_id, pk)
-                            self.clients[pid]["inventory"][self.clients[pid]["weapon"] - 1] = 0
-                            destroyItem(self, self.clients[pid]["cid"], self.clients[pid]["weapon"] - 1)
+                            self.clients[pid]["inventory"][self.clients[pid]["weapons"] - 1] = 0
+                            destroyItem(self, self.clients[pid]["cid"], self.clients[pid]["weapons"] - 1)
 
 
                 elif nameToWeapon(self.clients[pid]) == 4:
                     self.clients[pid]["speed"] = 1
                     self.clients[pid]["speed_timer"] = S.SPEED_POSSION_TIME
-                    self.clients[pid]["inventory"][self.clients[pid]["weapon"] - 1] = 0
-                    destroyItem(self, self.clients[pid]["cid"], self.clients[pid]["weapon"] - 1)
+                    self.clients[pid]["inventory"][self.clients[pid]["weapons"] - 1] = 0
+                    destroyItem(self, self.clients[pid]["cid"], self.clients[pid]["weapons"] - 1)
 
 
                 elif nameToWeapon(self.clients[pid]) == 5:
                     self.clients[pid]["invis"] = 1
                     self.clients[pid]["i_timer"] = S.INVESIBEL_TIME
-                    self.clients[pid]["inventory"][self.clients[pid]["weapon"] - 1] = 0
-                    destroyItem(self, self.clients[pid]["cid"], self.clients[pid]["weapon"] - 1)
+                    self.clients[pid]["inventory"][self.clients[pid]["weapons"] - 1] = 0
+                    destroyItem(self, self.clients[pid]["cid"], self.clients[pid]["weapons"] - 1)
 
 
                 elif nameToWeapon(self.clients[pid]) == 6:
                     self.clients[pid]["brit_timer"] = S.BRIT_TIMER
-                    self.clients[pid]["inventory"][self.clients[pid]["weapon"] - 1] = 0
-                    destroyItem(self, self.clients[pid]["cid"], self.clients[pid]["weapon"] - 1)
+                    self.clients[pid]["inventory"][self.clients[pid]["weapons"] - 1] = 0
+                    destroyItem(self, self.clients[pid]["cid"], self.clients[pid]["weapons"] - 1)
 
                 elif nameToWeapon(self.clients[pid]) == 7 and self.clients[pid]["laser_cooldown"] <= 0:
                     self.clients[pid]["laser_timer"] = S.LASER_TIME
@@ -255,8 +255,8 @@ class MyServer:
 
             elif (cmd == S.CMDS["CHANGE_WEAPON"]):
                 weapon = struct.unpack_from('!b', data, 17)[0]
-                self.clients[pid]["weapon"] = weapon
-                print("changed weapon to ", weapon)
+                self.clients[pid]["weapons"] = weapon
+                print("changed weapons to ", weapon)
                 if nameToWeapon(self.clients[pid]) == 2:
                     self.clients[pid]["gun_cd"] = S.BULLET_COOLDOWN
                 if nameToWeapon(self.clients[pid]) != 7:
@@ -588,7 +588,7 @@ def build_total_client(pid,client, nServer):
         int(client["dir"]),  # 3: b
         int(client["hp"]),  # 4: b
         int(client["att"]),  # 5: b
-        int(client["weapon"]),  # 6: b
+        int(client["weapons"]),  # 6: b
         *inv,  # 7 עד 11: מפרק את רשימת ה-5 בתים לארגומנטים נפרדים
         int(client["gun_cd"]),  # 12: h
         int(client["fart"]),  # 13: b
@@ -631,7 +631,7 @@ def take_client(self, pid, data):
         "dir": unpacked[3],
         "hp": unpacked[4],
         "att": unpacked[5],
-        "weapon": unpacked[6],
+        "weapons": unpacked[6],
         "inventory": inv_names,
         "gun_cd": unpacked[inv_end],
         "fart": unpacked[inv_end + 1],
@@ -659,7 +659,7 @@ def get_inventory_in_format(inv):
             new_inv.append(nameTOnum(ch))
     return new_inv
 def nameToWeapon(client):
-    weapon = client["inventory"][client["weapon"]-1]
+    weapon = client["inventory"][client["weapons"]-1]
     return nameTOnum(weapon)
 def nameTOnum(b):
     if b == 'da':
@@ -856,7 +856,7 @@ def drop_weapons(player, dropped_list):
 
 
     player["inventory"] = S.BASIC_INV.copy()
-    player["weapon"] = 0
+    player["weapons"] = 0
 
 def pickup_weapons(server, player, dropped_list):
     min_dis = 80
@@ -887,5 +887,5 @@ def pickup_weapons(server, player, dropped_list):
     return
 
 if __name__ == "__main__":
-    s = MyServer()
+    s = GameServer()
     asyncio.run(s.run())

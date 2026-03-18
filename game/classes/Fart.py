@@ -1,5 +1,5 @@
-from classes.Entity import Entity
-import serverBorders.SETTINGS as S
+from game.classes.Entity import Entity
+import game.SETTINGS as S
 import math
 class Fart(Entity):
     def __init__(self, eid, x, y, dir, duration, radius=S.FART_RUADIOS):

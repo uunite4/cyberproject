@@ -1,6 +1,6 @@
 from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
-from map_data import MAP
+from game.map_data import MAP
 
 WIDTH = 1920
 HEIGHT = 1080
@@ -18,26 +18,26 @@ TILE_SIZE = 40
 BUILDING_SIZE = 40
 
 #Obgects
-grass='sprites\grass.png'
-stone='sprites\stone.png'
-lava = 'sprites\lava.png'
-tree ='sprites\\tree.png'
-pesel= 'sprites\\statue.png'
-marble = 'sprites\marble.png'
-bitmikdash = 'sprites\statue.png'
-ostone='sprites\\blackstone.png'
-poop = 'sprites\poop.png'
-inventory1 = 'sprites\inventory.png'
-select1 = 'sprites\select.png'
-dagger = 'sprites\DAGGER-NORTH.png'
-fart = 'sprites\FARTS.png'
-lazer = 'wepons\\lazer.png'
-gun = 'wepons\\gun.png'
-lcon1 = 'wepons\\Icon1.png'
-lcon5 = 'wepons\\Icon5.png'
-lcon28 = 'wepons\\Icon28.png'
-bolbol = 'wepons\\bolbol.png'
-scissors = 'wepons\\scissors.png'
+grass='sprites\\tiles\\grass.png'
+stone='sprites\\tiles\\stone.png'
+lava = 'sprites\\tiles\\lava.png'
+tree ='sprites\\tiles\\tree.png'
+pesel= 'sprites\\tiles\\statue.png'
+marble = 'sprites\\tiles\\marble.png'
+bitmikdash = 'sprites\\tiles\\statue.png'
+ostone='sprites\\tiles\\blackstone.png'
+poop = 'sprites\\inventory\\poop.png'
+inventory1 = 'sprites\\inventory\\inventory.png'
+select1 = 'sprites\\inventory\\select.png'
+dagger = 'sprites\\weapons\\DAGGER-NORTH.png'
+fart = 'sprites\\FARTS.png'
+lazer = 'sprites\\weapons\\lazer.png'
+gun = 'sprites\\weapons\\gun.png'
+lcon1 = 'sprites\\weapons\\Icon1.png'
+lcon5 = 'sprites\\weapons\\Icon5.png'
+lcon28 = 'sprites\\weapons\\Icon28.png'
+bolbol = 'sprites\\weapons\\bolbol.png'
+scissors = 'sprites\\weapons\\scissors.png'
 
 OVERLAP_WIDTH = 6000
 SERVER_NUMBER = 4
@@ -115,7 +115,7 @@ ERRORSBYTES = {
     "ERROR: password is empty": 0x02,
     "ERROR: with signup": 0x03,
     "try again": 0x04,
-    "ERROR: with login": 0x05,
+    "ERROR: with login-server": 0x05,
     "User already found": 0x06,
     "NO USER FOUND": 0x07,
 }
@@ -124,7 +124,7 @@ BYTESERRORS = {
     0x02: "ERROR: password is empty",
     0x03: "ERROR: with signup",
     0x04: "try again",
-    0x05: "ERROR: with login",
+    0x05: "ERROR: with login-server",
     0x06: "User already found",
     0x07: "NO USER FOUND",
 }
