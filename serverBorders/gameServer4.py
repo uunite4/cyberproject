@@ -2,7 +2,6 @@ import asyncio
 import struct
 import time
 import random
-#from xmlrpc.client import boolean
 from serverBorders.classes import Fart, Dagger
 from serverBorders.classes.Bullet import *
 from serverBorders.classes.Player import *
