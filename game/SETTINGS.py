@@ -1,4 +1,5 @@
 from pathlib import Path
+
 BASE_DIR = Path(__file__).resolve().parent
 from game.map_data import MAP
 
@@ -218,6 +219,15 @@ MONSTERS = {
     }
 }
 
+CHAT_WIDTH: int = 480
+CHAT_HEIGHT: int = 540
+
+CHAT_BG_COLOR = (30, 30, 30)
+CHAT_TEXT_COLOR = (220, 220, 220)
+CHAT_INPUT_BG = (50, 50, 50)
+CHAT_USERNAME_COLOR = (100, 200, 255)
+
+CHAT_MESSAGE_AMOUNT: int = 10
 CHAT_SERVER_IP: str = "127.0.0.1"
 CHAT_SERVER_PORT: int = 8000
 CHAT_SERVER_SEND_FPS: int = 10
