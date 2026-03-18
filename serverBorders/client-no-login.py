@@ -36,6 +36,7 @@ class MyClient:
         self.players = []  # list of other players which are relevant works in [i]={"x":...,...}
         self.bullets = []
         self.dropped = []
+        self.enemies = []
         self.open = False
         pygame.init()
         self.screen = pygame.display.set_mode((S.WINDOW_WIDTH, S.WINDOW_HEIGHT))
@@ -200,6 +201,13 @@ class MyClient:
                         ix, iy, iw = struct.unpack_from('!hhb', data, offset)
                         self.dropped.append({"x":ix, "y":iy, "weapon_type":iw})
                         offset+=5
+                    offset = 15+12*counti+4*counti+5*counti
+                    counte = struct.unpack_from('!h', data, offset)[0]
+                    offset += 2
+                    for i in range(counte):
+                        ex, ey, dir, hp, type = struct.unpack_from('!hhbhb', data, offset)
+                        self.enemies.append({"ex": ex, "ey": ey, "dir": dir, "hp": hp, "type": type})
+                        offset+=8
 
             elif (cmd == S.CMDS["DAMAGE"]):
                 nhp = struct.unpack_from('!h', data, 1)[0]
@@ -423,6 +431,11 @@ class MyClient:
         DEFAULT_DAGGER = DAGGERS[3]
         FARTS = load_fart_sprites()
         DEFAULT_FARTS = FARTS[3]
+        SPRITES1ENEMY = load_enemy_sprites(1)
+        DEFAULT_SPRITES1ENEMY = SPRITES1ENEMY[1]
+        SPRITES2ENEMY = load_enemy_sprites(2)
+        DEFAULT_SPRITES2ENEMY = SPRITES2ENEMY[1]
+
         clock = pygame.time.Clock()
 
         while self.running:
@@ -468,7 +481,7 @@ class MyClient:
 
 
             # DRAW
-            self.draw_frame(self.screen, S.MAP_WIDTH, S.MAP_HEIGHT, DEFAULT_SPRITE1, SPRITES1 , DEFAULT_DAGGER, DAGGERS, DEFAULT_FARTS, FARTS, clock)
+            self.draw_frame(self.screen, S.MAP_WIDTH, S.MAP_HEIGHT, DEFAULT_SPRITE1, SPRITES1 , DEFAULT_DAGGER, DAGGERS, DEFAULT_FARTS, FARTS, SPRITES1ENEMY,DEFAULT_SPRITES1ENEMY,SPRITES2ENEMY,DEFAULT_SPRITES2ENEMY, clock)
             pygame.display.flip()
             clock.tick(60)
 
@@ -482,7 +495,8 @@ class MyClient:
         pk = struct.pack('!b16sbbb', S.CMDS["MOVE"], self.pid.encode("utf-8"), xAxisDirection, yAxisDirection, inputs["sf"])  # b is signed byte
         self.client.send(self.connections[self.iControl], pk)
 
-    def draw_frame(self, screen, map_w, map_h, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS, DEFAULT_FARTS, FARTS, clock):
+    def draw_frame(self, screen, map_w, map_h, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS, DEFAULT_FARTS, FARTS,ENEMY_SPRITES, DEFAULT_SPRITE_ENEMY, SPRITES2ENEMY,
+                   DEFAULT_SPRITES2ENEMY, clock):
         screen.fill((0, 0, 0))
 
         cam_x, cam_y = camera_from_pos(self.player.x, self.player.y, map_w, map_h)
@@ -491,7 +505,8 @@ class MyClient:
         draw_bullets(screen, self.bullets, cam_x, cam_y)
         draw_dropped(screen, self.dropped, cam_x, cam_y)
         draw_players(screen, self.player, self.players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS, DEFAULT_FARTS, FARTS)
-
+        draw_enemy(screen, self.enemies, cam_x, cam_y, ENEMY_SPRITES, DEFAULT_SPRITE_ENEMY, SPRITES2ENEMY,
+                   DEFAULT_SPRITES2ENEMY)
         fps_font = pygame.font.SysFont("Arial", 20, bold=True)
         draw_fps(clock, fps_font,screen)
         if self.open:
@@ -558,6 +573,19 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
         screen.blit(poopb, (x, y))
 
     health_bar_update(player.health, screen)
+
+def draw_enemy(screen, enemys, cam_x, cam_y, ENEMY_SPRITES, DEFAULT_SPRITE,SPRITES2ENEMY,DEFAULT_SPRITES2ENEMY):
+    #print(enemys)
+    for e in enemys:
+        ex = int(e["x"] - cam_x - S.MONSTERS[e["type"]]["size"] // 2)
+        ey = int(e["y"] - cam_y - S.MONSTERS[e["type"]]["size"] // 2)
+        if e["type"] == "GOBLIN":
+            sprite = ENEMY_SPRITES.get(e["dir"], DEFAULT_SPRITE)
+        else:
+            sprite = SPRITES2ENEMY.get(e["dir"], DEFAULT_SPRITES2ENEMY)
+
+
+        screen.blit(sprite, (ex, ey))
 
 def draw_bullets(screen, bullets, cam_x, cam_y):
     for b in bullets:
@@ -789,6 +817,24 @@ def load_fart_sprites() -> dict[int, pygame.Surface]:
         7: rot(base, 135),
         8: rot(base, 90),
         1: rot(base, 45),
+    }
+
+def load_enemy_sprites(group):
+    if group == 1:
+        rotationsenemy_dir = os.path.join(os.path.dirname(__file__), "sprites\\rotation1enemy")
+    else:
+        rotationsenemy_dir = os.path.join(os.path.dirname(__file__), "sprites\\rotation2enemy")
+
+
+    return {
+        1: load("right.png", rotationsenemy_dir),
+        2: load("down_right.png", rotationsenemy_dir),
+        3: load("down.png", rotationsenemy_dir),
+        4: load("down_left.png", rotationsenemy_dir),
+        5: load("left.png", rotationsenemy_dir),
+        6: load("up_left.png", rotationsenemy_dir),
+        7: load("up.png", rotationsenemy_dir),
+        8: load("up_right.png", rotationsenemy_dir),
     }
 
 def rot(img, deg):

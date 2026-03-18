@@ -155,8 +155,7 @@ FART_DAMEG = 0.3
 
 #inventory
 BASIC_INV = ['da',0,0,0,0,0,0,0]
-INVENTORI = ['da','gu','h','s','i','b','la', 0]
-INVENTORY_SIZE = len(INVENTORI)
+INVENTORY_SIZE = len(BASIC_INV)
 
 INVENTORY_MAP = {
     0: "e",
@@ -195,3 +194,26 @@ GRAY = (200, 200, 200)
 
 # DEBUG
 login = True
+
+
+#MONSTERS
+MONSTERS = {
+    "GOBLIN" : { #some sort of monster
+        "health" : 50, #starter health
+        "speed" : 2,
+        "see_radius" : 400, #going to players in this range
+        "att_radius" : 200, #attack players in this range
+        "damage" : 20,
+        "size" : 30, #of sprite
+        "code" : 0,
+    },
+    "BEAR" : { #some sort of monster
+        "health" : 70, #starter health
+        "speed" : 1,
+        "see_radius" : 400, #going to players in this range
+        "att_radius" : 200, #attack players in this range
+        "damage" : 30,
+        "size" : 40, #of sprite
+        "code" : 1,
+    }
+}

@@ -10,7 +10,7 @@ class Player:
         self.health = health
         self.att = 0
         self.weapon = 1
-        self.weapons=S.INVENTORI
+        self.weapons=S.BASIC_INV
         self.fartp =0
         self.fart_timer = 0
         self.fart_ready = 1
@@ -79,6 +79,13 @@ def get_sides(x,y, size):
 
 def check_bullet_hit(p,b):
     left, right, top, bottom = get_sides(p["x"], p["y"],S.PLAYER_SIZE)
+
+    if left <= b.x <= right and top <= b.y <= bottom:
+        return True
+    return False
+
+def check_bullet_hitE(e,b):
+    left, right, top, bottom = get_sides(e.x, e.y,S.MONSTERS[e.type]["size"])
 
     if left <= b.x <= right and top <= b.y <= bottom:
         return True

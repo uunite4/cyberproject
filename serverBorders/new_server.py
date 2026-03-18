@@ -125,9 +125,9 @@ class LoginServer:
                                   item7      = ?, 
                                   item8      = ?
                               WHERE token = ?""", (x_position, y_position, health, item1, item2, item3, item4, item5, item6, item7, item8,  token))
-            conn.commit()
-            conn.close()
+
             print(f"Successfully updated stats for Player {token}")
+        conn.close()
 
     def sendTokenToLB(self, token):
         return "38.97.84.242"  # Mock IP for game server
@@ -207,7 +207,7 @@ class LoginServer:
     def handle_load_balancer(self, data):
         loginData = struct.unpack_from(f"16shhh{S.INVENTORY_SIZE}b", data, 1)
 
-        token = loginData[0]
+        token = loginData[0].decode('utf-8')
         x_position = loginData[1]
         y_position = loginData[2]
         health = loginData[3]
@@ -219,6 +219,7 @@ class LoginServer:
         item6 = loginData[8]
         item7 = loginData[9]
         item8 = loginData[10]
+        print(loginData)
         self.player_info_update(token, x_position, y_position, health, item1, item2, item3, item4, item5, item6, item7, item8)
         print("updated successfully!")
 
@@ -243,13 +244,15 @@ class LoginServer:
                 itemslot = user_row["item" + str(i)]
                 playerInventory.append(itemslot)
 
-            i = 0
+
             serverIndex = None
-            while serverIndex is None:
+            for i in range(S.SERVER_NUMBER):
                 curServer = S.SERVERS[i]
-                if (playerX > curServer["x"] and playerX < curServer["x"] + curServer["width"]):
+                print(playerX)
+                if (playerX > curServer["x"] and playerX <= curServer["x"] + curServer["width"]):
                     serverIndex = i
-                i += 1
+                else:
+                    print(curServer["x"], curServer["width"])
 
             pk = struct.pack(f"!b16sbhhh{S.INVENTORY_SIZE}b", S.CMDS["CLIENT_DATA"], tkn.encode('utf-8'), serverIndex, playerX, playerY, playerHealth, *playerInventory)
             return pk

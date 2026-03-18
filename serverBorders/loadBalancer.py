@@ -29,7 +29,7 @@ class MyServer:
     # RECEIVE DATA
     # ----------
     def on_receive(self, connection_id: int, data: bytes):
-        cmd = struct.unpack_from('B', data, 0)[0]
+        cmd = struct.unpack_from('!b', data, 0)[0]
         if (cmd == S.CMDS["INIT_LB"]):
             print("GOT INIT")
             x,y, iServer, pid = get_random_position()

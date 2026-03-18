@@ -1,14 +1,12 @@
 import asyncio
 import struct
-import time
-import random
-from serverBorders.classes import Fart, Dagger
+from serverBorders.classes import Fart, Dagger, Entity
 from serverBorders.classes.Bullet import *
-from serverBorders.classes.Player import *
 from serverBorders.classes.DroppedWeapon import *
+from serverBorders.classes.enemy import *
+from general_func import *
 import SETTINGS as S
 from networking.wrappers.server_wrapper import QuicServer
-
 class MyServer:
 
     def __init__(self):
@@ -20,6 +18,7 @@ class MyServer:
         self.bullets = []
         self.items = []
         self.farts = []
+        self.monsters = []
         self.server = QuicServer(
             ip=self.serverData["ip"],
             port=self.serverData["port"],
@@ -299,16 +298,28 @@ class MyServer:
         lastBroadcast = time.time()
         dagger = Dagger.Dagger()
 
+
+        keep_ai_count(self, "GOBLIN",25)
+        keep_ai_count( self, "BEAR",50)
+
         while True:
             now = time.time()
-
             if now - lastBroadcast >= S.BROADCAST_INTERVAL:
+                if len(self.monsters) < 40:
+                    num = random.randint(0,1)
+                    if num==1:
+                        keep_ai_count(self, "BEAR",50)
+                    else:
+                        keep_ai_count(self, "GOBLIN",50)
+
                 tick_cooldowns(self.server,self.clients,self.farts)
                 broadcast(self, dagger)
                 update_bullets(self.bullets)
                 update_fart(self.farts, self.clients)
-
-                lastBroadcast = now
+                enemy_treatment(self)
+                if self.bullets:
+                    for e,last in self.monsters:
+                        apply_bullet_hits_for_enemy(e, self.bullets, self.serverNumber)
 
             await asyncio.sleep(0.001)
 
@@ -342,6 +353,90 @@ def point_in_rect(px, py, rx, ry, w, h):
             ry <= py <= ry + h
     )
 
+def keep_ai_count(self, type,num):
+    while len(self.monsters) < num:
+        while True:
+            x = random.randint(self.serverData["x"], self.serverData["x"] + self.serverData["width"])
+            y = random.randint(0, S.MAP_HEIGHT)
+
+
+            if not check_collision_with_stone(x, y, S.MONSTERS[type]["size"]) and not check_collision_with_lava(x, y, S.MONSTERS[type]["size"]):
+                dir = 1
+                obj = Entity(x, y, dir, S.MONSTERS[type]["health"], 0, type)
+                e = Enemy(obj, id, type)
+                self.monsters.append((e,(None,None)))
+
+            if len(self.monsters) == num:
+                break
+
+def player_pos(player_list):
+    ids = []
+    positions = []
+
+    for pid,player in player_list.items():
+
+        # 1. Add the ID to the id list
+        ids.append(pid)
+
+        # 2. Add the (x, y) coordinates as a tuple to the positions list
+        positions.append((player["x"], player["y"]))
+
+    return ids, positions
+
+def enemy_treatment(self):
+    list_id, list_pos = player_pos(self.clients)  # lists of all the players in the server
+    i=0
+    for e,last_target in self.monsters:
+        see_id_list, see_pos_list = e.Big_check(list_id, list_pos) #return ordred 2 lists of see radius
+
+        target_x, target_y, id = e.get_target(see_id_list, see_pos_list, last_target)
+        self.monsters[i] = (e,(target_x, target_y))
+
+        dx = target_x - e.entity.x
+        dy = target_y - e.entity.y
+        new_dir = get_dir_from_vector(dx, dy)
+        if new_dir:
+            e.entity.dir = new_dir
+
+        final_x, final_y = next_pos2(e.entity.x, e.entity.y, target_x, target_y, S.MONSTERS[e.type]["speed"])
+        # 1. Calculate potential next positions
+        # 2. Check X movement
+        if not check_collision_with_stone(final_x, e.entity.y, S.MONSTERS[e.type]["size"]) and \
+                not check_collision_with_lava(final_x, e.entity.y, 100):  # Added lava check
+                e.entity.x = final_x
+
+        # 3. Check Y movement
+        if not check_collision_with_stone(e.entity.x, final_y, S.MONSTERS[e.type]["size"]) and \
+                not check_collision_with_lava(e.entity.x, final_y, 100):  # Added lava check
+                e.entity.y = final_y
+        attack_bullet(id, e, self.bullets)
+
+        i+=1
+def attack_bullet(target_id, e, bullets):
+    if target_id is not None:
+        now = time.time()
+        # Check if 1.5 seconds have passed since the last attack
+        if now - e.last_att > 0.5:
+            new_bullet = Bullet(0, e.entity.x, e.entity.y, e.entity.dir, S.BULLET_DISTANS, 0)
+            bullets.append(new_bullet)
+
+            # Update last_att so they don't shoot again immediately
+            e.last_att = now
+
+
+def apply_bullet_hits_for_enemy(e, bullets, num):
+    i=0
+
+    for b in bullets:
+        if b.player_id != 0:
+            if check_bullet_hitE(e.entity, b):
+                e.entity.health -= S.BULLET_DAMEG
+                del bullets[i]
+                if e.entity.health <= 0:
+                    e.entity.x, e.entity.y = respawn(num)
+                    e.entity.health = S.MONSTERS[e.type]["health"]
+        i+=1
+
 
 def getNearOverlaps(serverIndex):
     nearOverlaps = []
@@ -363,7 +458,7 @@ def broadcast(self, dagger):
     for pid,client in self.clients.items():
         temp = copy_dic(self.clients)
         del temp[pid]
-        pk = build_state_payload(temp, self.bullets, self.items, client)
+        pk = build_state_payload(temp, self.bullets, self.items, self.monsters, client)
         self.server.send(client["cid"],pk)
         if client["fart"] == 1:
             print("player is farting ", i)
@@ -439,7 +534,7 @@ def copy_dic(dic):
         ndic[k] = v
     return ndic
 
-def build_state_payload(clients, bullets, items, client):
+def build_state_payload(clients, bullets, items, enemies, client):
     count = len(clients)
     format = "!bhhhhh" + "hhhhbbbb" * count #the b is for byte - 0\1
     payload = [S.CMDS["RENDER"], int(client["f_timer"]), int(client["i_timer"]), int(client["laser_timer"]), int(client["brit_timer"]), count]
@@ -470,6 +565,17 @@ def build_state_payload(clients, bullets, items, client):
         payload.append(int(i.y))
         payload.append(int(i.weapon_type))
 
+    counte = len(enemies)
+    payload.append(counte)
+    format += "h" + "hhbhb" * counte
+    for e,pos in enemies:
+        i = e.entity
+        payload.append(int(i.x))
+        payload.append(int(i.y))
+        payload.append(int(i.dir))
+        payload.append(int(i.health))
+        payload.append(int(S.MONSTERS[e.type]["code"]))
+    
     return struct.pack(format, *payload)
 
 def build_total_client(pid,client, nServer):
@@ -675,6 +781,7 @@ def apply_bullet_hits_for_player(pid, p, bullets):
             back = True
         i+=1
     return back
+
 def check_laser_hit(pid, attacker, clients):
     vx, vy = dir_to_vec(attacker["dir"])
     arr = []
