@@ -3,7 +3,7 @@ import random
 import secrets
 import string
 
-from networking.wrappers.server_wrapper import QuicServer
+from game.networking.wrappers.server_wrapper import QuicServer
 import SETTINGS as S
 import struct
 
@@ -16,8 +16,8 @@ class LoadBalancer:
         self.server = QuicServer(
             ip=S.LOAD_BALANCER["ip"],
             port=S.LOAD_BALANCER["port"],
-            cert_file="../networking/certificate/cert.pem",
-            key_file="../networking/certificate/key.pem",
+            cert_file="networking/certificate/cert.pem",
+            key_file="networking/certificate/key.pem",
             on_receive=self.on_receive,
             on_connect=self.on_connect,
             on_disconnect=self.on_disconnect,

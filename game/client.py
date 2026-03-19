@@ -10,7 +10,7 @@ import struct
 
 from game.classes import Player
 # from Player import *
-from networking.wrappers.client_wrapper import QuicClient
+from game.networking.wrappers.client_wrapper import QuicClient
 from map import *
 from game.map_data import MAP
 import SETTINGS as S
@@ -66,7 +66,7 @@ class Client:
         if connection_id == self.chat_server_id:
             self.chat_on_receive(connection_id, data)
 
-        if connection_id == self.login_server_id:
+        elif connection_id == self.login_server_id:
             cmd = struct.unpack_from('!b', data, 0)[0]
             self.status_msg = []
             if (cmd == S.CMDS["ERROR"]):
@@ -75,7 +75,7 @@ class Client:
                 self.status_msg.append(S.BYTESERRORS[typeE])
                 self.status_msg.append(S.BYTESERRORS[action])
             elif (cmd == S.CMDS["CLIENT_DATA"]):
-                info = struct.unpack_from(f'!16sbIIb{S.INVENTORY_SIZE}b', data, 1)
+                info = struct.unpack_from(f'!16sbiib{S.INVENTORY_SIZE}b', data, 1)
                 self.pid = info[0].decode("utf-8")
                 print(self.pid)
                 self.iControl = info[1]
@@ -107,7 +107,7 @@ class Client:
             elif (cmd == S.CMDS["OVERLAP"]):
                 # SEND POS TO SECOND SERVER
                 if self.iInActive != None:
-                    pk = struct.pack("!b16sIIb", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x,
+                    pk = struct.pack("!b16siib", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x,
                                      self.player.y, self.player.dir)
                     self.client.send(self.connections[self.iInActive], pk)
                 else:
@@ -117,8 +117,8 @@ class Client:
                     elif (dir == "l"):
                         self.iInActive = self.iControl - 1
 
-                    print(self.iInActive)
-                    pk = struct.pack("!b16sIIbbbbhhhh", S.CMDS["ADD_ME"], self.pid.encode("utf-8"), self.player.x,
+                    print("self.inActive", self.iInActive)
+                    pk = struct.pack("!b16siibbbbhhhh", S.CMDS["ADD_ME"], self.pid.encode("utf-8"), self.player.x,
                                      self.player.y,
                                      self.player.dir, self.player.health, self.player.att, self.player.weapon,
                                      self.player.fart_timer,
@@ -127,6 +127,7 @@ class Client:
 
             elif (cmd == S.CMDS["OUT_OF_OVERLAP"]):
                 # SEND TO INACTIVE SERVER TO REMOVE ME
+                print("left overlap")
                 pk = struct.pack("!b16s", S.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
                 self.client.send(self.connections[self.iInActive], pk)
                 self.iInActive = None
@@ -134,6 +135,7 @@ class Client:
             elif (cmd == S.CMDS["SWITCH_SERVER"]):
                 # SWITCH BETWEEN CONTROL AND INACTIVE
                 if self.iInActive != None:
+                    print("switching server to ", self.iInActive)
                     pk = struct.pack("!b16s", S.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
                     self.client.send(self.connections[self.iControl], pk)
                     self.iControl = self.iInActive
@@ -178,7 +180,12 @@ class Client:
                             self.client.send(self.connections[self.iInActive], pk)
                     self.player.brit = brit
 
-                    self.players = []
+                    if connection_id == self.connections[self.iControl]:
+                        self.players = []
+                        self.bullets = []
+                        self.dropped = []
+                        self.enemies = []
+
                     count = struct.unpack_from('!h', data, 9)[0]
                     for i in range(count):
                         offset = 11 + 14 * i
@@ -187,16 +194,14 @@ class Client:
                             {"x": x, "y": y, "dir": dir, "hp": health, "att": att, "weapons": weapon, "fart": fart,
                              "invi": invi})
                     offset = 11 + 14 * count
-                    self.bullets = []
                     countb = struct.unpack_from('!h', data, offset)[0]
                     offset += 2
                     for i in range(countb):
                         bx, by = struct.unpack_from('!ii', data, offset)
                         self.bullets.append({"x": bx, "y": by})
                         offset += 8
-                        # print("bullet in ", bx, " ", by)
+                        print("bullet in ", bx, " ", by)
                     offset = 13 + 14 * count + 8 * countb
-                    self.dropped = []
                     counti = struct.unpack_from('!h', data, offset)[0]
                     offset += 2
                     for i in range(counti):
@@ -204,7 +209,6 @@ class Client:
                         self.dropped.append({"x": ix, "y": iy, "weapon_type": iw})
                         offset += 9
                     offset = 15 + 14 * count + 8 * countb + 9 * counti
-                    self.enemies = []
                     counte = struct.unpack_from('!h', data, offset)[0]
                     offset += 2
                     for i in range(counte):
@@ -223,7 +227,7 @@ class Client:
                     pk = struct.pack("!b16sb", S.CMDS["HP_DONT_RESPOND"], self.pid.encode("utf-8"), nhp)
                     self.client.send(self.connections[self.iInActive], pk)
             elif (cmd == S.CMDS["RESPAWN"]):
-                x, y = struct.unpack_from('!II', data, 1)
+                x, y = struct.unpack_from('!ii', data, 1)
                 self.player.tp(x, y, 3)
                 self.player.health = S.PLAYER_HEALTH
                 self.player.weapons = S.BASIC_INV
@@ -233,6 +237,7 @@ class Client:
             elif (cmd == S.CMDS["DELETE_ITEM"]):
                 index = struct.unpack_from('!b', data, 1)[0]
                 self.player.weapons[index] = 0
+                print("deleting item ", index)
             elif (cmd == S.CMDS["FART_READY"]):
                 self.player.fart_ready = 1
             elif (cmd == S.CMDS["ADD_ITEM"]):
@@ -243,6 +248,7 @@ class Client:
                 else:
                     if connection_id == self.connections[self.iControl]:
                         self.player.weapons[i] = weapon
+                print("adding item ", weapon)
 
     # -----------
     # running login-server
@@ -448,7 +454,7 @@ class Client:
     async def run(self):
 
         self.client = QuicClient(
-            cert_file="../networking/certificate/cert.pem",
+            cert_file="networking/certificate/cert.pem",
             on_receive=self.on_receive
         )
         """
@@ -975,7 +981,7 @@ def camera_from_pos(x, y, map_w, map_h):
 
 
 def moveOffPackt(pkStruct, player):
-    x, y, dir = struct.unpack_from('!IIb', pkStruct, 1)
+    x, y, dir = struct.unpack_from('!iib', pkStruct, 1)
     player.tp(x, y, dir)
 
 

@@ -2,7 +2,7 @@ import asyncio
 
 from game.SETTINGS import CHAT_SERVER_PORT, CHAT_SERVER_IP, CHAT_SERVER_SEND_FPS
 from game.chat.protobufs.chat_pb2 import *
-from networking.wrappers.server_wrapper import QuicServer
+from game.networking.wrappers.server_wrapper import QuicServer
 
 """
 
@@ -18,8 +18,8 @@ class ChatServer:
         self.server = QuicServer(
             ip=CHAT_SERVER_IP,
             port=CHAT_SERVER_PORT,
-            cert_file="../../networking/certificate/cert.pem",
-            key_file="../../networking/certificate/key.pem",
+            cert_file="../networking/certificate/cert.pem",
+            key_file="../networking/certificate/key.pem",
             on_receive=self.on_receive,
             on_connect=self.on_connect,
             on_disconnect=self.on_disconnect,

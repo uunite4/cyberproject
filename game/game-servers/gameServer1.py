@@ -6,7 +6,7 @@ from game.classes.DroppedWeapon import *
 from game.classes.enemy import *
 from game.general_func import *
 import game.SETTINGS as S
-from networking.wrappers.server_wrapper import QuicServer
+from game.networking.wrappers.server_wrapper import QuicServer
 class GameServer:
 
     def __init__(self):
@@ -22,8 +22,8 @@ class GameServer:
         self.server = QuicServer(
             ip=self.serverData["ip"],
             port=self.serverData["port"],
-            cert_file="../../networking/certificate/cert.pem",
-            key_file="../../networking/certificate/key.pem",
+            cert_file="../networking/certificate/cert.pem",
+            key_file="../networking/certificate/key.pem",
             on_receive=self.on_receive,
             on_connect=self.on_connect,
             on_disconnect=self.on_disconnect,
@@ -42,7 +42,7 @@ class GameServer:
 
             if (cmd == S.CMDS["CLIENT_DATA"]):
                 print("GOT LB PACKET")
-                info = struct.unpack_from(f'!16sbIIb{S.INVENTORY_SIZE}b', data, 1)
+                info = struct.unpack_from(f'!16sbiib{S.INVENTORY_SIZE}b', data, 1)
                 pid = info[0].decode('utf-8')
                 inv = [None] * S.INVENTORY_SIZE
                 for i in range(S.INVENTORY_SIZE):
@@ -98,7 +98,7 @@ class GameServer:
                 currentClient["cid"] = connection_id
 
                 # SEND MOVE
-                pk = struct.pack('!bIIb', S.CMDS["MOVE"], currentClient["x"], currentClient["y"], currentClient["dir"])
+                pk = struct.pack('!biib', S.CMDS["MOVE"], currentClient["x"], currentClient["y"], currentClient["dir"])
                 self.server.send(connection_id, pk)
 
 
@@ -143,7 +143,7 @@ class GameServer:
                     self.server.send(connection_id, pk)
                     del self.clients[pid]
             elif (cmd == S.CMDS["POS_DONT_RESPOND"] and self.clients[pid]["imOverlap"]):
-                x, y, dir = struct.unpack_from('!IIb', data, 17)
+                x, y, dir = struct.unpack_from('!iib', data, 17)
                 new_data = {
                     "x": x,
                     "y": y,
@@ -158,7 +158,7 @@ class GameServer:
                 del self.clients[pid]
             elif (cmd == S.CMDS["ADD_ME"] and pid not in self.clients):
                 print("added player ", pid)
-                x, y, dir, health, att, weapon, fart, invis, laser, brit = struct.unpack_from('!IIbbbbhhhh', data, 17)
+                x, y, dir, health, att, weapon, fart, invis, laser, brit = struct.unpack_from('!iibbbbhhhh', data, 17)
                 self.clients[pid] = {
                     "x": x,
                     "y": y,
@@ -286,10 +286,11 @@ class GameServer:
         print(f"disconnected {connection_id}")
         for pid, client in self.clients.items():
             if connection_id == client["cid"]:
-                inv = get_inventory_in_format(client["inventory"])
-                pk = struct.pack(f"b16siib{S.INVENTORY_SIZE}b",S.CMDS["PLAYER_LEFT"], pid.encode('utf-8'), client["x"], client["y"], client["hp"], *inv)
-                print(client["x"], client["y"], client["hp"], *inv)
-                self.server.send(self.load_id, pk)
+                if not client["imOverlap"]:
+                    inv = get_inventory_in_format(client["inventory"])
+                    pk = struct.pack(f"b16siib{S.INVENTORY_SIZE}b",S.CMDS["PLAYER_LEFT"], pid.encode('utf-8'), client["x"], client["y"], client["hp"], *inv)
+                    print(client["x"], client["y"], client["hp"], *inv)
+                    self.server.send(self.load_id, pk)
                 del self.clients[pid]
                 break
 
@@ -502,7 +503,7 @@ def broadcast(self, dagger):
                 print("DECIDED ON POS: ", x, y)
                 client["x"],client["y"],client["hp"] = x,y,S.PLAYER_HEALTH
                 # send information to client
-                pk = struct.pack("!bII", S.CMDS["RESPAWN"], x, y)
+                pk = struct.pack("!bii", S.CMDS["RESPAWN"], x, y)
             self.server.send(client["cid"], pk)
         i += 1
 
@@ -579,7 +580,7 @@ def build_state_payload(clients, bullets, items, enemies, client):
 def build_total_client(pid,client, nServer):
     inv = get_inventory_in_format(client["inventory"])
     return struct.pack(
-        f"!b16sbIIbbbb{S.INVENTORY_SIZE}bhbhhbhbhhhh",
+        f"!b16sbiibbbb{S.INVENTORY_SIZE}bhbhhbhbhhhh",
         S.CMDS["TRANSFER_P"],
         pid.encode("utf-8"),  # 0: 16s
         int(nServer),
@@ -604,7 +605,7 @@ def build_total_client(pid,client, nServer):
     )
 def take_client(self, pid, data):
     # הפורמט חייב להיות זהה לחלוטין לפונקציית ה-build שלך
-    fmt = f"!bIIbbbb{S.INVENTORY_SIZE}bhbhhbhbhhhh"
+    fmt = f"!biibbbb{S.INVENTORY_SIZE}bhbhhbhbhhhh"
 
     # פריקת כל הנתונים לתוך משתנה אחד (Tuple)
     unpacked = (struct.unpack_from(fmt, data, 17))

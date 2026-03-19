@@ -10,7 +10,7 @@ from qh3.quic.events import (
     ProtocolNegotiated,
 )
 
-from networking.wrappers.client_wrapper import QuicClient
+from game.networking.wrappers.client_wrapper import QuicClient
 
 OnReceive = Callable[[int, bytes], None]
 OnConnect = Callable[[int], None]
