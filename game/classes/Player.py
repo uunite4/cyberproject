@@ -71,10 +71,10 @@ def get_corners(x,y,size):
 
 
 def get_sides(x,y, size):
-    left = max(x - size // 2, 0)  # player box left (pixels)
-    right = min(x + size // 2 - 1, S.WIDTH -1)  # player box right (pixels)
-    top = min(y - size // 2, S.WIDTH -1)  # player box top (pixels)
-    bottom = max(y + size // 2 - 1, 0)  # player box bottom (pixels)
+    left = x - size // 2  # player box left (pixels)
+    right = x + size // 2 - 1  # player box right (pixels)
+    top = y - size // 2  # player box top (pixels)
+    bottom = y + size // 2 - 1 # player box bottom (pixels)
 
     return left,right,top,bottom
 

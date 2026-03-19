@@ -2,7 +2,7 @@
 
 # Dagger.py
 import time
-from game.SETTINGS import PLAYER_SIZE
+from game.SETTINGS import PLAYER_SIZE,MONSTERS
 
 
 class Dagger:
@@ -80,7 +80,7 @@ class Dagger:
     # --------------------
     # MAIN ATTACK FUNCTION
     # --------------------
-    def attack(self, attacker, clients):
+    def attack(self, attacker, clients, monsters):
 
         if not self.ready(attacker["cid"]):
             return [False] * len(clients)
@@ -105,11 +105,18 @@ class Dagger:
                         target["hp"] -= self.damage
                 else:
                     boo = True
+                    arr.append(False)
                     attacker["hp"] -= self.damage
             else:
                 arr.append(False)
         if boo:
             arr[i] = True
+
+        for e,pos in monsters:
+            target_box = enemy_rect(e)
+            if rects_overlap(hitbox, target_box):
+                e.entity.health -= self.damage
+
         return arr
 
 
@@ -122,3 +129,8 @@ def player_rect(p):
     half = PLAYER_SIZE // 2
     # player is centered at (p.x, p.y)
     return (p["x"] - half, p["y"] - half, p["x"] + half - 1, p["y"] + half - 1)
+
+def enemy_rect(e):
+    half = MONSTERS[e.type]["size"] // 2
+    # player is centered at (p.x, p.y)
+    return (e.entity.x - half, e.entity.y - half, e.entity.y + half - 1, e.entity.y + half - 1)

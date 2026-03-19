@@ -464,7 +464,7 @@ def broadcast(self, dagger):
         #health related changes
         if client["att"] == 1 and nameToWeapon(client) == 1:  # daggers
             print("player attacking", i)
-            arr = dagger.attack(client, self.clients)
+            arr = dagger.attack(client, self.clients, self.monsters)
             j = 0
             for boo in arr:
                 if boo:
@@ -477,18 +477,18 @@ def broadcast(self, dagger):
                 if boo:
                     hp_change[j] = True
                 j += 1
-        if not client["imOverlap"]:
-            if self.bullets: #!= []
-                boo = apply_bullet_hits_for_player(pid, client, self.bullets)
-                if boo:
-                    hp_change[i] = True
-            if self.farts: #!= []
-                boo = fart(self.farts, client, pid)
-                if boo:
-                    hp_change[i] = True
-            if check_collision_with_lava(client["x"], client["y"], S.PLAYER_SIZE): #daggers
-                client["hp"] -= 1
+
+        if self.bullets: #!= []
+            boo = apply_bullet_hits_for_player(pid, client, self.bullets)
+            if boo:
                 hp_change[i] = True
+        if self.farts: #!= []
+            boo = fart(self.farts, client, pid)
+            if boo:
+                hp_change[i] = True
+        if check_collision_with_lava(client["x"], client["y"], S.PLAYER_SIZE): #daggers
+            client["hp"] -= 1
+            hp_change[i] = True
         i += 1
     i = 0
     for client in self.clients.values():
@@ -558,7 +558,7 @@ def build_state_payload(clients, bullets, items, enemies, client):
 
     counti = len(items)
     payload.append(counti)
-    format += "h" + "ii" * counti
+    format += "h" + "iib" * counti
     for i in items:
         payload.append(int(i.x))
         payload.append(int(i.y))
@@ -774,6 +774,7 @@ def apply_bullet_hits_for_player(pid, p, bullets):
         if b.player_id == pid:
             continue
         if check_bullet_hit(p, b):
+            print(pid, " hit")
             p["hp"] -= S.BULLET_DAMEG
             del bullets[i]
             back = True

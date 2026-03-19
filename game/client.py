@@ -221,12 +221,14 @@ class Client:
                         offset += 11
 
             elif (cmd == S.CMDS["DAMAGE"]):
+                print("got damage")
                 nhp = struct.unpack_from('!b', data, 1)[0]
                 self.player.health = nhp
                 if self.iInActive != None:
                     pk = struct.pack("!b16sb", S.CMDS["HP_DONT_RESPOND"], self.pid.encode("utf-8"), nhp)
                     self.client.send(self.connections[self.iInActive], pk)
             elif (cmd == S.CMDS["RESPAWN"]):
+                print("respawn pls")
                 x, y = struct.unpack_from('!ii', data, 1)
                 self.player.tp(x, y, 3)
                 self.player.health = S.PLAYER_HEALTH
@@ -701,6 +703,7 @@ def draw_enemy(screen, enemys, cam_x, cam_y, ENEMY_SPRITES, DEFAULT_SPRITE, SPRI
             sprite = SPRITES2ENEMY.get(e["dir"], DEFAULT_SPRITES2ENEMY)
 
         screen.blit(sprite, (ex, ey))
+        S_health_bar_update(e["hp"], screen, ex, ey)
 
 
 def draw_bullets(screen, bullets, cam_x, cam_y):

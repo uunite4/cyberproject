@@ -70,12 +70,12 @@ def next_pos(sx,sy,tx,ty,speed): #start x,y ; target x,y ; speed
 def next_pos2(sx, sy, tx, ty, speed):
     dist = distance(sx, sy, tx, ty)
     if dist < speed:
-        return tx, ty  # Arrived at target
+        return sx, sy  # Arrived at target
 
     # Calculate angle to target
     angle = math.atan2(ty - sy, tx - sx)
-    nx = sx + math.cos(angle) * speed
-    ny = sy + math.sin(angle) * speed
+    nx = sx + math.cos(angle) * speed/5
+    ny = sy + math.sin(angle) * speed/5
     return nx, ny
 
 
