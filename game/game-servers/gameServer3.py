@@ -781,7 +781,7 @@ def apply_bullet_hits_for_player(pid, p, bullets):
         i+=1
     return back
 
-def check_laser_hit(pid, attacker, clients):
+def check_laser_hit(pid, attacker, clients, monsters):
     vx, vy = dir_to_vec(attacker["dir"])
     arr = []
     for id,target in clients.items():
@@ -811,6 +811,26 @@ def check_laser_hit(pid, attacker, clients):
             if angle_diff < 0.1:
                 target["hp"] -= S.LASER_DAMEG
                 arr[-1] = True
+    for e, pos in monsters:
+        dx = e.entity.x - attacker["x"]
+        dy = e.entity.x - attacker["y"]
+        dist = math.sqrt(dx ** 2 + dy ** 2)
+
+        if dist <= S.LASER_DIS:
+            target_angle = math.atan2(dy, dx)
+            if target_angle < 0: target_angle += 2 * math.pi
+
+            attacker_angle = math.atan2(vy, vx)
+            if attacker_angle < 0: attacker_angle += 2 * math.pi
+
+            angle_diff = abs(target_angle - attacker_angle)
+            if angle_diff > math.pi:  # תיקון למעגל
+                angle_diff = 2 * math.pi - angle_diff
+
+            if angle_diff < 0.1:
+                e.entity.health -= S.LASER_DAMEG
+                arr[-1] = True
+
     return arr
 
 def dir_to_vec(d: int) -> tuple[int, int]:
