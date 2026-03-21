@@ -410,8 +410,9 @@ class Client:
                 self.chat_message = self.chat_message[:-1]  # remove last char
 
             else:
-                # Only allow English Letters and numbers
-                if str(event.unicode).isascii() and len(self.chat_message) < CHAT_MAX_MESSAGE_LENGTH:
+                text_width, _ = self.chat_font.size(self.chat_message)
+
+                if str(event.unicode).isascii() and text_width <= CHAT_MAX_INPUT_WIDTH:
                     self.chat_message += event.unicode
 
     def chat_on_receive(self, connection_id: int, data: bytes):
@@ -455,7 +456,8 @@ class Client:
         cursor_y = input_pos[1]
         cursor_height = input_surface.get_height()
 
-        if len(self.chat_message) == CHAT_MAX_MESSAGE_LENGTH:
+        text_width, _ = self.chat_font.size(self.chat_message)
+        if text_width >= CHAT_MAX_INPUT_WIDTH:
             cursor_color = (255, 0, 0)
         else:
             cursor_color = (255, 255, 255)
