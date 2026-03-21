@@ -49,7 +49,7 @@ class Player:
         if self.target:
             from game.general_func import distance
             dist = distance(self.x, self.y, self.target.x, self.target.y)
-            if dist < 20:
+            if dist < 50:
                 self.target = None
 
         while self.target is None:
