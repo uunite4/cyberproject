@@ -24,6 +24,7 @@ class Player:
         self.laser = 0
         self.laser_timer = 0
         self.brit = 0
+        self.teleport = 1
 
         self.width = 40
         self.height = 40

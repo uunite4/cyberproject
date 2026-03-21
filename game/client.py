@@ -240,6 +240,8 @@ class Client:
                 print("deleting item ", index)
             elif (cmd == S.CMDS["FART_READY"]):
                 self.player.fart_ready = 1
+            elif (cmd == S.CMDS["TELEPORT_READY"]):
+                self.player.teleport = 1
             elif (cmd == S.CMDS["ADD_ITEM"]):
                 weapon_type, i = struct.unpack_from('!bb', data, 1)
                 weapon = S.INVENTORY_MAP[weapon_type]
@@ -556,7 +558,7 @@ class Client:
                         pressed_p = True
 
             if not self.chat_active:
-                inputs, pressedM, pressedA, fart = get_inputs()
+                inputs, pressedM, pressedA = get_inputs()
 
                 if pressed_p:
                     self.player.server_num = self.iControl
@@ -579,7 +581,7 @@ class Client:
                         if self.iInActive != None:
                             self.client.send(self.connections[self.iInActive], pk)
 
-                if fart == 1:  # farting...
+                if inputs["f"]:  # farting...
                     if self.player.fartp == 0 and self.player.fart_ready == 1:
                         self.player.fart_ready = 0
                         print("sent fart")
@@ -592,6 +594,14 @@ class Client:
                     self.client.send(self.connections[self.iControl], pk)
                     if self.iInActive != None:
                         self.client.send(self.connections[self.iInActive], pk)
+
+                if inputs["t"] == 1:
+                    if self.player.teleport == 1:
+                        self.player.teleport = 0
+                        pk = struct.pack('!b16s', S.CMDS["TELEPORT"], self.pid.encode("utf-8"))  # b is signed byte
+                        self.client.send(self.connections[self.iControl], pk)
+                        if self.iInActive != None:
+                            self.client.send(self.connections[self.iInActive], pk)
 
                 if not self.player.idle:
                     if pressedM:  # movement related inputs
@@ -703,6 +713,11 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
 
     if player.fart_ready == 1:
         x = S.WINDOW_WIDTH - 50
+        y = S.WINDOW_HEIGHT - 50
+        screen.blit(poopb, (x, y))
+
+    if player.teleport == 1:
+        x = S.WINDOW_WIDTH - 80
         y = S.WINDOW_HEIGHT - 50
         screen.blit(poopb, (x, y))
 
@@ -1015,6 +1030,8 @@ def get_inputs():
         "sp": 0,
         "i": 0,
         "e": 0,
+        "t": 0,
+        "f": 0,
     }
     pressedM = False
     pressedA = 0
@@ -1039,6 +1056,10 @@ def get_inputs():
         inputs["i"] = 1
     if keys[pygame.K_e]:
         inputs["e"] = 1
+    if keys[pygame.K_t]:
+        inputs["t"] = 1
+    if keys[pygame.K_f]:
+        inputs["f"] = 1
     if keys[pygame.K_1]:
         pressedA = 1
     elif keys[pygame.K_2]:
@@ -1055,9 +1076,8 @@ def get_inputs():
         pressedA = 7
     elif keys[pygame.K_8]:
         pressedA = 8
-    fart = int(keys[pygame.K_f])
 
-    return inputs, pressedM, pressedA, fart
+    return inputs, pressedM, pressedA
 
 
 def sendAttack(self, boo):

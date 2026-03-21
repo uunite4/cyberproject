@@ -70,6 +70,7 @@ class GameServer:
                     "laser_timer": 0,
                     "laser_cooldown": S.LASER_COOLDOWN,
                     "brit_timer": 0,
+                    "teleport_cooldown": 0,
                 }
                 print("PLAYERS INITIAL POS: ", self.clients[pid]["x"], self.clients[pid]["y"], "PLAYERS ID: ", pid)
             elif (cmd == S.CMDS["TRANSFER_P"]):
@@ -119,6 +120,7 @@ class GameServer:
                     "laser_timer": laser,
                     "laser_cooldown": S.LASER_COOLDOWN,
                     "brit_timer": brit,
+                    "teleport_cooldown": S.TELEPORT_COOLDOWN,
                 }
 
                 if fart > 0:
@@ -140,7 +142,6 @@ class GameServer:
                     nx,ny = apply_movement(currentClient["x"],currentClient["y"],xDir,yDir, sprint + 2*currentClient["speed"])
                     currentClient["dir"] = get_dir(nx-currentClient["x"],ny-currentClient["y"])
                     currentClient["x"], currentClient["y"] = nx, ny
-                    currentClient["cid"] = connection_id
 
                     # SEND MOVE
                     pk = struct.pack('!biib', S.CMDS["MOVE"], currentClient["x"], currentClient["y"], currentClient["dir"])
@@ -288,7 +289,56 @@ class GameServer:
                             new_fart = Fart.Fart(f_id, self.clients[pid]["x"], self.clients[pid]["y"], self.clients[pid]["dir"], S.FART_TIME)
                             self.farts.append(new_fart)
                             self.clients[pid]["f_cooldown"] = S.FART_COOLDOWN
+                elif (cmd == S.CMDS["TELEPORT"]):
+                    print("got teleport")
+                    if self.clients[pid]["teleport_cooldown"] <= 0:
+                        if not self.clients[pid]["imOverlap"]:
+                            print("TELEPORTing...")
+                            xDir, yDir = dir_to_vec(self.clients[pid]["dir"])
+                            nx = self.clients[pid]["x"] + xDir*S.TELEPORT_RANGE
+                            ny = self.clients[pid]["y"] + yDir*S.TELEPORT_RANGE
+                            if not check_collision_with_stone(nx, ny, S.PLAYER_SIZE):
+                                self.clients[pid]["x"], self.clients[pid]["y"] = nx, ny
+                                pk = struct.pack('!biib', S.CMDS["MOVE"], self.clients[pid]["x"], self.clients[pid]["y"],
+                                                 self.clients[pid]["dir"])
+                                self.server.send(connection_id, pk)
+                                self.clients[pid]["teleport_cooldown"] = S.TELEPORT_COOLDOWN
+                                currentClient = self.clients[pid]
+                                # NOW THAT WE UPDATED POSITION, WE CAN CHECK FOR RANGES
+                                # CHECK FOR OVERLAPS
 
+                                inServer = point_in_rect(currentClient["x"], self.serverData["x"],
+                                                         self.serverData["width"])
+
+                                side = check_overlap_side(self.serverNumber - 1, currentClient["x"])
+                                if (side != False and currentClient["inOverlap"] == False):
+                                    overlapDir = side.encode("utf-8")
+                                    pk = struct.pack('!b1s', S.CMDS["OVERLAP"], overlapDir)
+                                    self.server.send(connection_id, pk)
+                                    print("in overlap")
+                                    currentClient["inOverlap"] = True
+
+                                if (side == False and inServer and currentClient["inOverlap"] == True):
+                                    # NOT IN OVERLAP (and was before)
+                                    pk = struct.pack('!b', S.CMDS["OUT_OF_OVERLAP"])
+                                    self.server.send(connection_id, pk)
+                                    currentClient["inOverlap"] = False
+
+                                if (not inServer):
+                                    print("not in server")
+                                    if currentClient["x"] < self.serverData["x"]:
+                                        nServer = self.serverNumber - 1
+                                    else:
+                                        nServer = self.serverNumber + 1
+                                    pk = build_total_client(pid, currentClient, nServer)
+                                    self.server.send(self.load_id, pk)
+                                    print("sent to load_b")
+                                    pk = struct.pack('!b', S.CMDS["SWITCH_SERVER"])
+                                    self.server.send(connection_id, pk)
+                                    del self.clients[pid]
+
+                        else:
+                            self.clients[pid]["teleport_cooldown"] = S.TELEPORT_COOLDOWN
                 elif (cmd == S.CMDS["PICKUP_ITEM"]):
                     pickup_weapons(self.server, self.clients[pid], self.items)
 
@@ -661,7 +711,7 @@ def build_state_payload(clients, paylo, end_format, client):
 def build_total_client(pid,client, nServer):
     inv = get_inventory_in_format(client["inventory"])
     return struct.pack(
-        f"!b16sbiibbbb{S.INVENTORY_SIZE}bhbhhbhbhhhh",
+        f"!b16sbiibbbb{S.INVENTORY_SIZE}bhbhhbhbhhhhh",
         S.CMDS["TRANSFER_P"],
         pid.encode("utf-8"),  # 0: 16s
         int(nServer),
@@ -682,11 +732,12 @@ def build_total_client(pid,client, nServer):
         int(client["speed_timer"]),  # 18: h
         int(client["laser_timer"]),  # 19: h
         int(client["laser_cooldown"]),  # 20: h
-        int(client["brit_timer"])  # 21: h
+        int(client["brit_timer"]),  # 21: h
+        int(client["teleport_cooldown"])
     )
 def take_client(self, pid, data):
     # הפורמט חייב להיות זהה לחלוטין לפונקציית ה-build שלך
-    fmt = f"!biibbbb{S.INVENTORY_SIZE}bhbhhbhbhhhh"
+    fmt = f"!biibbbb{S.INVENTORY_SIZE}bhbhhbhbhhhhh"
 
     # פריקת כל הנתונים לתוך משתנה אחד (Tuple)
     unpacked = (struct.unpack_from(fmt, data, 17))
@@ -726,6 +777,7 @@ def take_client(self, pid, data):
         "laser_timer": unpacked[inv_end + 8],
         "laser_cooldown": unpacked[inv_end + 9],
         "brit_timer": unpacked[inv_end + 10],
+        "teleport_cooldown": unpacked[inv_end + 11],
         "inOverlap": False,
         "imOverlap": False,
         "cid": cid,
@@ -824,6 +876,11 @@ def tick_cooldowns(server,clients, farts):
             c["brit_timer"] -= 1
             if c["brit_timer"] < 0:
                 c["brit_timer"] = 0
+        if c["teleport_cooldown"] > 0:
+            c["teleport_cooldown"] -= 1
+            if c["teleport_cooldown"] == 0:
+                pk = struct.pack("!b", S.CMDS["TELEPORT_READY"])
+                server.send(c["cid"], pk)
 
     for f in farts:
         if f.duration > 0:

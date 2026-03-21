@@ -112,6 +112,8 @@ CMDS = {
     "FARTING": 0x1E,
     "ERROR": 0x1F,
     "PLAYER_LEFT": 0x20,
+    "TELEPORT_READY": 0x21,
+    "TELEPORT": 0x22,
 }
 
 ERRORSBYTES = {
@@ -156,6 +158,10 @@ FART_RUADIOS=100
 FART_TIME = 200
 FART_COOLDOWN = 2000
 FART_DAMEG = 0.3
+
+#teleport settings
+TELEPORT_RANGE = 200
+TELEPORT_COOLDOWN = 1000
 
 #inventory
 BASIC_INV = ['da','gu',0,0,0,0,0,0]
