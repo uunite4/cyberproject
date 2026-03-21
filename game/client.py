@@ -3,6 +3,8 @@ import json
 import os
 import sys
 
+import pygame
+
 from game.chat.protobufs.chat_pb2 import ChatMessagesList, ChatMessage
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -539,6 +541,10 @@ class Client:
         clock = pygame.time.Clock()
 
         while self.running:
+
+            pressed_i = False
+            pressed_p = False
+
             # Check for events
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -546,9 +552,17 @@ class Client:
 
                 if event.type == pygame.KEYDOWN:
                     self.handle_chat_input(event)
+                    if event.key == pygame.K_i:
+                        pressed_i = True
+                    elif event.key == pygame.K_p:
+                        pressed_p = True
 
             if not self.chat_active:
                 inputs, pressedM, pressedA, fart = get_inputs()
+
+                if pressed_p:
+                    self.player.server_num = self.iControl
+                    self.player.idle = not self.player.idle
 
                 # SEND INPUTS
                 if inputs["sp"] == 1:  # attacking...
@@ -573,15 +587,22 @@ class Client:
                         print("sent fart")
                         sendFart(self, 1)
 
-                if inputs["i"] == 1:  # toggle inventory
+                if pressed_i:  # toggle inventory
                     self.open = not self.open
                 if inputs["e"] == 1:
                     pk = struct.pack("!b16s", S.CMDS["PICKUP_ITEM"], self.pid.encode("utf-8"))
                     self.client.send(self.connections[self.iControl], pk)
                     if self.iInActive != None:
                         self.client.send(self.connections[self.iInActive], pk)
-                if (pressedM):  # movement related inputs
-                    self.sendInputs(inputs)
+
+                if not self.player.idle:
+                    if pressedM:  # movement related inputs
+                        self.sendInputs(inputs)
+                else:
+                    new_inputs = self.player.move_idle()
+                    new_inputs['sf'] = inputs['sf']
+                    print(new_inputs)
+                    self.sendInputs(new_inputs)
 
             # DRAW
             self.draw_frame(self.screen, S.MAP_WIDTH, S.MAP_HEIGHT, DEFAULT_SPRITE1, SPRITES1, DEFAULT_DAGGER, DAGGERS,
@@ -611,7 +632,6 @@ class Client:
         screen.fill((0, 0, 0))
 
         cam_x, cam_y = camera_from_pos(self.player.x, self.player.y, map_w, map_h)
-
         draw_map(screen, MAP, cam_x, cam_y, S.WINDOW_WIDTH, S.WINDOW_HEIGHT)
         draw_bullets(screen, self.bullets, cam_x, cam_y)
         draw_dropped(screen, self.dropped, cam_x, cam_y)

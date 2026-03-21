@@ -14,10 +14,10 @@ treeb =pygame.image.load(tree).convert_alpha()
 peselb= pygame.image.load(pesel).convert_alpha()
 marbleb = pygame.image.load(marble).convert_alpha()
 bitmikdashb = pygame.image.load(bitmikdash).convert_alpha()
-ostoneb=pygame.image.load(ostone).convert_alpha()
-
-
-
+ostoneb = pygame.image.load(ostone).convert_alpha()
+logb = pygame.image.load(log).convert_alpha()
+tree_1b = pygame.image.load(tree_1).convert_alpha()
+tree_2b = pygame.image.load(tree_2).convert_alpha()
 
 
 #####
@@ -136,6 +136,7 @@ def build_map_surface(MAP, TILE_SIZE=40):
 def load_map_from_txt(filename):
     with open(filename, 'r') as f:
         return [list(line.strip()) for line in f.readlines()]
+
 def draw_map(screen, map_data, cam_x, cam_y, window_w, window_h, tile_size=TILE_SIZE):
     # חישוב אינדקסים של התיילים שרואים כרגע על המסך
     start_tx = max(0, cam_x // tile_size)
