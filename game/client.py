@@ -107,27 +107,24 @@ class Client:
 
             if (cmd == S.CMDS["MOVE"]):
                 moveOffPackt(data, self.player)
-
-            elif (cmd == S.CMDS["OVERLAP"]):
-                # SEND POS TO SECOND SERVER
                 if self.iInActive != None:
                     pk = struct.pack("!b16siib", S.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x,
                                      self.player.y, self.player.dir)
                     self.client.send(self.connections[self.iInActive], pk)
-                else:
-                    dir = struct.unpack_from('!1s', data, 1)[0].decode("utf-8")
-                    if (dir == "r"):
-                        self.iInActive = self.iControl + 1
-                    elif (dir == "l"):
-                        self.iInActive = self.iControl - 1
+            elif (cmd == S.CMDS["OVERLAP"]):
+                dir = struct.unpack_from('!1s', data, 1)[0].decode("utf-8")
+                if (dir == "r"):
+                    self.iInActive = self.iControl + 1
+                elif (dir == "l"):
+                    self.iInActive = self.iControl - 1
 
-                    print("self.inActive", self.iInActive)
-                    pk = struct.pack("!b16siibbbbhhhh", S.CMDS["ADD_ME"], self.pid.encode("utf-8"), self.player.x,
-                                     self.player.y,
-                                     self.player.dir, self.player.health, self.player.att, self.player.weapon,
-                                     self.player.fart_timer,
-                                     self.player.invis_timer, self.player.laser_timer, self.player.brit)
-                    self.client.send(self.connections[self.iInActive], pk)
+                print("self.inActive", self.iInActive)
+                pk = struct.pack("!b16siibbbbhhhh", S.CMDS["ADD_ME"], self.pid.encode("utf-8"), self.player.x,
+                                 self.player.y,
+                                 self.player.dir, self.player.health, self.player.att, self.player.weapon,
+                                 self.player.fart_timer,
+                                 self.player.invis_timer, self.player.laser_timer, self.player.brit)
+                self.client.send(self.connections[self.iInActive], pk)
 
             elif (cmd == S.CMDS["OUT_OF_OVERLAP"]):
                 # SEND TO INACTIVE SERVER TO REMOVE ME
@@ -204,7 +201,6 @@ class Client:
                         bx, by = struct.unpack_from('!ii', data, offset)
                         self.bullets.append({"x": bx, "y": by})
                         offset += 8
-                        print("bullet in ", bx, " ", by)
                     offset = 13 + 14 * count + 8 * countb
                     counti = struct.unpack_from('!h', data, offset)[0]
                     offset += 2
