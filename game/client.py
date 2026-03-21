@@ -400,6 +400,8 @@ class Client:
 
                 self.send_message_to_chat_server(self.chat_message) # optional - add a buffer
                 self.chat_received_messages.append((self.username, self.chat_message))
+                self.chat_received_messages = self.chat_received_messages[-CHAT_MESSAGE_AMOUNT:]
+
                 self.chat_message = "" # reset message
 
             elif event.key in (pygame.K_DELETE, pygame.K_BACKSPACE):
@@ -597,7 +599,6 @@ class Client:
                 else:
                     new_inputs = self.player.move_idle()
                     new_inputs['sf'] = inputs['sf']
-                    print(new_inputs)
                     self.sendInputs(new_inputs)
 
             # DRAW
