@@ -31,6 +31,7 @@ gunb = pygame.image.load(S.gun).convert_alpha()
 class Client:
 
     def __init__(self):
+        self.dt = 0
         self.username = None
         self.client = None
         self.pid = None
@@ -59,6 +60,7 @@ class Client:
         self.chat_active: bool = False
         self.chat_message: str = ""
         self.chat_received_messages: list[tuple[str, str]] = []
+        self.chat_font = pygame.font.SysFont("david", 20)
 
     # ----------
     # RECEIVE DATA
@@ -413,7 +415,7 @@ class Client:
 
             else:
                 # Only allow English Letters and numbers
-                if event.unicode.isalnum():
+                if str(event.unicode).isascii() and len(self.chat_message) < CHAT_MAX_MESSAGE_LENGTH:
                     self.chat_message += event.unicode
 
     def chat_on_receive(self, connection_id: int, data: bytes):
@@ -431,17 +433,16 @@ class Client:
         surface = pygame.Surface((CHAT_WIDTH, CHAT_HEIGHT))
         surface.fill(CHAT_BG_COLOR)
 
-        chat_font = pygame.font.SysFont("arial", 20)
-
         y = 10
         for username, message in self.chat_received_messages:
             # Username
-            name_surface = chat_font.render(f"{username}:", True, CHAT_USERNAME_COLOR)
+            name_surface = self.chat_font.render(f"{username}", True, CHAT_USERNAME_COLOR)
             surface.blit(name_surface, (10, y))
 
             # Message
-            msg_surface = chat_font.render(message, True, CHAT_TEXT_COLOR)
-            surface.blit(msg_surface, (100, y))
+            msg_surface = self.chat_font.render(message, True, CHAT_TEXT_COLOR)
+            name_width = name_surface.get_width()
+            surface.blit(msg_surface, (10 + name_width + 10, y))
 
             y += 25  # line spacing
 
@@ -450,12 +451,26 @@ class Client:
         pygame.draw.rect(surface, CHAT_INPUT_BG, (0, CHAT_HEIGHT - input_box_height, CHAT_WIDTH, input_box_height))
 
         # Render input text inside input box with some padding
-        input_surface = chat_font.render(self.chat_message, True, CHAT_TEXT_COLOR)
-        surface.blit(input_surface, (10, CHAT_HEIGHT - input_box_height + 10))
+        input_surface = self.chat_font.render(self.chat_message, True, CHAT_TEXT_COLOR)
+        input_pos = (10, CHAT_HEIGHT - input_box_height + 10)
+        surface.blit(input_surface, input_pos)
+
+        cursor_x = input_pos[0] + input_surface.get_width() + 2
+        cursor_y = input_pos[1]
+        cursor_height = input_surface.get_height()
+
+        if len(self.chat_message) == CHAT_MAX_MESSAGE_LENGTH:
+            cursor_color = (255, 0, 0)
+        else:
+            cursor_color = (255, 255, 255)
+
+        pygame.draw.rect(surface, cursor_color, (cursor_x, cursor_y, 2, cursor_height))
+
+        pygame.draw.line(surface, (80, 80, 80), (0, CHAT_HEIGHT - input_box_height),
+                         (CHAT_WIDTH, CHAT_HEIGHT - input_box_height), 2)
 
         # Blit the chat surface onto the main screen
         self.screen.blit(surface, (0, 0))
-
 
     async def run(self):
 
@@ -614,8 +629,7 @@ class Client:
                 self.draw_chat()
 
             pygame.display.flip()
-            clock.tick(60)
-
+            self.dt = clock.tick(60)
             await asyncio.sleep(1 / 60)
 
         pygame.quit()
