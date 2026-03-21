@@ -92,4 +92,27 @@ class Enemy:
         self.type = type
         self.last_att = time.time()
 
+    def attacked(self):
+        self.last_att = time.time()
 
+
+def check_fart_hit_enemy(e ,f ,low , high):
+    corners = get_corners(e.entity.x, e.entity.y, S.MONSTERS[e.type]["size"])
+
+    for cx, cy in corners:
+
+        dx = cx - f.x
+        dy = cy - f.y
+        dist_sq = dx ** 2 + dy ** 2
+
+        if dist_sq <= f.radius ** 2:
+
+            angle = math.atan2(dy, dx)
+            if angle < 0: angle += 2 * math.pi
+
+            if low > high:
+                if angle >= low or angle <= high: return True
+            else:
+                if low <= angle <= high: return True
+
+    return False

@@ -319,6 +319,9 @@ class GameServer:
                 if self.bullets:
                     for e,last in self.monsters:
                         apply_bullet_hits_for_enemy(e, self.bullets, self.serverNumber, self.items)
+                if self.farts:
+                    for e, last in self.monsters:
+                        fart_enemy(e, self.farts, self.serverNumber, self.items)
 
             await asyncio.sleep(0.001)
 
@@ -373,12 +376,14 @@ def player_pos(player_list):
     positions = []
 
     for pid,player in player_list.items():
+        if player["invis"] == 0:
+            # 1. Add the ID to the id list
+            ids.append(pid)
 
-        # 1. Add the ID to the id list
-        ids.append(pid)
-
-        # 2. Add the (x, y) coordinates as a tuple to the positions list
-        positions.append((player["x"], player["y"]))
+            # 2. Add the (x, y) coordinates as a tuple to the positions list
+            positions.append((player["x"], player["y"]))
+        else:
+            print("player is invis")
 
     return ids, positions
 
@@ -408,17 +413,17 @@ def enemy_treatment(self):
         if not check_collision_with_stone(e.entity.x, final_y, S.MONSTERS[e.type]["size"]) and \
                 not check_collision_with_lava(e.entity.x, final_y, 100):  # Added lava check
                 e.entity.y = final_y
-        attack_bullet(id, e, self.bullets)
+        if S.MONSTERS[e.type]["type"] == "ranged":
+            attack_bullet(id, e, self.bullets)
 
         i+=1
 def attack_bullet(target_id, e, bullets):
     if target_id is not None:
         now = time.time()
         # Check if 1.5 seconds have passed since the last attack
-        if now - e.last_att > 0.5:
+        if now - e.last_att > S.ENEMY_COOLDOWN:
             new_bullet = Bullet(0, e.entity.x, e.entity.y, e.entity.dir, S.BULLET_DISTANS, 0)
             bullets.append(new_bullet)
-
             # Update last_att so they don't shoot again immediately
             e.last_att = now
 
@@ -455,14 +460,58 @@ def getNearOverlaps(serverIndex):
     return nearOverlaps
 
 
+def check_attack_enemy_and_build_payload(bullets,items,enemies,clients):
+    arr = [False] * len(clients)
+    payload = []
+    countb = len(bullets)
+    payload.append(countb)
+    format = "h" + "ii" * countb
+    for b in bullets:
+        payload.append(int(b.x))
+        payload.append(int(b.y))
+
+    counti = len(items)
+    payload.append(counti)
+    format += "h" + "iib" * counti
+    for i in items:
+        payload.append(int(i.x))
+        payload.append(int(i.y))
+        payload.append(int(i.weapon_type))
+
+    counte = len(enemies)
+    payload.append(counte)
+    format += "h" + "iibbb" * counte
+    now = time.time()
+    for e,pos in enemies:
+        i = e.entity
+        payload.append(int(i.x))
+        payload.append(int(i.y))
+        payload.append(int(i.dir))
+        payload.append(int(i.health))
+        payload.append(int(S.MONSTERS[e.type]["code"]))
+        if S.MONSTERS[e.type]["type"] == "melee":
+            if now - e.last_att > S.ENEMY_COOLDOWN:
+                i = 0
+                for client in clients.values():
+                    if client["invis"] == 0:
+                        dis = distance(client["x"], client["y"], e.entity.x, e.entity.y)
+                        if dis < S.MONSTERS[e.type]["att_radius"]:
+                            client["hp"] -= S.MONSTERS[e.type]["damage"]
+                            print("attacking player")
+                            arr[i] = True
+                            e.attacked()
+                    i+=1
+    return payload, format, arr
+
+
 def broadcast(self, dagger):
-    hp_change = [False] * len(self.clients) #does their health change and need updating?
+    payload, format, hp_change = check_attack_enemy_and_build_payload(self.bullets, self.items, self.monsters, self.clients) #does their health change and need updating?
     i = 0
     global pk
     for pid,client in self.clients.items():
         temp = copy_dic(self.clients)
         del temp[pid]
-        pk = build_state_payload(temp, self.bullets, self.items, self.monsters, client)
+        pk = build_state_payload(temp, payload, format, client)
         self.server.send(client["cid"],pk)
         if client["fart"] == 1:
             print("player is farting ", i)
@@ -538,7 +587,7 @@ def copy_dic(dic):
         ndic[k] = v
     return ndic
 
-def build_state_payload(clients, bullets, items, enemies, client):
+def build_state_payload(clients, paylo, end_format, client):
     count = len(clients)
     format = "!bhhhhh" + "iibbbbbb" * count #the b is for byte - 0\1
     payload = [S.CMDS["RENDER"], int(client["f_timer"]), int(client["i_timer"]), int(client["laser_timer"]), int(client["brit_timer"]), count]
@@ -554,31 +603,10 @@ def build_state_payload(clients, bullets, items, enemies, client):
         payload.append(int(c["fart"]))
         payload.append(int(c["invis"]))
 
-    countb = len(bullets)
-    payload.append(countb)
-    format += "h" + "ii" * countb
-    for b in bullets:
-        payload.append(int(b.x))
-        payload.append(int(b.y))
+    format += end_format
 
-    counti = len(items)
-    payload.append(counti)
-    format += "h" + "iib" * counti
-    for i in items:
-        payload.append(int(i.x))
-        payload.append(int(i.y))
-        payload.append(int(i.weapon_type))
+    payload.extend(paylo)
 
-    counte = len(enemies)
-    payload.append(counte)
-    format += "h" + "iibbb" * counte
-    for e,pos in enemies:
-        i = e.entity
-        payload.append(int(i.x))
-        payload.append(int(i.y))
-        payload.append(int(i.dir))
-        payload.append(int(i.health))
-        payload.append(int(S.MONSTERS[e.type]["code"]))
     return struct.pack(format, *payload)
 
 def build_total_client(pid,client, nServer):
@@ -940,6 +968,26 @@ def fart(farts,p,pid):
             p["hp"] -= S.FART_DAMEG
             boo = True
     return boo
+
+def fart_enemy(e, farts, num, items):
+    for f in farts:
+
+        low, high = Fart.get_angle_from_dir(f.dir)
+
+        if check_fart_hit_enemy(e, f , low, high):
+            e.entity.health -= S.FART_DAMEG
+            if e.entity.health <= 0:
+                e.entity.health = S.MONSTERS[e.type]["health"]
+                # drop 2 random weapons
+                weapon_type = random.randint(2, 7)
+                drop_weapon_for_enemy(items, e, weapon_type)
+                weapon_type = random.randint(2, 7)
+                drop_weapon_for_enemy(items, e, weapon_type)
+
+                # random respawn
+                e.entity.x, e.entity.y = respawn(num)
+
+
 def destroyItem(self, cid, item):
     pk = struct.pack('!bb', S.CMDS["DELETE_ITEM"], int(item))
     self.server.send(cid, pk)

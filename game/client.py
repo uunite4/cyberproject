@@ -636,7 +636,7 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
         if p["invi"] == 0:
             sprite = SPRITES1.get(p["dir"], DEFAULT_SPRITE1)
             screen.blit(sprite, (px, py))
-            S_health_bar_update(p["hp"], screen, px, py)
+            S_health_bar_update(p["hp"], screen, px, py, S.PLAYER_HEALTH)
 
         if p["att"] == 1 and p["weapons"] == 1:  # daggers
             print("A PLAYER IS daggering")
@@ -703,7 +703,7 @@ def draw_enemy(screen, enemys, cam_x, cam_y, ENEMY_SPRITES, DEFAULT_SPRITE, SPRI
             sprite = SPRITES2ENEMY.get(e["dir"], DEFAULT_SPRITES2ENEMY)
 
         screen.blit(sprite, (ex, ey))
-        S_health_bar_update(e["hp"], screen, ex, ey)
+        S_health_bar_update(e["hp"], screen, ex, ey, S.MONSTERS[e["type"]]["health"])
 
 
 def draw_bullets(screen, bullets, cam_x, cam_y):
@@ -860,8 +860,8 @@ def health_bar_update(health, screen):
     pygame.draw.rect(screen, "red", (20 + green1, 20, red1, S.HEALTH_BAR_SIZE_Y))
 
 
-def S_health_bar_update(health, screen, x, y):
-    green1 = (S.S_HEALTH_BAR_SIZE_X / S.PLAYER_HEALTH) * health
+def S_health_bar_update(health, screen, x, y, maxHP):
+    green1 = (S.S_HEALTH_BAR_SIZE_X / maxHP) * health
     red1 = S.S_HEALTH_BAR_SIZE_X - green1
     pygame.draw.rect(screen, "green", (x, y - 40, green1, S.S_HEALTH_BAR_SIZE_Y))
     pygame.draw.rect(screen, "red", (x + green1, y - 40, red1, S.S_HEALTH_BAR_SIZE_Y))

@@ -204,20 +204,24 @@ MONSTERS = {
         "speed" : 2,
         "see_radius" : 400, #going to players in this range
         "att_radius" : 200, #attack players in this range
-        "damage" : 20,
+        "damage" : BULLET_DAMEG,
         "size" : 30, #of sprite
         "code" : 0,
+        "type" : "ranged",
     },
     "BEAR" : { #some sort of monster
         "health" : 70, #starter health
         "speed" : 1,
         "see_radius" : 400, #going to players in this range
-        "att_radius" : 200, #attack players in this range
-        "damage" : 30,
+        "att_radius" : 25, #attack players in this range
+        "damage" : BULLET_DAMEG*2,
         "size" : 40, #of sprite
         "code" : 1,
+        "type" : "melee",
     }
 }
+
+ENEMY_COOLDOWN = 0.5
 
 CHAT_WIDTH: int = 480
 CHAT_HEIGHT: int = 540
