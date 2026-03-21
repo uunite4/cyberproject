@@ -859,6 +859,7 @@ def attack(dagger, attacker, clients, monsters, items, num):
 
     arr = []
     boo = False
+    i = 0
     for target in clients.values():
 
         if target["cid"] == attacker["cid"]:
