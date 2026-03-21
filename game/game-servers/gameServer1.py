@@ -318,7 +318,7 @@ class GameServer:
                 enemy_treatment(self)
                 if self.bullets:
                     for e,last in self.monsters:
-                        apply_bullet_hits_for_enemy(e, self.bullets, self.serverNumber)
+                        apply_bullet_hits_for_enemy(e, self.bullets, self.serverNumber, self.items)
 
             await asyncio.sleep(0.001)
 
@@ -423,24 +423,22 @@ def attack_bullet(target_id, e, bullets):
             e.last_att = now
 
 
-def apply_bullet_hits_for_enemy(e, bullets, num):
-    i=0
-
+def apply_bullet_hits_for_enemy(e, bullets, num, items):
+    i = 0
     for b in bullets:
         if b.player_id != 0:
             if check_bullet_hitE(e.entity, b):
                 e.entity.health -= S.BULLET_DAMEG
                 del bullets[i]
                 if e.entity.health <= 0:
-                    e.entity.x, e.entity.y = respawn(num-1)
                     e.entity.health = S.MONSTERS[e.type]["health"]
                     # drop 2 random weapons
-                    weapon_type = random.randint(0, 7)
-                    weapon1 = random.choice(S.INVENTORY_MAP[weapon_type])
-                    weapon2 = random.choice(S.INVENTORY_MAP[weapon_type])
+                    weapon_type = random.randint(2, 7)
+                    drop_weapon_for_enemy(items, e, weapon_type)
+                    weapon_type = random.randint(2, 7)
+                    drop_weapon_for_enemy(items, e, weapon_type)
 
-                    drop_weapons(e, weapon1)
-                    drop_weapons(e, weapon2)
+                    e.entity.x, e.entity.y = respawn(num-1)
         i+=1
 
 
@@ -471,14 +469,14 @@ def broadcast(self, dagger):
         #health related changes
         if client["att"] == 1 and nameToWeapon(client) == 1:  # daggers
             print("player attacking", i)
-            arr = dagger.attack(client, self.clients, self.monsters)
+            arr = attack(dagger ,client, self.clients, self.monsters, self.items, self.serverNumber)
             j = 0
             for boo in arr:
                 if boo:
                     hp_change[j] = True
                 j += 1
         if client["laser_timer"]>0:
-            arr = check_laser_hit(pid, client, self.clients, self.monstars,self.serverNumber)
+            arr = check_laser_hit(pid, client, self.clients, self.monsters, self.serverNumber , self.items)
             j = 0
             for boo in arr:
                 if boo:
@@ -788,7 +786,7 @@ def apply_bullet_hits_for_player(pid, p, bullets):
         i+=1
     return back
 
-def check_laser_hit(pid, attacker, clients,monsters,num):
+def check_laser_hit(pid, attacker, clients, monsters, num ,items):
     vx, vy = dir_to_vec(attacker["dir"])
     arr = []
     for id,target in clients.items():
@@ -818,9 +816,10 @@ def check_laser_hit(pid, attacker, clients,monsters,num):
             if angle_diff < 0.1:
                 target["hp"] -= S.LASER_DAMEG
                 arr[-1] = True
+
     for e, pos in monsters:
         dx = e.entity.x - attacker["x"]
-        dy = e.entity.x - attacker["y"]
+        dy = e.entity.y - attacker["y"]
         dist = math.sqrt(dx ** 2 + dy ** 2)
 
         if dist <= S.LASER_DIS:
@@ -837,24 +836,83 @@ def check_laser_hit(pid, attacker, clients,monsters,num):
             if angle_diff < 0.1:
                 e.entity.health -= S.LASER_DAMEG
                 if e.entity.health <= 0:
-                    e.entity.x, e.entity.y = respawn(num)
                     e.entity.health = S.MONSTERS[e.type]["health"]
+                    #drop 2 random weapons
+                    weapon_type = random.randint(2,7)
+                    drop_weapon_for_enemy(items, e, weapon_type)
+                    weapon_type = random.randint(2,7)
+                    drop_weapon_for_enemy(items, e, weapon_type)
 
-                    if e.entity.health <= 0:
-                        #random respwon
-                        e.entity.x, e.entity.y = respawn(num)
-                        e.entity.health = S.MONSTERS[e.type]["health"]
-                        #drop 2 random weapons
-                        weapon_type = random.randint(0,7)
-                        weapon1 = random.choice(S.INVENTORY_MAP[weapon_type])
-                        weapon2 = random.choice(S.INVENTORY_MAP[weapon_type])
-
-                        drop_weapons(e, weapon1)
-                        drop_weapons(e, weapon2)
-
-                arr[-1] = True
+                    #random respwon
+                    e.entity.x, e.entity.y = respawn(num)
 
     return arr
+
+def attack(dagger, attacker, clients, monsters, items, num):
+
+    if not dagger.ready(attacker["cid"]):
+        return [False] * len(clients)
+
+    dagger.trigger_cooldown(attacker["cid"])
+
+    hitbox = dagger.build_hitbox(attacker)
+
+    arr = []
+    boo = False
+    for target in clients.values():
+
+        if target["cid"] == attacker["cid"]:
+            arr.append(False)
+            i = len(arr) - 1
+            continue
+
+        target_box = player_rect(target)
+        if rects_overlap(hitbox, target_box):
+            if target["brit_timer"]==0:
+                    arr.append(True)
+                    target["hp"] -= dagger.damage
+            else:
+                boo = True
+                arr.append(False)
+                attacker["hp"] -= dagger.damage
+        else:
+            arr.append(False)
+    if boo:
+        arr[i] = True
+
+    for e,pos in monsters:
+        target_box = enemy_rect(e)
+        print("check attack enemy")
+        if rects_overlap(hitbox, target_box):
+            e.entity.health -= dagger.damage
+            print("enemy got hit")
+            if e.entity.health <= 0:
+                e.entity.health = S.MONSTERS[e.type]["health"]
+                # drop 2 random weapons
+                weapon_type = random.randint(2, 7)
+                drop_weapon_for_enemy(items, e, weapon_type)
+                weapon_type = random.randint(2, 7)
+                drop_weapon_for_enemy(items, e, weapon_type)
+
+                # random respwon
+                e.entity.x, e.entity.y = respawn(num)
+
+    return arr
+
+def rects_overlap(a, b):
+    # a,b: (left, top, right, bottom)
+    return not (a[2] < b[0] or a[0] > b[2] or a[3] < b[1] or a[1] > b[3])
+
+def player_rect(p):
+    half = S.PLAYER_SIZE // 2
+    # player is centered at (p.x, p.y)
+    return (p["x"] - half, p["y"] - half, p["x"] + half - 1, p["y"] + half - 1)
+
+def enemy_rect(e):
+    half = S.MONSTERS[e.type]["size"] // 2
+    # player is centered at (p.x, p.y)
+    return (e.entity.x - half, e.entity.y - half, e.entity.x + half - 1, e.entity.y + half - 1)
+
 
 def dir_to_vec(d: int) -> tuple[int, int]:
     vectors = {
@@ -902,6 +960,14 @@ def drop_weapons(player, dropped_list):
     player["inventory"] = S.BASIC_INV.copy()
     player["weapons"] = 0
 
+def drop_weapon_for_enemy(items, e, weaponNum):
+    angle = random.uniform(0, 2 * math.pi)
+    radius = 40
+    drop_x = e.entity.x + math.cos(angle) * radius
+    drop_y = e.entity.y + math.sin(angle) * radius
+    item = DroppedWeapon(1, drop_x, drop_y, weaponNum)
+    items.append(item)
+
 def pickup_weapons(server, player, dropped_list):
     min_dis = 80
     closest_item = None
@@ -920,14 +986,13 @@ def pickup_weapons(server, player, dropped_list):
 
     if closest_item:
         wt = wt_map.get(closest_item.weapon_type)
-        for i in range(len(player["inventory"])-1):
+        for i in range(len(player["inventory"])):
             if player["inventory"][i] == 0:
                 player["inventory"][i] = wt
-                if closest_item in dropped_list:
-                    dropped_list.remove(closest_item)
-                    pk = struct.pack("!bbb", S.CMDS["ADD_ITEM"], closest_item.weapon_type, i)
-                    server.send(player["cid"], pk)
-
+                dropped_list.remove(closest_item)
+                pk = struct.pack("!bbb", S.CMDS["ADD_ITEM"], closest_item.weapon_type, i)
+                server.send(player["cid"], pk)
+                break
     return
 
 if __name__ == "__main__":

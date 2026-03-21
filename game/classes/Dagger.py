@@ -80,57 +80,5 @@ class Dagger:
     # --------------------
     # MAIN ATTACK FUNCTION
     # --------------------
-    def attack(self, attacker, clients, monsters):
-
-        if not self.ready(attacker["cid"]):
-            return [False] * len(clients)
-
-        self.trigger_cooldown(attacker["cid"])
-
-        hitbox = self.build_hitbox(attacker)
-
-        arr = []
-        boo = False
-        for target in clients.values():
-
-            if target["cid"] == attacker["cid"]:
-                arr.append(False)
-                i = len(arr) - 1
-                continue
-
-            target_box = player_rect(target)
-            if rects_overlap(hitbox, target_box):
-                if target["brit_timer"]==0:
-                        arr.append(True)
-                        target["hp"] -= self.damage
-                else:
-                    boo = True
-                    arr.append(False)
-                    attacker["hp"] -= self.damage
-            else:
-                arr.append(False)
-        if boo:
-            arr[i] = True
-
-        for e,pos in monsters:
-            target_box = enemy_rect(e)
-            if rects_overlap(hitbox, target_box):
-                e.entity.health -= self.damage
-
-        return arr
 
 
-
-def rects_overlap(a, b):
-    # a,b: (left, top, right, bottom)
-    return not (a[2] < b[0] or a[0] > b[2] or a[3] < b[1] or a[1] > b[3])
-
-def player_rect(p):
-    half = PLAYER_SIZE // 2
-    # player is centered at (p.x, p.y)
-    return (p["x"] - half, p["y"] - half, p["x"] + half - 1, p["y"] + half - 1)
-
-def enemy_rect(e):
-    half = MONSTERS[e.type]["size"] // 2
-    # player is centered at (p.x, p.y)
-    return (e.entity.x - half, e.entity.y - half, e.entity.y + half - 1, e.entity.y + half - 1)

@@ -767,9 +767,9 @@ def draw_inventori(screen, player):
     for i in range(len(player.weapons)):
         # print(p.current_weapon)
         if player.weapons[i] != 0:
-            screen.blit(load_inventory_sprites(player.weapons[i]), (x + 38 * i, y))
-        if i == player.weapon and player.weapon != 0:
-            screen.blit(selectb, (x + 38 * (i - 1) - 2, y - 3))
+            screen.blit(load_inventory_sprites(player.weapons[i]), (x + 38 * i, y+5))
+        if i+1 == player.weapon and player.weapon != 0:
+            screen.blit(selectb, (x + 38 * (i) - 2, y - 3))
 
 
 def draw_inventory_overlay(screen, p, font):
@@ -795,7 +795,7 @@ def draw_inventory_overlay(screen, p, font):
     screen.blit(health_txt, (inv_rect.x + 20, inv_rect.y + 20))
 
     # 4. משבצות הנשקים
-    num_slots = len(p.weapons) - 1
+    num_slots = len(p.weapons)
     slot_size = 50
     gap = 10
     total_w = (num_slots * slot_size) + ((num_slots - 1) * gap)
