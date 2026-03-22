@@ -1,3 +1,31 @@
+import json
+import os
+import sys
+
+
+def get_base_path():
+    if hasattr(sys, "_MEIPASS"):  # PyInstaller temp folder
+        return sys._MEIPASS
+    return os.path.abspath(".")
+
+
+CONFIG_PATH = os.path.join(get_base_path(), "config.json")
+
+
+def load_config():
+    with open(CONFIG_PATH, "r") as f:
+        return json.load(f)
+
+
+config = load_config()
+
+LOGIN_SERVER = config["login_server"]
+
+CHAT_SERVER_IP = config["chat_server"]["ip"]
+CHAT_SERVER_PORT = config["chat_server"]["port"]
+
+SERVERS_ADDRESSES = config["servers"]
+
 WIDTH = 1920
 HEIGHT = 1080
 MAP_WIDTH = 1920 * 40
@@ -41,33 +69,11 @@ scissors = 'sprites\\weapons\\scissors.png'
 OVERLAP_WIDTH = 6000
 SERVER_NUMBER = 4
 
-GENERAL_OVERLAP = {
-    "width": OVERLAP_WIDTH,
-    "color": (55, 53, 62)
-}
-
 # Calculate server width so total span = WINDOW_WIDTH
 SERVER_WIDTH = (MAP_WIDTH + (SERVER_NUMBER - 1) * OVERLAP_WIDTH) // SERVER_NUMBER
 
-GENERAL_SERVER = {
-    "width": SERVER_WIDTH,
-    "color": (68, 68, 78),
-}
-
 # Distance between the left side of each server
 SERVER_STEP = SERVER_WIDTH - OVERLAP_WIDTH
-BASE_IP = "127.0.0.1"
-BASE_PORT = 9000
-
-SERVERS = [
-    {
-        "x": i * SERVER_STEP,
-        "ip": BASE_IP,
-        "port": BASE_PORT + i,
-        "width": SERVER_WIDTH,
-    }
-    for i in range(SERVER_NUMBER)
-]
 
 OVERLAPS = [
     {"x": i * SERVER_STEP}
@@ -111,15 +117,6 @@ CMDS = {
     "TELEPORT": 0x22,
 }
 
-ERRORSBYTES = {
-    "ERROR: username is empty": 0x01,
-    "ERROR: password is empty": 0x02,
-    "ERROR: with signup": 0x03,
-    "try again": 0x04,
-    "ERROR: with loginserver": 0x05,
-    "User already found": 0x06,
-    "NO USER FOUND": 0x07,
-}
 BYTESERRORS = {
     0x01: "ERROR: username is empty",
     0x02: "ERROR: password is empty",
@@ -128,11 +125,6 @@ BYTESERRORS = {
     0x05: "ERROR: with loginserver",
     0x06: "User already found",
     0x07: "NO USER FOUND",
-}
-
-LOAD_BALANCER = {
-    "ip": "127.0.0.1",
-    "port": 8050,
 }
 
 # HEALTH SPRITE SETTINGS
@@ -186,12 +178,6 @@ LASER_DIS = 400
 # BRIT-MILA
 BRIT_TIMER = 3000
 
-# LOGIN AREA
-LOGIN_SERVER = {
-    "ip": "127.0.0.1",
-    "port": 7080
-}
-
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (200, 200, 200)
@@ -235,6 +221,4 @@ CHAT_INPUT_BG = (50, 50, 50)
 CHAT_USERNAME_COLOR = (100, 200, 255)
 
 CHAT_MESSAGE_AMOUNT: int = 15
-CHAT_SERVER_IP: str = "127.0.0.1"
-CHAT_SERVER_PORT: int = 8000
 CHAT_SERVER_SEND_FPS: int = 10
