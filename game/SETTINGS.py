@@ -1,35 +1,30 @@
-from pathlib import Path
-
-BASE_DIR = Path(__file__).resolve().parent
-from game.map_data import MAP
-
 WIDTH = 1920
 HEIGHT = 1080
-MAP_WIDTH = 1920*40
-MAP_HEIGHT = 1080*40
+MAP_WIDTH = 1920 * 40
+MAP_HEIGHT = 1080 * 40
 WINDOW_WIDTH = 960
 WINDOW_HEIGHT = 540
 BROADCAST_INTERVAL = 0.01
 
 PLAYER_VEL = 5
 PLAYER_SIZE = 38
-PLAYER_HEALTH =100
+PLAYER_HEALTH = 100
 
 TILE_SIZE = 40
 BUILDING_SIZE = 40
 
-#Obgects
-grass='sprites\\tiles\\grass.png'
-stone='sprites\\tiles\\stone.png'
+# Obgects
+grass = 'sprites\\tiles\\grass.png'
+stone = 'sprites\\tiles\\stone.png'
 lava = 'sprites\\tiles\\lava.png'
-tree ='sprites\\tiles\\tree.png'
-pesel= 'sprites\\tiles\\statue.png'
+tree = 'sprites\\tiles\\tree.png'
+pesel = 'sprites\\tiles\\statue.png'
 marble = 'sprites\\tiles\\marble.png'
 bitmikdash = 'sprites\\tiles\\statue.png'
-ostone='sprites\\tiles\\blackstone.png'
-log='sprites\\obstacles\\log.png'
-tree_1='sprites\\obstacles\\tree_1.png'
-tree_2='sprites\\obstacles\\tree_2.png'
+ostone = 'sprites\\tiles\\blackstone.png'
+log = 'sprites\\obstacles\\log.png'
+tree_1 = 'sprites\\obstacles\\tree_1.png'
+tree_2 = 'sprites\\obstacles\\tree_2.png'
 poop = 'sprites\\inventory\\poop.png'
 inventory1 = 'sprites\\inventory\\inventory.png'
 select1 = 'sprites\\inventory\\select.png'
@@ -47,7 +42,7 @@ OVERLAP_WIDTH = 6000
 SERVER_NUMBER = 4
 
 GENERAL_OVERLAP = {
-    "width" : OVERLAP_WIDTH,
+    "width": OVERLAP_WIDTH,
     "color": (55, 53, 62)
 }
 
@@ -55,14 +50,14 @@ GENERAL_OVERLAP = {
 SERVER_WIDTH = (MAP_WIDTH + (SERVER_NUMBER - 1) * OVERLAP_WIDTH) // SERVER_NUMBER
 
 GENERAL_SERVER = {
-    "width" : SERVER_WIDTH,
+    "width": SERVER_WIDTH,
     "color": (68, 68, 78),
 }
 
 # Distance between the left side of each server
 SERVER_STEP = SERVER_WIDTH - OVERLAP_WIDTH
 BASE_IP = "127.0.0.1"
-BASE_PORT = 8081
+BASE_PORT = 9000
 
 SERVERS = [
     {
@@ -121,7 +116,7 @@ ERRORSBYTES = {
     "ERROR: password is empty": 0x02,
     "ERROR: with signup": 0x03,
     "try again": 0x04,
-    "ERROR: with login": 0x05,
+    "ERROR: with loginserver": 0x05,
     "User already found": 0x06,
     "NO USER FOUND": 0x07,
 }
@@ -130,7 +125,7 @@ BYTESERRORS = {
     0x02: "ERROR: password is empty",
     0x03: "ERROR: with signup",
     0x04: "try again",
-    0x05: "ERROR: with login",
+    0x05: "ERROR: with loginserver",
     0x06: "User already found",
     0x07: "NO USER FOUND",
 }
@@ -140,31 +135,31 @@ LOAD_BALANCER = {
     "port": 8050,
 }
 
-#HEALTH SPRITE SETTINGS
+# HEALTH SPRITE SETTINGS
 HEALTH_BAR_SIZE_X = 120
 HEALTH_BAR_SIZE_Y = 30
 S_HEALTH_BAR_SIZE_X = 40
 S_HEALTH_BAR_SIZE_Y = 10
 
-#bullet settings
-BULLET_DISTANS =100
+# bullet settings
+BULLET_DISTANS = 100
 BULLET_SPEED = 10
 BULLET_COOLDOWN = 10
 BULLET_DAMEG = 10
 BULLET_SIZE = 5
 
-#fart settings
-FART_RUADIOS=100
+# fart settings
+FART_RUADIOS = 100
 FART_TIME = 200
 FART_COOLDOWN = 2000
 FART_DAMEG = 0.3
 
-#teleport settings
+# teleport settings
 TELEPORT_RANGE = 200
 TELEPORT_COOLDOWN = 1000
 
-#inventory
-BASIC_INV = ['da','gu',0,0,0,0,0,0]
+# inventory
+BASIC_INV = ['da', 'gu', 0, 0, 0, 0, 0, 0]
 INVENTORY_SIZE = len(BASIC_INV)
 
 INVENTORY_MAP = {
@@ -178,19 +173,18 @@ INVENTORY_MAP = {
     7: "la"
 }
 
-#POTIONS
+# POTIONS
 SPEED_POSSION_TIME = 500
 INVESIBEL_TIME = 500
 
-#LASER
+# LASER
 LASER_TIME = 30
 LASER_COOLDOWN = 200
-LASER_DAMEG =20
+LASER_DAMEG = 20
 LASER_DIS = 400
 
-#BRIT-MILA
+# BRIT-MILA
 BRIT_TIMER = 3000
-
 
 # LOGIN AREA
 LOGIN_SERVER = {
@@ -205,28 +199,27 @@ GRAY = (200, 200, 200)
 # DEBUG
 login = True
 
-
-#MONSTERS
+# MONSTERS
 MONSTERS = {
-    "GOBLIN" : { #some sort of monster
-        "health" : 50, #starter health
-        "speed" : 2,
-        "see_radius" : 400, #going to players in this range
-        "att_radius" : 200, #attack players in this range
-        "damage" : BULLET_DAMEG,
-        "size" : 30, #of sprite
-        "code" : 0,
-        "type" : "ranged",
+    "GOBLIN": {  # some sort of monster
+        "health": 50,  # starter health
+        "speed": 2,
+        "see_radius": 400,  # going to players in this range
+        "att_radius": 200,  # attack players in this range
+        "damage": BULLET_DAMEG,
+        "size": 30,  # of sprite
+        "code": 0,
+        "type": "ranged",
     },
-    "BEAR" : { #some sort of monster
-        "health" : 70, #starter health
-        "speed" : 1,
-        "see_radius" : 400, #going to players in this range
-        "att_radius" : 25, #attack players in this range
-        "damage" : BULLET_DAMEG*2,
-        "size" : 40, #of sprite
-        "code" : 1,
-        "type" : "melee",
+    "BEAR": {  # some sort of monster
+        "health": 70,  # starter health
+        "speed": 1,
+        "see_radius": 400,  # going to players in this range
+        "att_radius": 25,  # attack players in this range
+        "damage": BULLET_DAMEG * 2,
+        "size": 40,  # of sprite
+        "code": 1,
+        "type": "melee",
     }
 }
 

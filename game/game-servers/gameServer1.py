@@ -640,7 +640,7 @@ def broadcast(self, dagger):
             if boo:
                 hp_change[i] = True
         if check_collision_with_lava(client["x"], client["y"], S.PLAYER_SIZE): #daggers
-            client["hp"] -= 1
+            client["hp"] -= 0.5
             hp_change[i] = True
         i += 1
     i = 0

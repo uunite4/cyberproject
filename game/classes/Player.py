@@ -3,8 +3,8 @@ import random
 
 from pygame import Vector2
 
-import game.SETTINGS as S
-import game.map_data as M
+import SETTINGS as S
+import map_data as M
 
 
 class Player:
@@ -131,7 +131,7 @@ def check_collision_with_lava(next_x, next_y, size):  # True = lava
         tile_y = int(py // S.TILE_SIZE)  # pixel -> tile row
         if tile_x < 0 or tile_x >= S.WIDTH or tile_y < 0 or tile_y >= S.HEIGHT:
             continue
-        if M.MAP[tile_y][tile_x] == "b":
+        if M.MAP[tile_y][tile_x] == "L":
             return True
     return False
 
