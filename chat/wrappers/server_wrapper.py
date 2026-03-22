@@ -10,7 +10,7 @@ from qh3.quic.events import (
     ProtocolNegotiated,
 )
 
-from chat.wrappers.client_wrapper import QuicClient
+from wrappers.client_wrapper import QuicClient
 
 OnReceive = Callable[[int, bytes], None]
 OnConnect = Callable[[int], None]

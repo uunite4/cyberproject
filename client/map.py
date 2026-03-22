@@ -159,6 +159,7 @@ def draw_map(screen, map_data, cam_x, cam_y, window_w, window_h, tile_size=s.TIL
             elif tile == 'L':
                 screen.blit(lavab, (px, py))
             elif tile == 'P':
+                screen.blit(marbleb, (px, py))
                 screen.blit(peselb, (px, py))
             elif tile == 'G':
                 screen.blit(grassb, (px, py))
@@ -167,6 +168,8 @@ def draw_map(screen, map_data, cam_x, cam_y, window_w, window_h, tile_size=s.TIL
             elif tile == 'O':
                 screen.blit(ostoneb, (px, py))
             elif tile == 'T':
+                screen.blit(grassb, (px, py))
                 screen.blit(treeb, (px, py))
             else:
+                screen.blit(marbleb, (px, py))
                 screen.blit(peselb, (px, py))

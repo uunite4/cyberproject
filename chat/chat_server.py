@@ -1,6 +1,6 @@
 import asyncio
+import os
 
-import chat_settings as s
 from protobufs.chat_pb2 import *
 from wrappers.server_wrapper import QuicServer
 
@@ -16,8 +16,8 @@ class ChatServer:
 
     def __init__(self):
         self.server = QuicServer(
-            ip=s.CHAT_SERVER_IP,
-            port=s.CHAT_SERVER_PORT,
+            ip="0.0.0.0",
+            port=int(os.getenv("CHAT_SERVER_PORT")),
             cert_file="wrappers/server.crt",
             key_fie="wrappers/server.key",
             on_receive=self.on_receive,
@@ -79,7 +79,7 @@ class ChatServer:
         try:
             while True:
                 self.send_buffer()
-                await asyncio.sleep(1 / s.CHAT_SERVER_SEND_FPS)
+                await asyncio.sleep(1 / 10)  # send rate
 
         except asyncio.CancelledError:
             print("Server shutting down...")

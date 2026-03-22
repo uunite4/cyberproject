@@ -1,7 +1,7 @@
 
-from game.general_func import *
+from general_func import *
 import time
-import game.SETTINGS as s
+import SETTINGS as s
 
 
 class Enemy:

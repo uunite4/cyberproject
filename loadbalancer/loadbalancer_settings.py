@@ -1,14 +1,12 @@
-LOAD_BALANCER = {
-    "ip": "127.0.0.1",
-    "port": 8050,
-}
+import os
 
-SERVERS_ADDRESSES = [
-    {"ip": "127.0.0.1", "port": 9000},
-    {"ip": "127.0.0.1", "port": 9001},
-    {"ip": "127.0.0.1", "port": 9002},
-    {"ip": "127.0.0.1", "port": 9003}
-]
+SERVERS_ADDRESSES = []
+
+for i in range(4):
+    val = os.getenv(f"GAME_SERVER_{i}")
+    if val:
+        ip, port = val.split(":")
+        SERVERS_ADDRESSES.append({"ip": ip, "port": int(port)})
 
 CMDS = {
     "INIT_POS": 0x01,

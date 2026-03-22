@@ -3,8 +3,8 @@ import random
 
 from pygame import Vector2
 
-import game.SETTINGS as S
-import game.map_data as M
+import SETTINGS as S
+import map_data as M
 
 
 class Player:

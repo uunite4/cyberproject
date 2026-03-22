@@ -1,12 +1,9 @@
-LOGIN_SERVER = {
-    "ip": "127.0.0.1",
-    "port": 7080
-}
+import os
 
-LOAD_BALANCER = {
-    "ip": "127.0.0.1",
-    "port": 8050,
-}
+load_balancer_val = os.getenv("LOAD_BALANCER")
+if load_balancer_val:
+    ip, port = load_balancer_val.split(":")
+    LOAD_BALANCER = {"ip": ip, "port": int(port)}
 
 MAP_WIDTH = 1920 * 40
 
@@ -15,18 +12,20 @@ SERVER_NUMBER = 4
 SERVER_WIDTH = (MAP_WIDTH + (SERVER_NUMBER - 1) * OVERLAP_WIDTH) // SERVER_NUMBER
 
 SERVER_STEP = SERVER_WIDTH - OVERLAP_WIDTH
-BASE_IP = "127.0.0.1"
-BASE_PORT = 9000
 
-SERVERS = [
-    {
-        "x": i * SERVER_STEP,
-        "ip": BASE_IP,
-        "port": BASE_PORT + i,
-        "width": SERVER_WIDTH,
-    }
-    for i in range(SERVER_NUMBER)
-]
+SERVERS = []
+
+for i in range(1, 5):
+    val = os.getenv(f"GAME_SERVER_{i}")
+    if val:
+        ip, port = val.split(":")
+        server = {
+            "x": (i - 1) * SERVER_WIDTH,  # keep x based on index
+            "ip": ip,
+            "port": int(port),
+            "width": SERVER_WIDTH,
+        }
+        SERVERS.append(server)
 
 WIDTH = 1920
 HEIGHT = 1080
