@@ -575,7 +575,6 @@ class Client:
                 inputs, pressedM, pressedA = get_inputs()
 
                 if pressed_p:
-                    self.player.server_num = self.iControl
                     self.player.idle = not self.player.idle
 
                 # SEND INPUTS
@@ -621,6 +620,7 @@ class Client:
                     if pressedM:  # movement related inputs
                         self.sendInputs(inputs)
                 else:
+                    print('1')
                     new_inputs = self.player.move_idle()
                     new_inputs['sf'] = inputs['sf']
                     self.sendInputs(new_inputs)
@@ -914,7 +914,7 @@ def S_health_bar_update(health, screen, x, y, maxHP):
 
 def load(name: str, rotations_dir) -> pygame.Surface:
     path = os.path.join(rotations_dir, name)
-    img = pygame.image.load(path).convert_alpha()
+    img = pygame.image.load(s.resource_path(path)).convert_alpha()
     if img.get_width() != s.PLAYER_SIZE or img.get_height() != s.PLAYER_SIZE:
         img = pygame.transform.scale(img, (s.PLAYER_SIZE, s.PLAYER_SIZE))
     return img
@@ -922,9 +922,9 @@ def load(name: str, rotations_dir) -> pygame.Surface:
 
 def load_player_sprites(group):
     if group == 1:
-        rotations_dir = os.path.join(os.path.dirname(__file__), "sprites/white-player-rotations")
+        rotations_dir = os.path.join(os.path.dirname(__file__), s.resource_path("sprites/white-player-rotations"))
     else:
-        rotations_dir = os.path.join(os.path.dirname(__file__), "sprites/black-player-rotations")
+        rotations_dir = os.path.join(os.path.dirname(__file__), s.resource_path("sprites/black-player-rotations"))
 
     return {
         1: load("east.png", rotations_dir),
@@ -1000,9 +1000,9 @@ def load_fart_sprites() -> dict[int, pygame.Surface]:
 
 def load_enemy_sprites(group):
     if group == 1:
-        rotationsenemy_dir = os.path.join(os.path.dirname(__file__), "sprites\\red-enemy-rotations")
+        rotationsenemy_dir = os.path.join(os.path.dirname(__file__), s.resource_path("sprites\\red-enemy-rotations"))
     else:
-        rotationsenemy_dir = os.path.join(os.path.dirname(__file__), "sprites\\green-enemy-rotations")
+        rotationsenemy_dir = os.path.join(os.path.dirname(__file__), s.resource_path("sprites\\green-enemy-rotations"))
 
     return {
         1: load("right.png", rotationsenemy_dir),

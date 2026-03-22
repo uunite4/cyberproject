@@ -31,7 +31,6 @@ class Player:
 
         self.target = None
         self.idle = False
-        self.server_num = None
 
     # def move(self, xVel, yVel):
     #     self.x += xVel
@@ -47,7 +46,6 @@ class Player:
         inputs = {'d': 0, 'a': 0, 's': 0, 'w': 0}
 
         if self.target:
-            from game.general_func import distance
             dist = distance(self.x, self.y, self.target.x, self.target.y)
             if dist < 50:
                 self.target = None
@@ -57,10 +55,6 @@ class Player:
             target.x = random.randint(self.x - 500, self.x + 500)
             target.y = random.randint(self.y - 500, self.y + 500)
 
-            if check_overlap_side(self.server_num, target.x):
-                self.target = None
-
-            from game.general_func import in_view
             if in_view(self.x, self.y, target.x, target.y):
                 self.target = Vector2(target.x, target.y)
 
@@ -72,40 +66,6 @@ class Player:
         inputs['d'] = 1 if dire.x > 0.5 else 0
 
         return inputs
-
-
-def check_overlap_side(server_num, x):
-    """
-    Checks if a given x-coordinate falls within an overlap region
-    for a specific server and returns the side.
-
-    Args:
-        server_num (int): The index of the server (0 to SERVER_NUMBER - 1).
-        x (float/int): The x-coordinate to check.
-
-    Returns:
-        str or bool: "left" if in the left overlap, "right" if in the right overlap,
-                     or False if not in any overlap.
-    """
-
-    # 1. Check the LEFT overlap (shared with the previous server)
-    if server_num > 0:
-        left_overlap_start = server_num * s.SERVER_STEP
-        left_overlap_end = left_overlap_start + s.OVERLAP_WIDTH
-
-        if left_overlap_start <= x <= left_overlap_end:
-            return "left"
-
-    # 2. Check the RIGHT overlap (shared with the next server)
-    if server_num < s.SERVER_NUMBER - 1:
-        right_overlap_start = (server_num + 1) * s.SERVER_STEP
-        right_overlap_end = right_overlap_start + s.OVERLAP_WIDTH
-
-        if right_overlap_start <= x <= right_overlap_end:
-            return "right"
-
-    # Not in any overlap zone for this specific server
-    return False
 
 
 def check_collision_with_stone(next_x, next_y, size):  # True = blocked (stone/outside)
@@ -193,3 +153,33 @@ def check_fart_hit(p, f, low, high):
                 if low <= angle <= high: return True
 
     return False
+
+
+def in_view(sx, sy, tx, ty):
+    start = Vector2(sx, sy)
+    target = Vector2(tx, ty)
+
+    direction: Vector2 = Vector2(target) - Vector2(start)
+    dist = direction.length()
+
+    if dist == 0:
+        return True
+
+    direction = direction.normalize()
+
+    step_size = s.TILE_SIZE / 2  # smaller = more accurate
+    steps = int(dist / step_size)
+
+    pos = Vector2(start)
+
+    for _ in range(steps):
+        if check_collision_with_stone(pos.x, pos.y, s.TILE_SIZE) or check_collision_with_lava(pos.x, pos.y,
+                                                                                              s.TILE_SIZE):
+            return False
+        pos += direction * step_size
+
+    return True
+
+
+def distance(x1, y1, x2, y2):
+    return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)

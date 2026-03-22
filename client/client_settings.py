@@ -3,13 +3,15 @@ import os
 import sys
 
 
-def get_base_path():
-    if hasattr(sys, "_MEIPASS"):  # PyInstaller temp folder
-        return sys._MEIPASS
-    return os.path.abspath(".")
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 
-CONFIG_PATH = os.path.join(get_base_path(), "config.json")
+CONFIG_PATH = resource_path("config.json")
 
 
 def load_config():
@@ -42,29 +44,29 @@ TILE_SIZE = 40
 BUILDING_SIZE = 40
 
 # Obgects
-grass = 'sprites\\tiles\\grass.png'
-stone = 'sprites\\tiles\\stone.png'
-lava = 'sprites\\tiles\\lava.png'
-tree = 'sprites\\tiles\\tree.png'
-pesel = 'sprites\\tiles\\statue.png'
-marble = 'sprites\\tiles\\marble.png'
-bitmikdash = 'sprites\\tiles\\statue.png'
-ostone = 'sprites\\tiles\\blackstone.png'
-log = 'sprites\\obstacles\\log.png'
-tree_1 = 'sprites\\obstacles\\tree_1.png'
-tree_2 = 'sprites\\obstacles\\tree_2.png'
-poop = 'sprites\\inventory\\poop.png'
-inventory1 = 'sprites\\inventory\\inventory.png'
-select1 = 'sprites\\inventory\\select.png'
-dagger = 'sprites\\weapons\\DAGGER-NORTH.png'
-fart = 'sprites\\FARTS.png'
-lazer = 'sprites\\weapons\\lazer.png'
-gun = 'sprites\\weapons\\gun.png'
-lcon1 = 'sprites\\weapons\\Icon1.png'
-lcon5 = 'sprites\\weapons\\Icon5.png'
-lcon28 = 'sprites\\weapons\\Icon28.png'
-bolbol = 'sprites\\weapons\\bolbol.png'
-scissors = 'sprites\\weapons\\scissors.png'
+grass = resource_path('sprites\\tiles\\grass.png')
+stone = resource_path('sprites\\tiles\\stone.png')
+lava = resource_path('sprites\\tiles\\lava.png')
+tree = resource_path('sprites\\tiles\\tree.png')
+pesel = resource_path('sprites\\tiles\\statue.png')
+marble = resource_path('sprites\\tiles\\marble.png')
+bitmikdash = resource_path('sprites\\tiles\\statue.png')
+ostone = resource_path('sprites\\tiles\\blackstone.png')
+log = resource_path('sprites\\obstacles\\log.png')
+tree_1 = resource_path('sprites\\obstacles\\tree_1.png')
+tree_2 = resource_path('sprites\\obstacles\\tree_2.png')
+poop = resource_path('sprites\\inventory\\poop.png')
+inventory1 = resource_path('sprites\\inventory\\inventory.png')
+select1 = resource_path('sprites\\inventory\\select.png')
+dagger = resource_path('sprites\\weapons\\DAGGER-NORTH.png')
+fart = resource_path('sprites\\FARTS.png')
+lazer = resource_path('sprites\\weapons\\lazer.png')
+gun = resource_path('sprites\\weapons\\gun.png')
+lcon1 = resource_path('sprites\\weapons\\Icon1.png')
+lcon5 = resource_path('sprites\\weapons\\Icon5.png')
+lcon28 = resource_path('sprites\\weapons\\Icon28.png')
+bolbol = resource_path('sprites\\weapons\\bolbol.png')
+scissors = resource_path('sprites\\weapons\\scissors.png')
 
 OVERLAP_WIDTH = 6000
 SERVER_NUMBER = 4
