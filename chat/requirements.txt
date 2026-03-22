@@ -1,0 +1,4 @@
+qh3~=1.6.0
+protobuf~=7.34.1
+pygame~=2.6.1
+cryptography~=46.0.5
