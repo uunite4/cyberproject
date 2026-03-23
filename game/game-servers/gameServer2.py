@@ -363,8 +363,8 @@ class GameServer:
         dagger = Dagger.Dagger()
 
 
-        keep_ai_count(self, "GOBLIN",25)
-        keep_ai_count( self, "BEAR",50)
+        keep_ai_count(self, "GOBLIN",0)
+        keep_ai_count( self, "BEAR",100)
 
         while True:
             now = time.time()
