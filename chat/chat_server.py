@@ -1,5 +1,4 @@
 import asyncio
-import os
 
 from protobufs.chat_pb2 import *
 from wrappers.server_wrapper import QuicServer
@@ -17,7 +16,7 @@ class ChatServer:
     def __init__(self):
         self.server = QuicServer(
             ip="0.0.0.0",
-            port=int(os.getenv("CHAT_SERVER_PORT")),
+            port=8000,
             cert_file="wrappers/server.crt",
             key_fie="wrappers/server.key",
             on_receive=self.on_receive,
@@ -74,7 +73,7 @@ class ChatServer:
 
     async def run(self):
         await self.server.start()
-        print("Server started")
+        print("Chat Server started")
 
         try:
             while True:

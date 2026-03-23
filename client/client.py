@@ -521,6 +521,7 @@ class Client:
 
         # Connect to all servers
         for server in s.SERVERS_ADDRESSES:
+            print(server)
             server_id = await self.client.connect(
                 server_ip=server["ip"],
                 server_port=server["port"],

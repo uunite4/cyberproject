@@ -124,7 +124,7 @@ BYTESERRORS = {
     0x02: "ERROR: password is empty",
     0x03: "ERROR: with signup",
     0x04: "try again",
-    0x05: "ERROR: with loginserver",
+    0x05: "ERROR: with login",
     0x06: "User already found",
     0x07: "NO USER FOUND",
 }

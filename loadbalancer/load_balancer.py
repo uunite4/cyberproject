@@ -1,5 +1,4 @@
 import asyncio
-import os
 import struct
 
 import loadbalancer_settings as s
@@ -11,7 +10,7 @@ class LoadBalancer:
     def __init__(self):
         self.server = QuicServer(
             ip="0.0.0.0",
-            port=int(os.getenv("LOAD_BALANCER_PORT")),
+            port=9050,
             cert_file="wrappers/server.crt",
             key_fie="wrappers/server.key",
             on_receive=self.on_receive,

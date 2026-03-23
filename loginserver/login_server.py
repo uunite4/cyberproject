@@ -9,7 +9,7 @@ import string
 import struct
 
 import login_settings as s
-from map_data import MAP as m
+from map_data import MAP
 from wrappers.server_wrapper import QuicServer
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -22,7 +22,7 @@ class Login:
         self.loadbalancer_id = None
         self.login_server = QuicServer(
             ip="0.0.0.0",
-            port=int(os.getenv("LOGIN_SERVER_PORT")),
+            port=8050,
             cert_file="wrappers/server.crt",
             key_fie="wrappers/server.key",
             on_receive=self.on_receive,
@@ -125,27 +125,17 @@ class Login:
             print(f"Successfully updated stats for Player {token}")
         conn.close()
 
-    def sendTokenToLB(self, token):
-        return "38.97.84.242"  # Mock IP for game server
-
     def get_unique_token(self):
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-
-        while True:
-            # 1. Generate a potential token
-            new_token = self.generateToken()
-
-            # 2. Ask the DB if anyone is already using it
+        new_token = self.generateToken()
+        with sqlite3.connect(DB_PATH, timeout=5) as conn:
+            cursor = conn.cursor()
             cursor.execute("SELECT 1 FROM login WHERE token = ?", (new_token,))
             exists = cursor.fetchone()
-
-            # 3. If 'exists' is None, the token is unique!
             if not exists:
-                conn.close()
+                print(f"Token {new_token} is unique!")
                 return new_token
-
-            # If it's NOT None, the loop runs again to try a different token
+        print(f"Token {new_token} already exists, retrying...")
+        return None
 
     def check_username_exists(self, username):
         with sqlite3.connect(DB_PATH, timeout=5) as conn:
@@ -259,7 +249,6 @@ class Login:
     def handle_login_client(self, raw_data, connection_id):
         # still needs to make a new one also for the updating
         # in general make a new system that will be hashed with quic and will not be easy manupulated like the seperation with = sign
-        global userToken
         loginData = json.loads(raw_data)
         # loginData[0] = username, [1] = password, [2] = action (LOGIN/SIGNUP)
 
@@ -366,7 +355,7 @@ def check_collision_with_stone(next_x, next_y, size):  # True = blocked (stone/o
         if tile_x < 0 or tile_x >= s.WIDTH or tile_y < 0 or tile_y >= s.HEIGHT:
             return True
 
-        if m.MAP[tile_y][tile_x] == "x":
+        if MAP[tile_y][tile_x] == "x":
             return True
     return False
 
@@ -379,7 +368,7 @@ def check_collision_with_lava(next_x, next_y, size):  # True = lava
         tile_y = int(py // s.TILE_SIZE)  # pixel -> tile row
         if tile_x < 0 or tile_x >= s.WIDTH or tile_y < 0 or tile_y >= s.HEIGHT:
             continue
-        if m.MAP[tile_y][tile_x] == "b":
+        if MAP[tile_y][tile_x] == "b":
             return True
     return False
 

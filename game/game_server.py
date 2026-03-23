@@ -24,7 +24,7 @@ class GameServer:
         self.monsters = []
         self.server = QuicServer(
             ip="0.0.0.0",
-            port=int(os.getenv("GAME_SERVER_PORT")),
+            port=9000,
             cert_file="wrappers/server.crt",
             key_fie="wrappers/server.key",
             on_receive=self.on_receive,
@@ -356,12 +356,14 @@ class GameServer:
     def on_disconnect(self, connection_id: int):
         print(f"disconnected {connection_id}")
         for pid, client in self.clients.items():
-            if not client["imOverlap"] and connection_id == client["cid"]:
-                inv = get_inventory_in_format(client["inventory"])
-                pk = struct.pack(f"b16siib{S.INVENTORY_SIZE}b", S.CMDS["PLAYER_LEFT"], pid.encode('utf-8'), client["x"],
-                                 client["y"], client["hp"], *inv)
-                print(client["x"], client["y"], client["hp"], *inv)
-                self.server.send(self.load_id, pk)
+            if connection_id == client["cid"]:
+                if not client["imOverlap"]:
+                    inv = get_inventory_in_format(client["inventory"])
+                    pk = struct.pack(f"b16siib{S.INVENTORY_SIZE}b", S.CMDS["PLAYER_LEFT"], pid.encode('utf-8'),
+                                     client["x"],
+                                     client["y"], client["hp"], *inv)
+                    print(client["x"], client["y"], client["hp"], *inv)
+                    self.server.send(self.load_id, pk)
                 del self.clients[pid]
                 break
 
@@ -629,7 +631,7 @@ def broadcast(self, dagger):
         temp = copy_dic(self.clients)
         del temp[pid]
         pk = build_state_payload(temp, payload, format, client)
-        self.login_server.send(client["cid"], pk)
+        self.server.send(client["cid"], pk)
         if client["fart"] == 1:
             print("player is farting ", i)
         # health related changes
@@ -674,7 +676,7 @@ def broadcast(self, dagger):
                 client["x"], client["y"], client["hp"] = x, y, S.PLAYER_HEALTH
                 # send information to client
                 pk = struct.pack("!bii", S.CMDS["RESPAWN"], x, y)
-            self.login_server.send(client["cid"], pk)
+            self.server.send(client["cid"], pk)
         i += 1
 
 
@@ -777,6 +779,7 @@ def take_client(self, pid, data):
     inventory = list(unpacked[inv_start:inv_end])
     inv_names = numToNames(inventory)
     print(inv_names)
+    print(self.clients)
 
     # saving the cid
     cid = self.clients[pid]["cid"]
@@ -1131,7 +1134,7 @@ def fart_enemy(e, farts, num, items):
 
 def destroyItem(self, cid, item):
     pk = struct.pack('!bb', S.CMDS["DELETE_ITEM"], int(item))
-    self.login_server.send(cid, pk)
+    self.server.send(cid, pk)
 
 
 def drop_weapons(player, dropped_list):

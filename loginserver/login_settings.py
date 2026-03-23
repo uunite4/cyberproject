@@ -1,6 +1,6 @@
 import os
 
-load_balancer_val = os.getenv("LOAD_BALANCER")
+load_balancer_val = os.getenv("LOAD_BALANCER", "127.0.0.1:9050")
 if load_balancer_val:
     ip, port = load_balancer_val.split(":")
     LOAD_BALANCER = {"ip": ip, "port": int(port)}
@@ -16,7 +16,7 @@ SERVER_STEP = SERVER_WIDTH - OVERLAP_WIDTH
 SERVERS = []
 
 for i in range(1, 5):
-    val = os.getenv(f"GAME_SERVER_{i}")
+    val = os.getenv(f"GAME_SERVER_{i}", f"127.0.0.1:900{i}")
     if val:
         ip, port = val.split(":")
         server = {
@@ -41,7 +41,7 @@ ERRORSBYTES = {
     "ERROR: password is empty": 0x02,
     "ERROR: with signup": 0x03,
     "try again": 0x04,
-    "ERROR: with loginserver": 0x05,
+    "ERROR: with login": 0x05,
     "User already found": 0x06,
     "NO USER FOUND": 0x07,
 }
