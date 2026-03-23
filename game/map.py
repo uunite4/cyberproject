@@ -171,7 +171,14 @@ def draw_map(screen, map_data, cam_x, cam_y, window_w, window_h, tile_size=TILE_
             elif tile == 'T':
                 screen.blit(grassb, (px, py))
                 screen.blit(treeb, (px, py))
-            else:
+            elif tile == 'B':
                 screen.blit(marbleb, (px, py))
-                screen.blit(peselb, (px, py))
 
+    center_x = len(map_data[0]) // 2
+    center_y = len(map_data) // 2
+    temple_half = 20
+
+    temple_px = (center_x - temple_half) * tile_size - cam_x
+    temple_py = (center_y - temple_half) * tile_size - cam_y
+
+    screen.blit(bitmikdashb, (temple_px, temple_py))
