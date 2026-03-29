@@ -1,18 +1,25 @@
 import asyncio
+import os
 import struct
 
 import loadbalancer_settings as s
+from wrappers import certificate_generator
 from wrappers.server_wrapper import QuicServer
 
 
 class LoadBalancer:
 
     def __init__(self):
+        certificate_generator.generate_server_cert(os.getenv('LOAD_BALANCER_IP', "127.0.0.1"))
+        certificate_generator.generate_client_cert()
         self.server = QuicServer(
             ip="0.0.0.0",
             port=9050,
-            cert_file="wrappers/server.crt",
-            key_fie="wrappers/server.key",
+            server_cert="wrappers/certificate/server.crt",
+            server_key="wrappers/certificate/server.key",
+            client_cert="wrappers/certificate/client.crt",
+            client_key="wrappers/certificate/client.key",
+            ca_file="wrappers/certificate/ca.crt",
             on_receive=self.on_receive,
             on_connect=self.on_connect,
             on_disconnect=self.on_disconnect,

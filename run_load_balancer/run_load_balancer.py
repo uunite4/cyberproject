@@ -8,6 +8,7 @@ BASE_DIR = Path(__file__).parent.resolve()
 YAML_PATH = BASE_DIR / "load_balancer.yml"
 DOCKER_DIR = BASE_DIR / "../loadbalancer"
 DOCKERFILE = DOCKER_DIR / "load_balancer.Dockerfile"
+CERTIFICATE_PATH = DOCKER_DIR / "wrappers/certificate"
 
 HOST_PROJECT_PATH = DOCKER_DIR
 CONTAINER_PROJECT_PATH = "/app"
@@ -16,6 +17,7 @@ with open(YAML_PATH) as f:
     config = yaml.safe_load(f)
 
 LOAD_BALANCER_HOST_PORT = config["LOAD_BALANCER_HOST_PORT"]
+LOAD_BALANCER_HOST_IP = config["LOAD_BALANCER_HOST_IP"]
 
 GAME_SERVER_1 = config["GAME_SERVER_1"]
 GAME_SERVER_2 = config["GAME_SERVER_2"]
@@ -51,10 +53,10 @@ run_command([
     "-d",
     "-p", f"{LOAD_BALANCER_HOST_PORT}:9050/udp",
     "--name", CONTAINER_NAME,
+    "-e", f"LOAD_BALANCER_IP={LOAD_BALANCER_HOST_IP}",
     "-e", f"GAME_SERVER_1={GAME_SERVER_1}",
     "-e", f"GAME_SERVER_2={GAME_SERVER_2}",
     "-e", f"GAME_SERVER_3={GAME_SERVER_3}",
     "-e", f"GAME_SERVER_4={GAME_SERVER_4}",
-    "-v", f"{HOST_PROJECT_PATH}:{CONTAINER_PROJECT_PATH}",
     IMAGE
 ])

@@ -48,15 +48,18 @@ class _ClientProtocol(QuicConnectionProtocol):
 
 
 class QuicClient:
-    def __init__(self, on_receive: OnReceive):
+    def __init__(self, on_receive: OnReceive, client_cert: str, client_key: str, ca_file: str):
         self.on_receive = on_receive
-
+        self.client_cert = client_cert
+        self.client_key = client_key
+        self.ca_file = ca_file
         self._connections: dict[int, _ClientProtocol] = {}
         self.lifetime_connections = 0
 
     async def connect(self, server_ip: str, server_port: int):
-        config = QuicConfiguration(is_client=True, idle_timeout=IDLE_TIMEOUT_SECONDS,
-                                   verify_mode=False, server_name=server_ip)
+        config = QuicConfiguration(is_client=True, idle_timeout=IDLE_TIMEOUT_SECONDS, server_name=server_ip)
+        config.load_cert_chain(certfile=self.client_cert, keyfile=self.client_key)
+        config.load_verify_locations(self.ca_file)
 
         connection_id = self._get_next_connection_id()
         connection_context_manager = connect(

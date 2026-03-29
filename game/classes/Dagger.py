@@ -2,7 +2,7 @@
 
 # Dagger.py
 import time
-from SETTINGS import PLAYER_SIZE,MONSTERS
+from game_settings import PLAYER_SIZE,MONSTERS
 
 
 class Dagger:

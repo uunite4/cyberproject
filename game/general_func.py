@@ -1,13 +1,12 @@
-import math
-import SETTINGS as S
-import random
+import game_settings as S
 from classes.Player import *
-from pygame import Vector2
 
-def distance(x1,y1,x2,y2):
-    return math.sqrt((x1-x2)**2 + (y1-y2)**2)
 
-def order(list_dis,list_id,list_pos):
+def distance(x1, y1, x2, y2):
+    return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+
+
+def order(list_dis, list_id, list_pos):
     n = len(list_dis)
     for i in range(n):
         for j in range(0, n - i - 1):
@@ -15,56 +14,60 @@ def order(list_dis,list_id,list_pos):
                 list_dis[j], list_dis[j + 1] = list_dis[j + 1], list_dis[j]
                 list_id[j], list_id[j + 1] = list_id[j + 1], list_id[j]
                 list_pos[j], list_pos[j + 1] = list_pos[j + 1], list_pos[j]
-    return list_id,list_pos
+    return list_id, list_pos
 
-def vector(x1,y1,x2,y2):
+
+def vector(x1, y1, x2, y2):
     """
     returns a tuple:
     if the first variable is 0 its go straight up or down depending on the second variable
     if not its:
     (speed*first_variable, speed*second_variable*first_variable)
     """
-    dx = x2-x1
-    dy = y2-y1
-    if dx==0:
-        if dy>0:
-            dy=1
-        if dy<0:
-            dy=-1
-        return (0,dy)
-    slope = dy/dx
-    if dx<0:
+    dx = x2 - x1
+    dy = y2 - y1
+    if dx == 0:
+        if dy > 0:
+            dy = 1
+        if dy < 0:
+            dy = -1
+        return (0, dy)
+    slope = dy / dx
+    if dx < 0:
         dx = -1
-    elif dx>0:
+    elif dx > 0:
         dx = 1
-    return(dx,slope)
+    return (dx, slope)
 
-def jumps(size,slope):
+
+def jumps(size, slope):
     ab = abs(slope)
-    if ab==0:
+    if ab == 0:
         return size
-    elif ab<=1:
-        return size*ab
-    elif ab>1:
-        return size/ab
+    elif ab <= 1:
+        return size * ab
+    elif ab > 1:
+        return size / ab
 
-def rand_pos(radius,enemy):
+
+def rand_pos(radius, enemy):
     r = radius
     ex = int(enemy.entity.x)
     ey = int(enemy.entity.y)
     rand_x = random.randint(ex - r, ex + r)
     rand_y = random.randint(ey - r, ey + r)
-    return rand_x,rand_y
+    return rand_x, rand_y
 
-def next_pos(sx,sy,tx,ty,speed): #start x,y ; target x,y ; speed
-    dir,slope = vector(sx,sy,tx,ty)
-    if dir==0:
+
+def next_pos(sx, sy, tx, ty, speed):  # start x,y ; target x,y ; speed
+    dir, slope = vector(sx, sy, tx, ty)
+    if dir == 0:
         nx = sx
-        ny = sy + slope*speed
+        ny = sy + slope * speed
     else:
-        nx = sx + dir*speed
-        ny = sy + dir*speed*slope
-    return nx,ny
+        nx = sx + dir * speed
+        ny = sy + dir * speed * slope
+    return nx, ny
 
 
 def next_pos2(sx, sy, tx, ty, speed):
@@ -74,14 +77,12 @@ def next_pos2(sx, sy, tx, ty, speed):
 
     # Calculate angle to target
     angle = math.atan2(ty - sy, tx - sx)
-    nx = sx + math.cos(angle) * speed/5
-    ny = sy + math.sin(angle) * speed/5
+    nx = sx + math.cos(angle) * speed / 5
+    ny = sy + math.sin(angle) * speed / 5
     return nx, ny
 
 
-
 def in_view(sx, sy, tx, ty):
-
     start = Vector2(sx, sy)
     target = Vector2(tx, ty)
 
@@ -99,12 +100,12 @@ def in_view(sx, sy, tx, ty):
     pos = Vector2(start)
 
     for _ in range(steps):
-        if check_collision_with_stone(pos.x, pos.y, S.TILE_SIZE) or check_collision_with_lava(pos.x, pos.y, S.TILE_SIZE):
+        if check_collision_with_stone(pos.x, pos.y, S.TILE_SIZE) or check_collision_with_lava(pos.x, pos.y,
+                                                                                              S.TILE_SIZE):
             return False
         pos += direction * step_size
 
     return True
-
 
 
 def get_dir_from_vector(dx, dy):

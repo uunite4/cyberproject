@@ -6,14 +6,14 @@ from classes import Fart, Dagger, Entity
 from classes.Bullet import *
 from classes.DroppedWeapon import *
 from classes.enemy import *
-from general_func import *
+from wrappers import certificate_generator
 from wrappers.server_wrapper import QuicServer
 
 
 class GameServer:
 
     def __init__(self):
-        self.serverNumber = int(os.getenv("GAME_SERVER_NUMBER"))
+        self.serverNumber = int(os.getenv("GAME_SERVER_NUMBER", 1))
         self.serverData = S.SERVERS[self.serverNumber - 1]
         self.nearOverlaps = getNearOverlaps(self.serverNumber - 1)
         self.load_id = None
@@ -22,11 +22,16 @@ class GameServer:
         self.items = []
         self.farts = []
         self.monsters = []
+        certificate_generator.generate_server_cert(os.getenv('GAME_SERVER_IP', "127.0.0.1"))
+        certificate_generator.generate_client_cert()
         self.server = QuicServer(
             ip="0.0.0.0",
             port=9000,
-            cert_file="wrappers/server.crt",
-            key_fie="wrappers/server.key",
+            server_cert="wrappers/certificate/server.crt",
+            server_key="wrappers/certificate/server.key",
+            client_cert="wrappers/certificate/client.crt",
+            client_key="wrappers/certificate/client.key",
+            ca_file="wrappers/certificate/ca.crt",
             on_receive=self.on_receive,
             on_connect=self.on_connect,
             on_disconnect=self.on_disconnect,
@@ -89,6 +94,13 @@ class GameServer:
             elif (cmd == S.CMDS["ADD_ME"] and pid not in self.clients):
                 print("added player ", pid)
                 x, y, dir, health, att, weapon, fart, invis, laser, brit = struct.unpack_from('!iibbbbhhhh', data, 17)
+                info_inv = struct.unpack_from(f'!{S.INVENTORY_SIZE}b', data, 37)
+                inv = [None] * S.INVENTORY_SIZE
+                for i in range(S.INVENTORY_SIZE):
+                    if not 0 <= info_inv[i] <= 7:
+                        return
+                    hand = S.INVENTORY_MAP[info_inv[i]]
+                    inv[i] = hand
 
                 if check_overlap_side(self.serverNumber - 1, x) == False:
                     return
@@ -99,6 +111,16 @@ class GameServer:
                 if not 0 <= health <= S.PLAYER_HEALTH:
                     return
                 if att not in [0, 1]:
+                    return
+                if weapon not in [1, 2, 3, 4, 5, 6, 7, 8]:
+                    return
+                if not 0 <= fart <= S.FART_TIME:
+                    return
+                if not 0 <= invis <= S.INVESIBEL_TIME:
+                    return
+                if not 0 <= laser <= S.LASER_TIME:
+                    return
+                if not 0 <= brit <= S.BRIT_TIMER:
                     return
 
                 self.clients[pid] = {
@@ -111,7 +133,7 @@ class GameServer:
                     "att": att,
                     "weapons": weapon,
                     "gun_cd": S.BULLET_COOLDOWN,
-                    "inventory": S.BASIC_INV,  # needs to be recieved!!!!
+                    "inventory": inv,
                     "fart": 1 if fart > 0 else 0,
                     "f_cooldown": S.FART_COOLDOWN,
                     "f_timer": fart,
@@ -414,14 +436,37 @@ def clamp(v, lo, hi):
 def apply_movement(x, y, dx, dy, sprint):
     speed = S.PLAYER_VEL + sprint * S.PLAYER_VEL
 
-    nx = clamp(x + dx * speed, 0, S.MAP_WIDTH)
-    ny = clamp(y + dy * speed, 0, S.MAP_HEIGHT)
+    target_x = clamp(x + dx * speed, 0, S.MAP_WIDTH)
+    target_y = clamp(y + dy * speed, 0, S.MAP_HEIGHT)
 
-    # axis-separated collision
-    if not check_collision_with_stone(nx, y, S.PLAYER_SIZE):
-        x = nx
-    if not check_collision_with_stone(x, ny, S.PLAYER_SIZE):
-        y = ny
+    # --- X AXIS MOVEMENT ---
+    # FAST PATH: Is the final X destination completely clear?
+    if not check_collision_with_stone(target_x, y, S.PLAYER_SIZE):
+        x = target_x
+    else:
+        # SLOW PATH: We hit something, so pixel-step to slide flush against it
+        move_x = target_x - x
+        step_x = 1 if move_x > 0 else -1
+        for _ in range(int(abs(move_x))):
+            if not check_collision_with_stone(x + step_x, y, S.PLAYER_SIZE):
+                x += step_x
+            else:
+                break
+
+    # --- Y AXIS MOVEMENT ---
+    # FAST PATH: Is the final Y destination completely clear? (using the updated x)
+    if not check_collision_with_stone(x, target_y, S.PLAYER_SIZE):
+        y = target_y
+    else:
+        # SLOW PATH: We hit something, so pixel-step to slide flush against it
+        move_y = target_y - y
+        step_y = 1 if move_y > 0 else -1
+        for _ in range(int(abs(move_y))):
+            if not check_collision_with_stone(x, y + step_y, S.PLAYER_SIZE):
+                y += step_y
+            else:
+                break
+
     return x, y
 
 
@@ -574,7 +619,7 @@ def check_overlap_side(server_num, x):
     return False
 
 
-def check_attack_enemy_and_build_payload(bullets, items, enemies, clients):
+def check_attack_enemy_and_build_payload(bullets, items, enemies, clients, serverNumber):
     arr = [False] * len(clients)
     payload = []
     countb = len(bullets)
@@ -603,28 +648,32 @@ def check_attack_enemy_and_build_payload(bullets, items, enemies, clients):
         payload.append(int(i.dir))
         payload.append(int(i.health))
         payload.append(int(S.MONSTERS[e.type]["code"]))
-
         if check_collision_with_lava(i.x, i.y, S.MONSTERS[e.type]["size"]):
             i.health -= 1
-
+            if i.health <= 0:
+                i.health = S.MONSTERS[e.type]["health"]
+                drop_weapon_for_enemy(items, e, random.randint(2, 7))
+                drop_weapon_for_enemy(items, e, random.randint(2, 7))
+                i.x, i.y = respawn(serverNumber - 1)
         if S.MONSTERS[e.type]["type"] == "melee":
             if now - e.last_att > S.ENEMY_COOLDOWN:
-                i = 0
+                ic = 0
                 for client in clients.values():
                     if client["invis"] == 0:
                         dis = distance(client["x"], client["y"], e.entity.x, e.entity.y)
                         if dis < S.MONSTERS[e.type]["att_radius"]:
                             client["hp"] -= S.MONSTERS[e.type]["damage"]
                             print("attacking player")
-                            arr[i] = True
+                            arr[ic] = True
                             e.attacked()
-                    i += 1
+                    ic += 1
     return payload, format, arr
 
 
 def broadcast(self, dagger):
-    payload, format, hp_change = check_attack_enemy_and_build_payload(self.bullets, self.items, self.monsters,
-                                                                      self.clients)  # does their health change and need updating?
+    payload, format, hp_change = check_attack_enemy_and_build_payload(
+        self.bullets, self.items, self.monsters, self.clients, self.serverNumber)
+    # does their health change and need updating?
     i = 0
     global pk
     for pid, client in self.clients.items():
@@ -665,7 +714,7 @@ def broadcast(self, dagger):
         i += 1
     i = 0
     for client in self.clients.values():
-        if hp_change[i]:
+        if hp_change[i] and not client["imOverlap"]:
             if client["hp"] > 0:
                 print("damage taken")
                 pk = struct.pack('!bb', S.CMDS["DAMAGE"], int(client["hp"]))
@@ -676,6 +725,7 @@ def broadcast(self, dagger):
                 client["x"], client["y"], client["hp"] = x, y, S.PLAYER_HEALTH
                 # send information to client
                 pk = struct.pack("!bii", S.CMDS["RESPAWN"], x, y)
+                client["inOverlap"] = False
             self.server.send(client["cid"], pk)
         i += 1
 
@@ -1012,7 +1062,7 @@ def check_laser_hit(pid, attacker, clients, monsters, num, items):
                     drop_weapon_for_enemy(items, e, weapon_type)
 
                     # random respwon
-                    e.entity.x, e.entity.y = respawn(num)
+                    e.entity.x, e.entity.y = respawn(num - 1)
 
     return arr
 
@@ -1064,7 +1114,7 @@ def attack(dagger, attacker, clients, monsters, items, num):
                 drop_weapon_for_enemy(items, e, weapon_type)
 
                 # random respwon
-                e.entity.x, e.entity.y = respawn(num)
+                e.entity.x, e.entity.y = respawn(num - 1)
 
     return arr
 
@@ -1129,7 +1179,7 @@ def fart_enemy(e, farts, num, items):
                 drop_weapon_for_enemy(items, e, weapon_type)
 
                 # random respawn
-                e.entity.x, e.entity.y = respawn(num)
+                e.entity.x, e.entity.y = respawn(num - 1)
 
 
 def destroyItem(self, cid, item):

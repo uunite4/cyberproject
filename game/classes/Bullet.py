@@ -1,6 +1,6 @@
 
 
-import SETTINGS as S
+import game_settings as S
 from classes.Entity import *
 from classes.Player import check_collision_with_stone
 

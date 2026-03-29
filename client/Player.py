@@ -78,7 +78,7 @@ def check_collision_with_stone(next_x, next_y, size):  # True = blocked (stone/o
         if tile_x < 0 or tile_x >= s.WIDTH or tile_y < 0 or tile_y >= s.HEIGHT:
             return True
 
-        if m.MAP[tile_y][tile_x] == "x":
+        if m.MAP[tile_y][tile_x] == "T":
             return True
     return False
 
@@ -91,7 +91,7 @@ def check_collision_with_lava(next_x, next_y, size):  # True = lava
         tile_y = int(py // s.TILE_SIZE)  # pixel -> tile row
         if tile_x < 0 or tile_x >= s.WIDTH or tile_y < 0 or tile_y >= s.HEIGHT:
             continue
-        if m.MAP[tile_y][tile_x] == "b":
+        if m.MAP[tile_y][tile_x] == "L":
             return True
     return False
 

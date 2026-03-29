@@ -8,6 +8,7 @@ BASE_DIR = Path(__file__).parent.resolve()
 YAML_PATH = BASE_DIR / "chat.yml"
 DOCKER_DIR = BASE_DIR / "../chat"
 DOCKERFILE = DOCKER_DIR / "chat_server.Dockerfile"
+CERTIFICATE_PATH = DOCKER_DIR / "wrappers/certificate"
 
 HOST_PROJECT_PATH = DOCKER_DIR
 CONTAINER_PROJECT_PATH = "/app"
@@ -28,6 +29,7 @@ with open(YAML_PATH) as f:
     config = yaml.safe_load(f)
 
 CHAT_HOST_PORT = config["CHAT_HOST_PORT"]
+CHAT_HOST_IP = config["CHAT_HOST_IP"]
 
 run_command([
     "docker", "build",
@@ -44,6 +46,7 @@ run_command(
 run_command([
     "docker", "run",
     "-d",
+    "-e", f"CHAT_SERVER_IP={CHAT_HOST_IP}",
     "-p", f"{CHAT_HOST_PORT}:8000/udp",
     "--name", CONTAINER_NAME,
     IMAGE

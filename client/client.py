@@ -23,6 +23,7 @@ lcon5b = pygame.image.load(s.lcon5).convert_alpha()
 scissorsb = pygame.image.load(s.scissors).convert_alpha()
 lazerb = pygame.image.load(s.lazer).convert_alpha()
 gunb = pygame.image.load(s.gun).convert_alpha()
+ender = pygame.image.load(s.ender).convert_alpha()
 
 
 class Client:
@@ -41,7 +42,10 @@ class Client:
         self.dropped = []
         self.enemies = []
         self.open = False
-        pygame.init()
+
+        pygame.display.init()
+        pygame.font.init()
+
         self.screen = pygame.display.set_mode((s.WINDOW_WIDTH, s.WINDOW_HEIGHT))
         pygame.display.set_caption("Game")
         self.player = Player()
@@ -108,6 +112,7 @@ class Client:
                     pk = struct.pack("!b16siib", s.CMDS["POS_DONT_RESPOND"], self.pid.encode("utf-8"), self.player.x,
                                      self.player.y, self.player.dir)
                     self.client.send(self.connections[self.iInActive], pk)
+
             elif (cmd == s.CMDS["OVERLAP"]):
                 dir = struct.unpack_from('!1s', data, 1)[0].decode("utf-8")
                 if (dir == "r"):
@@ -115,13 +120,20 @@ class Client:
                 elif (dir == "l"):
                     self.iInActive = self.iControl - 1
 
-                print("self.inActive", self.iInActive)
-                pk = struct.pack("!b16siibbbbhhhh", s.CMDS["ADD_ME"], self.pid.encode("utf-8"), self.player.x,
-                                 self.player.y,
-                                 self.player.dir, self.player.health, self.player.att, self.player.weapon,
-                                 self.player.fart_timer,
-                                 self.player.invis_timer, self.player.laser_timer, self.player.brit)
-                self.client.send(self.connections[self.iInActive], pk)
+                # ADDED SAFETY CHECK SO IT DOESN'T CRASH
+                if self.iInActive is not None:
+                    print("self.inActive", self.iInActive)
+                    inv = get_inventory_in_format(self.player.weapons)
+
+                    pk = struct.pack(f"!b16siibbbbhhhh{s.INVENTORY_SIZE}b", s.CMDS["ADD_ME"],
+                                     self.pid.encode("utf-8"), self.player.x,
+                                     self.player.y,
+                                     self.player.dir, self.player.health, self.player.att, self.player.weapon,
+                                     self.player.fart_timer,
+                                     self.player.invis_timer, self.player.laser_timer, self.player.brit, *inv)
+                    self.client.send(self.connections[self.iInActive], pk)
+                else:
+                    print("OVERLAP ERROR", dir)
 
             elif (cmd == s.CMDS["OUT_OF_OVERLAP"]):
                 # SEND TO INACTIVE SERVER TO REMOVE ME
@@ -140,7 +152,7 @@ class Client:
                     self.iInActive = None
                 else:
                     print("fuck")
-            elif (cmd == s.CMDS["RENDER"]):
+            elif cmd == s.CMDS["RENDER"]:
                 # render the screen
                 if connection_id == self.connections[self.iControl] or (
                         self.iInActive != None and connection_id == self.connections[self.iInActive]):
@@ -178,11 +190,11 @@ class Client:
                             self.client.send(self.connections[self.iInActive], pk)
                     self.player.brit = brit
 
-                    if connection_id == self.connections[self.iControl]:
-                        self.players = []
-                        self.bullets = []
-                        self.dropped = []
-                        self.enemies = []
+                    # if connection_id == self.connections[self.iControl]:
+                    self.players = []
+                    self.bullets = []
+                    self.dropped = []
+                    self.enemies = []
 
                     count = struct.unpack_from('!h', data, 9)[0]
                     for i in range(count):
@@ -233,6 +245,7 @@ class Client:
                 if self.iInActive != None:
                     pk = struct.pack("!b16s", s.CMDS["REMOVE_ME"], self.pid.encode("utf-8"))
                     self.client.send(self.connections[self.iInActive], pk)
+                    self.iInActive = None
             elif (cmd == s.CMDS["DELETE_ITEM"]):
                 index = struct.unpack_from('!b', data, 1)[0]
                 self.player.weapons[index] = 0
@@ -252,7 +265,7 @@ class Client:
                 print("adding item ", weapon)
 
     # -----------
-    # running loginserver-server
+    # running login-server
     # -----------
     async def main_menu(self):
         # Variables to track what we are typing
@@ -262,9 +275,12 @@ class Client:
         mode = "START"  # START, LOGIN_INPUT, SIGNUP_INPUT
         status_msg = ["ERROR", "WAITING", "ROOM"]  # This is our 'waiting room'
 
+        input_box_w = 300
+        input_box_h = 40
+
         while self.running:
             await asyncio.sleep(0.001)
-            screen.fill(s.WHITE)
+            screen.fill((30, 30, 40))  # Dark background
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -274,8 +290,10 @@ class Client:
                     if mode == "START":
                         if event.key == pygame.K_l:
                             mode = "LOGIN_INPUT"
+                            username, password, status_msg = client.reset_inputs()
                         if event.key == pygame.K_s:
                             mode = "SIGNUP_INPUT"
+                            username, password, status_msg = client.reset_inputs()
 
                     elif "INPUT" in mode:
                         if event.key == pygame.K_ESCAPE:
@@ -306,50 +324,83 @@ class Client:
                                 password += event.unicode
 
             # --- DRAWING LOGIC ---
+            width, height = screen.get_size()
+            center_x = width // 2
+
             if mode == "START":
-                self.draw_text("Welcome to the MMORPG", 230, 150)
-                self.draw_text("Press 'L' for Login", 250, 250)
-                self.draw_text("Press 'S' for Signup", 250, 300)
+                self.draw_text("MMORPG", center_x, 120, size=48, center=True)
+                self.draw_text("Press L to Login", center_x, 260, center=True)
+                self.draw_text("Press S to Signup", center_x, 310, center=True)
 
             elif "INPUT" in mode:
                 if status_msg[0] == "ERROR":
-                    success = [False, False]
-                    self.draw_text(f"Mode: {mode}", 50, 50)
-                    self.draw_text(f"Username: {username} {'|' if active_field == 'username' else ''}", 100, 150)
-                    self.draw_text(f"Password: {'*' * len(password)} {'|' if active_field == 'password' else ''}", 100,
-                                   200)
-                    self.draw_text("Press TAB to switch, ENTER to submit, ESC to go back", 100, 300)
+                    self.draw_text(mode.replace("_", " "), center_x, 80, size=40, center=True)
 
-                    if status_msg[1] == "ERROR: with signup":
-                        self.draw_text("SignUp failed!", 100, 400, color=(255, 0, 0))
-                    elif status_msg[1] == "ERROR: with loginserver-server":
-                        self.draw_text("Login Failed!", 100, 400, color=(255, 0, 0))
-                    elif status_msg[1] == "ERROR: username is empty" or status_msg[1] == "ERROR: password is empty":
-                        self.draw_text("password or username is empty", 100, 400, color=(255, 0, 0))
+                    # Username box
+                    user_rect = pygame.Rect(center_x - input_box_w // 2, 180, input_box_w, input_box_h)
+                    pass_rect = pygame.Rect(center_x - input_box_w // 2, 260, input_box_w, input_box_h)
+
+                    pygame.draw.rect(screen, (70, 70, 90), user_rect)
+                    pygame.draw.rect(screen, (70, 70, 90), pass_rect)
+
+                    # Highlight active field
+                    if active_field == "username":
+                        pygame.draw.rect(screen, (100, 200, 255), user_rect, 2)
                     else:
-                        success[0] = True
-                        self.draw_text("the key: " + status_msg[1], 100, 400, color=(255, 0, 0))  # SUCCESSFULL
-                    if status_msg[2] == "NO USER FOUND":
-                        self.draw_text("NO USER FOUND ", 100, 460, color=(255, 0, 0))
-                    elif status_msg[2] == "User already found":
-                        self.draw_text("USER FOUND ", 100, 460, color=(255, 0, 0))
-                    elif status_msg[1] == "ERROR: username is empty" or status_msg[1] == "ERROR: password is empty":
-                        self.draw_text("password or username is empty", 100, 400, color=(255, 0, 0))
-                    else:
-                        success[1] = True
-                        self.draw_text("the next server: " + status_msg[2], 100, 460, color=(255, 0, 0))  # SUCCESFULL
+                        pygame.draw.rect(screen, (100, 200, 255), pass_rect, 2)
 
+                    self.draw_text(username, user_rect.x + 10, user_rect.y + 8)
+                    self.draw_text("*" * len(password), pass_rect.x + 10, pass_rect.y + 8)
 
-            elif status_msg[0] == "OK":
-                print("loginserver-server\ sighup was successful")
+                    # Labels
+                    self.draw_text("Username", user_rect.x, user_rect.y - 25, size=18)
+                    self.draw_text("Password", pass_rect.x, pass_rect.y - 25, size=18)
+
+                    # Instructions
+                    self.draw_text("TAB to switch • ENTER to submit • ESC to go back",
+                                   center_x, 340, size=18, center=True)
+
+                    # Status messages (clean + complete)
+                    error_text = None
+
+                    if status_msg[1].startswith("ERROR"):
+                        if "signup" in status_msg[1]:
+                            error_text = "Signup failed"
+
+                        if "loginserver-server" in status_msg[1]:
+                            error_text = "Login failed"
+
+                        if status_msg[2] == "NO USER FOUND":
+                            error_text = "User not found"
+
+                        if status_msg[2] == "User already found":
+                            error_text = "User already exists"
+
+                        if "username is empty" in status_msg[1] or "password is empty" in status_msg[1]:
+                            error_text = "Username or password is empty"
+
+                    if error_text:
+                        self.draw_text(error_text, center_x, 420, color=(255, 80, 80), center=True)
+
+                elif status_msg[0] == "OK":
+                    self.draw_text("Success!", center_x, 300, color=(100, 255, 100), center=True)
 
             pygame.display.flip()
         self.username = username
 
-    def draw_text(self, text, x, y, color=s.BLACK):
-        font = pygame.font.SysFont("Arial", 24)
+    def draw_text(self, text, x, y, color=(255, 255, 255), size=24, center=False):
+        font = pygame.font.SysFont("Arial", size)
         img = font.render(text, True, color)
-        screen.blit(img, (x, y))
+        rect = img.get_rect()
+        if center:
+            rect.center = (x, y)
+        else:
+            rect.topleft = (x, y)
+        screen.blit(img, rect)
+
+    @staticmethod
+    def reset_inputs():
+        return "", "", ["ERROR", "WAITING", "ROOM"]
 
     async def send_to_server(self, u, p, action):
         data = json.dumps({"username": u, "password": p, "action": action})
@@ -473,13 +524,17 @@ class Client:
     async def run(self):
 
         self.client = QuicClient(
-            on_receive=self.on_receive
+            on_receive=self.on_receive,
+            client_cert="wrappers/certificate/client.crt",
+            client_key="wrappers/certificate/client.key",
+            ca_file="wrappers/certificate/ca.crt",
         )
         """
         -------------------------------------------------------------------------
         LOGIN
         -------------------------------------------------------------------------
         """
+
         self.login_server_id = await self.client.connect(
             server_ip=s.LOGIN_SERVER["ip"],
             server_port=s.LOGIN_SERVER["port"],
@@ -528,6 +583,7 @@ class Client:
             )
             self.connections.append(server_id)
 
+        await asyncio.sleep(1)
         print('connected to all game servers')
 
         pk = struct.pack("!b16s", s.CMDS["HELLO"], self.pid.encode("utf-8"))
@@ -733,7 +789,7 @@ def draw_players(screen, player, players, cam_x, cam_y, DEFAULT_SPRITE1, SPRITES
     if player.teleport == 1:
         x = s.WINDOW_WIDTH - 80
         y = s.WINDOW_HEIGHT - 50
-        screen.blit(poopb, (x, y))
+        screen.blit(ender, (x, y))
 
     health_bar_update(player.health, screen)
 
@@ -900,6 +956,7 @@ def dir_to_vec(d: int) -> tuple[int, int]:
 
 
 def health_bar_update(health, screen):
+    health = max(0, min(health, s.PLAYER_HEALTH))  # Clamp to 0
     green1 = (s.HEALTH_BAR_SIZE_X / s.PLAYER_HEALTH) * health
     red1 = s.HEALTH_BAR_SIZE_X - green1
     pygame.draw.rect(screen, "green", (20, 20, green1, s.HEALTH_BAR_SIZE_Y))
@@ -907,6 +964,7 @@ def health_bar_update(health, screen):
 
 
 def S_health_bar_update(health, screen, x, y, maxHP):
+    health = max(0, min(health, maxHP))  # Clamp to 0
     green1 = (s.S_HEALTH_BAR_SIZE_X / maxHP) * health
     red1 = s.S_HEALTH_BAR_SIZE_X - green1
     pygame.draw.rect(screen, "green", (x, y - 40, green1, s.S_HEALTH_BAR_SIZE_Y))
@@ -1106,6 +1164,34 @@ def sendFart(self, boo):
     self.client.send(self.connections[self.iControl], pk)
     if self.iInActive != None:
         self.client.send(self.connections[self.iInActive], pk)
+
+
+def get_inventory_in_format(inv):
+    new_inv = []
+    for ch in inv:
+        if ch == 0:
+            new_inv.append(0)
+        else:
+            new_inv.append(nameTOnum(ch))
+    return new_inv
+
+
+def nameTOnum(b):
+    if b == 'da':
+        return 1
+    if b == 'gu':
+        return 2
+    if b == 'h':
+        return 3
+    if b == 's':
+        return 4
+    if b == 'i':
+        return 5
+    if b == 'b':
+        return 6
+    if b == 'la':
+        return 7
+    return 0
 
 
 if __name__ == "__main__":

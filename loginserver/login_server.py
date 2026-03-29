@@ -10,6 +10,7 @@ import struct
 
 import login_settings as s
 from map_data import MAP
+from wrappers import certificate_generator
 from wrappers.server_wrapper import QuicServer
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -20,11 +21,16 @@ class Login:
 
     def __init__(self):
         self.loadbalancer_id = None
+        certificate_generator.generate_server_cert(os.getenv('LOGIN_SERVER_IP', "127.0.0.1"))
+        certificate_generator.generate_client_cert()
         self.login_server = QuicServer(
             ip="0.0.0.0",
             port=8050,
-            cert_file="wrappers/server.crt",
-            key_fie="wrappers/server.key",
+            server_cert="wrappers/certificate/server.crt",
+            server_key="wrappers/certificate/server.key",
+            client_cert="wrappers/certificate/client.crt",
+            client_key="wrappers/certificate/client.key",
+            ca_file="wrappers/certificate/ca.crt",
             on_receive=self.on_receive,
             on_connect=self.on_connect,
             on_disconnect=self.on_disconnect,
@@ -149,9 +155,12 @@ class Login:
             return "ALREADY FOUND"
 
         token = self.get_unique_token()
+        print(token)
         # Generate the salt and the hash
         salt, pass_hash = self.hash_password_with_salt(password)
+        print(1)
         x_position, y_position, health, item1, item2, item3, item4, item5, item6, item7, item8 = getStarterPack()
+        print(2)
         with sqlite3.connect(DB_PATH, timeout=5) as conn:
             cursor = conn.cursor()
             # You MUST have a 'salt' column in your 'login' table
@@ -317,7 +326,38 @@ class Login:
 
 def getStarterPack():
     x, y = get_random_position()
-    return x, y, 100, 1, 0, 0, 0, 0, 0, 0, 0
+    arr = [x, y, 100]
+    items = get_inventory_in_format(s.BASIC_INV)
+    arr.extend(items)
+    return arr
+
+
+def get_inventory_in_format(inv):
+    new_inv = []
+    for ch in inv:
+        if ch == 0:
+            new_inv.append(0)
+        else:
+            new_inv.append(nameTOnum(ch))
+    return new_inv
+
+
+def nameTOnum(b):
+    if b == 'da':
+        return 1
+    if b == 'gu':
+        return 2
+    if b == 'h':
+        return 3
+    if b == 's':
+        return 4
+    if b == 'i':
+        return 5
+    if b == 'b':
+        return 6
+    if b == 'la':
+        return 7
+    return 0
 
 
 def get_random_position():
@@ -332,10 +372,11 @@ def get_random_position():
     if server_index > 0:
         left += s.OVERLAP_WIDTH
 
-    if server_index < s.SERVER_NUMBER - 1:
+    if server_index < 2:
         right -= s.OVERLAP_WIDTH
 
-    while True:
+    attempts = 0
+    while attempts < 1000:
 
         # Random position inside safe horizontal zone
         x = random.randint(left, right - 1)
@@ -343,6 +384,9 @@ def get_random_position():
         if (not check_collision_with_stone(x, y, s.PLAYER_SIZE)
                 and not check_collision_with_lava(x, y, s.PLAYER_SIZE)):  # and collision with lava
             return x, y
+        attempts += 1
+    print("failed")
+    return 1000, 1000
 
 
 def check_collision_with_stone(next_x, next_y, size):  # True = blocked (stone/outside)
@@ -355,7 +399,7 @@ def check_collision_with_stone(next_x, next_y, size):  # True = blocked (stone/o
         if tile_x < 0 or tile_x >= s.WIDTH or tile_y < 0 or tile_y >= s.HEIGHT:
             return True
 
-        if MAP[tile_y][tile_x] == "x":
+        if MAP[tile_y][tile_x] == "T":
             return True
     return False
 
@@ -368,7 +412,7 @@ def check_collision_with_lava(next_x, next_y, size):  # True = lava
         tile_y = int(py // s.TILE_SIZE)  # pixel -> tile row
         if tile_x < 0 or tile_x >= s.WIDTH or tile_y < 0 or tile_y >= s.HEIGHT:
             continue
-        if MAP[tile_y][tile_x] == "b":
+        if MAP[tile_y][tile_x] == "L":
             return True
     return False
 

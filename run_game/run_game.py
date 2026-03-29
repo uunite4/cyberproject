@@ -8,6 +8,7 @@ BASE_DIR = Path(__file__).parent.resolve()
 YAML_PATH = BASE_DIR / "game.yml"
 DOCKER_DIR = BASE_DIR / "../game"
 DOCKERFILE = DOCKER_DIR / "game_server.Dockerfile"
+CERTIFICATE_PATH = DOCKER_DIR / "wrappers/certificate"
 
 HOST_PROJECT_PATH = DOCKER_DIR
 CONTAINER_PROJECT_PATH = "/app"
@@ -28,6 +29,7 @@ with open(YAML_PATH) as f:
 
 ports = config.get("ports", [])
 numbers = config.get("numbers", [])
+ip = config.get("ip")
 
 run_command([
     "docker", "build",
@@ -44,9 +46,9 @@ for host_port, server_number in zip(ports, numbers):
     run_command([
         "docker", "run",
         "-d",
-        "--name", container_name,
         "-p", f"{host_port}:9000/udp",
         "-e", f"GAME_SERVER_NUMBER={server_number}",
-        "-v", f"{HOST_PROJECT_PATH}:{CONTAINER_PROJECT_PATH}",
+        "-e", f"GAME_SERVER_IP={ip}",
+        "--name", container_name,
         IMAGE
     ])

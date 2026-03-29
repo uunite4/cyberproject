@@ -3,7 +3,7 @@ import os
 SERVERS_ADDRESSES = []
 
 for i in range(4):
-    val = os.getenv(f"GAME_SERVER_{i}", f"127.0.0.1:900{i}")
+    val = os.getenv(f"GAME_SERVER_{i + 1}", f"127.0.0.1:900{i}")
     if val:
         ip, port = val.split(":")
         SERVERS_ADDRESSES.append({"ip": ip, "port": int(port)})

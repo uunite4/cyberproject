@@ -1,32 +1,3 @@
-import json
-import os
-import sys
-
-
-def resource_path(relative_path):
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
-
-
-CONFIG_PATH = resource_path("config.json")
-
-def load_config():
-    with open(CONFIG_PATH, "r") as f:
-        return json.load(f)
-
-
-config = load_config()
-
-LOGIN_SERVER = config["login_server"]
-
-CHAT_SERVER_IP = config["chat_server"]["ip"]
-CHAT_SERVER_PORT = config["chat_server"]["port"]
-
-SERVERS_ADDRESSES = config["servers"]
-
 WIDTH = 1920
 HEIGHT = 1080
 MAP_WIDTH = 1920 * 40
@@ -42,39 +13,32 @@ PLAYER_HEALTH = 100
 TILE_SIZE = 40
 BUILDING_SIZE = 40
 
-# Obgects
-grass = resource_path('sprites\\tiles\\grass.png')
-stone = resource_path('sprites\\tiles\\stone.png')
-lava = resource_path('sprites\\tiles\\lava.png')
-tree = resource_path('sprites\\tiles\\tree.png')
-pesel = resource_path('sprites\\tiles\\statue.png')
-marble = resource_path('sprites\\tiles\\marble.png')
-bitmikdash = resource_path('sprites\\tiles\\mikdash.png')
-ostone = resource_path('sprites\\tiles\\blackstone.png')
-log = resource_path('sprites\\obstacles\\log.png')
-tree_1 = resource_path('sprites\\obstacles\\tree_1.png')
-tree_2 = resource_path('sprites\\obstacles\\tree_2.png')
-poop = resource_path('sprites\\inventory\\poop.png')
-inventory1 = resource_path('sprites\\inventory\\inventory.png')
-select1 = resource_path('sprites\\inventory\\select.png')
-dagger = resource_path('sprites\\weapons\\DAGGER-NORTH.png')
-fart = resource_path('sprites\\weapons\\FARTS.png')
-lazer = resource_path('sprites\\weapons\\lazer.png')
-gun = resource_path('sprites\\weapons\\gun.png')
-lcon1 = resource_path('sprites\\weapons\\Icon1.png')
-lcon5 = resource_path('sprites\\weapons\\Icon5.png')
-lcon28 = resource_path('sprites\\weapons\\Icon28.png')
-bolbol = resource_path('sprites\\weapons\\bolbol.png')
-scissors = resource_path('sprites\\weapons\\scissors.png')
-ender = resource_path('sprites\\inventory\\ender.png')
 OVERLAP_WIDTH = 6000
 SERVER_NUMBER = 4
+
+GENERAL_OVERLAP = {
+    "width": OVERLAP_WIDTH,
+    "color": (55, 53, 62)
+}
 
 # Calculate server width so total span = WINDOW_WIDTH
 SERVER_WIDTH = (MAP_WIDTH + (SERVER_NUMBER - 1) * OVERLAP_WIDTH) // SERVER_NUMBER
 
+GENERAL_SERVER = {
+    "width": SERVER_WIDTH,
+    "color": (68, 68, 78),
+}
+
 # Distance between the left side of each server
 SERVER_STEP = SERVER_WIDTH - OVERLAP_WIDTH
+
+SERVERS = [
+    {
+        "x": i * SERVER_STEP,
+        "width": SERVER_WIDTH,
+    }
+    for i in range(SERVER_NUMBER)
+]
 
 OVERLAPS = [
     {"x": i * SERVER_STEP}
@@ -118,6 +82,15 @@ CMDS = {
     "TELEPORT": 0x22,
 }
 
+ERRORSBYTES = {
+    "ERROR: username is empty": 0x01,
+    "ERROR: password is empty": 0x02,
+    "ERROR: with signup": 0x03,
+    "try again": 0x04,
+    "ERROR: with login": 0x05,
+    "User already found": 0x06,
+    "NO USER FOUND": 0x07,
+}
 BYTESERRORS = {
     0x01: "ERROR: username is empty",
     0x02: "ERROR: password is empty",
@@ -211,15 +184,3 @@ MONSTERS = {
 }
 
 ENEMY_COOLDOWN = 0.5
-
-CHAT_WIDTH: int = 480
-CHAT_HEIGHT: int = 540
-
-CHAT_MAX_INPUT_WIDTH = CHAT_WIDTH - 100
-CHAT_BG_COLOR = (30, 30, 30)
-CHAT_TEXT_COLOR = (220, 220, 220)
-CHAT_INPUT_BG = (50, 50, 50)
-CHAT_USERNAME_COLOR = (100, 200, 255)
-
-CHAT_MESSAGE_AMOUNT: int = 15
-CHAT_SERVER_SEND_FPS: int = 10

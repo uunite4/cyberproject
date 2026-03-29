@@ -60,8 +60,11 @@ class _ServerProtocol(QuicConnectionProtocol):
 class QuicServer:
     def __init__(
             self, ip: str, port: int,
-            cert_file: str,
-            key_fie: str,
+            server_cert: str,
+            server_key: str,
+            client_cert: str,
+            client_key: str,
+            ca_file: str,
             on_receive: OnReceive,
             on_connect: OnConnect,
             on_disconnect: OnDisconnect,
@@ -69,8 +72,8 @@ class QuicServer:
         self.ip = ip
         self.port = port
 
-        self.cert_file = cert_file
-        self.key_file = key_fie
+        self.cert_file = server_cert
+        self.key_file = server_key
         self.on_receive = on_receive
         self.on_connect = on_connect
         self.on_disconnect = on_disconnect
@@ -80,10 +83,10 @@ class QuicServer:
         self.lifetime_connections = 0
 
         # TODO: maybe make it optional
-        self._client = QuicClient(on_receive)
+        self._client = QuicClient(on_receive, client_cert, client_key, ca_file)
 
     async def start(self):
-        config = QuicConfiguration(is_client=False, verify_mode=False)
+        config = QuicConfiguration(is_client=False, idle_timeout=IDLE_TIMEOUT_SECONDS)
         config.load_cert_chain(self.cert_file, self.key_file)
 
         def create_connection(*args, **kwargs):

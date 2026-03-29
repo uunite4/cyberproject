@@ -15,12 +15,12 @@ SERVER_STEP = SERVER_WIDTH - OVERLAP_WIDTH
 
 SERVERS = []
 
-for i in range(1, 5):
-    val = os.getenv(f"GAME_SERVER_{i}", f"127.0.0.1:900{i}")
+for i in range(4):
+    val = os.getenv(f"GAME_SERVER_{i + 1}", f"127.0.0.1:900{i}")
     if val:
         ip, port = val.split(":")
         server = {
-            "x": (i - 1) * SERVER_WIDTH,  # keep x based on index
+            "x": (i) * SERVER_STEP,
             "ip": ip,
             "port": int(port),
             "width": SERVER_WIDTH,
